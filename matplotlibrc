@@ -1,4 +1,4 @@
-figure.figsize : 8,6
+figure.figsize : 6, 4
 text.usetex : True
 
 font.size : 18
@@ -10,4 +10,5 @@ axes.labelsize : 18
 xtick.labelsize : 18
 ytick.labelsize : 18
 
+figure.dpi : 120
 savefig.bbox : tight

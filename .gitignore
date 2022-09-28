@@ -1,5 +1,6 @@
 data/
 output/
+cooling_rates/rates/*.p
 
 **/.DS_Store
 

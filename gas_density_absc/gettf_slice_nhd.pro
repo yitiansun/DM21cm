@@ -3,10 +3,11 @@ pro gettf_slice_nhd, check=check
     ; one (xH, xHe, z, Ein) point
     xH   = [0.5000000000d]
     ; xHe  = [0.5d]
-    z    = [10.0000000000d] ; z is actually 1+z (rs)
-    injE = [37253559.0d]
+    z    = [50.0000000000d] ; z is actually 1+z (rs)
+    ;injE = [5011872336272.715d]
+    injE = [1d12]
     ; nhd  = DINDGEN(31)/((31-1)/2.7) - 1 ; nh =equiv= nB is baryon number
-    nhd = [-1.0000000000d]
+    nhd = [-1.0000000000d, -0.9990000000d, -0.9986868241d, -0.9982755692d, -0.9977355191d, -0.9970263383d, -0.9960950593d, -0.9948721262d, -0.9932661999d, -0.9911573363d, -0.9883880276d, -0.9847514382d, -0.9799759568d, -0.9737049100d, -0.9654699228d, -0.9546559364d, -0.9404552706d, -0.9218072991d, -0.8973192332d, -0.8651620964d, -0.8229341209d, -0.7674813631d, -0.6946621405d, -0.5990376957d, -0.4734659837d, -0.3085682437d, -0.0920285132d, 0.1923262322d, 0.5657340177d, 1.0560841052d, 1.7000000000d]
     
     dlnz = 1d-3
     nphoteng = 500
@@ -35,11 +36,11 @@ pro gettf_slice_nhd, check=check
     
         ih_transferfunction, $
         dlnz=dlnz, zinit=z[z_i], zfinal=zfinal, $
-        numsteps=2, mwimp=injE[injE_i], channel=channel, $
+        numsteps=4, mwimp=injE[injE_i], channel=channel, $
         customionization=xH[xH_i], xHe=xHe, $
         nhdelta=nhd[nhd_i], $
         outfolder=outfolder, $
-        /singleinjection, /altpp, /ionizationdetailed, /comptonsmooth, /modifiedheat, /modifiedion, /depositiondetailed, depositionpartition=3d3, /planckparams,/fixedbinning, nphoteng=nphoteng, /heliumseparated, /dontredshiftphotons;, /silent
+        /singleinjection, /altpp, /ionizationdetailed, /comptonsmooth, /modifiedheat, /modifiedion, /depositiondetailed, depositionpartition=3d3, /planckparams,/fixedbinning, nphoteng=nphoteng, /heliumseparated, /dontredshiftphotons, /silent
         
         str  = string(' xH='  , xH[xH_i]    , ': ', xH_i+1  , '/', n_elements(xH)  , format='(A,E0.3,A,I0,A,I0)')
         ;str += string(' xHe=' , xHe[xHe_i]  , ': ', xHe_i+1 , '/', n_elements(xHe) , format='(A,E0.3,A,I0,A,I0)')

@@ -1,13 +1,27 @@
-pro gettf_slice_nhd, check=check
+PRO gettf_slice_nhd, check=check
 
     ; one (xH, xHe, z, Ein) point
     xH   = [0.5000000000d]
     ; xHe  = [0.5d]
     z    = [50.0000000000d] ; z is actually 1+z (rs)
-    ;injE = [5011872336272.715d]
-    injE = [1d12]
-    ; nhd  = DINDGEN(31)/((31-1)/2.7) - 1 ; nh =equiv= nB is baryon number
-    nhd = [-1.0000000000d, -0.9990000000d, -0.9986868241d, -0.9982755692d, -0.9977355191d, -0.9970263383d, -0.9960950593d, -0.9948721262d, -0.9932661999d, -0.9911573363d, -0.9883880276d, -0.9847514382d, -0.9799759568d, -0.9737049100d, -0.9654699228d, -0.9546559364d, -0.9404552706d, -0.9218072991d, -0.8973192332d, -0.8651620964d, -0.8229341209d, -0.7674813631d, -0.6946621405d, -0.5990376957d, -0.4734659837d, -0.3085682437d, -0.0920285132d, 0.1923262322d, 0.5657340177d, 1.0560841052d, 1.7000000000d]
+    ; injE
+    single_injE = 0
+    if single_injE EQ 1 then begin
+        injE = [1d5]
+    endif else begin
+        nphoteng    = 500
+        dlnphoteng  = alog(5565952217145.328d/1d-4)/nphoteng
+        photbins    = 1d-4*exp(dindgen(nphoteng+1)*dlnphoteng)
+        photenglow  = photbins[0:nphoteng-1]
+        photenghigh = photbins[1:nphoteng]
+        injE        = sqrt(photenglow*photenghigh)
+        injElow_i   = value_locate(injE, 125) ; lowest photon input energy for highengphot is > 125eV
+        injE        = injE[injElow_i:*]
+    endelse
+    ; nhd
+    ;nhd = DINDGEN(31)/((31-1)/2.7) - 1 ; nh =equiv= nB is baryon number
+    nhd = [-1.0000000000d]
+    ;nhd = [-1.0000000000d, -0.9990000000d, -0.9975941827d, -0.9942120432d, -0.9860752335d, -0.9664995561d, -0.9194040531d, -0.8061008779d, -0.5335141409d, 0.1222797421d, 1.7000000000d]
     
     dlnz = 1d-3
     nphoteng = 500

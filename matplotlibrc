@@ -1,7 +1,7 @@
 figure.figsize : 6, 4
 text.usetex : True
 
-font.size : 18
+font.size : 14
 font.family : serif
 font.serif  : cm
 

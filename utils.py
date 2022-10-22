@@ -3,9 +3,10 @@
 import numpy as np
 
 # constants
+Mpc = 3.08568e24 # cm
+
 EPSILON = 1e-100
 
-Mpc = 3.08568e24 # cm
 
 # utilities
 def logspace(a, b, n):

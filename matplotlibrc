@@ -5,7 +5,7 @@ font.size : 14
 font.family : serif
 font.serif  : cm
 
-axes.titlesize : 20
+axes.titlesize : 18
 axes.labelsize : 18
 xtick.labelsize : 18
 ytick.labelsize : 18

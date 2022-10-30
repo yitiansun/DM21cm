@@ -15,6 +15,9 @@ import darkhistory.spec.spectools as spectools
 from dm21cm.common import abscs_nBs_test
 from dm21cm.common import fixed_cfdt
 
+from dm21cm.transferfunction import TransferFunction, Depositions
+from dm21cm.transferfunction import Interpolator
+
 
 ####################
 ## Config
@@ -141,8 +144,14 @@ for i_nBs, nBs in enumerate(abscs['nBs']):
             pbar.update()
             
 ###################################
-## 9. Save transfer function
-#if input('Save transfer functions (y/n): ') == 'y':
+## 11. Build transfer function
     
 np.save(SAVE_DIR+'/phot_tfgv.npy', phot_tfgv)
 np.save(SAVE_DIR+'/phot_depgv.npy', phot_depgv)
+
+phot_tf = Interpolator(TransferFunction, phot_tfgv, abscs,
+                       ['nBs', 'x', 'rs'], ['photE', 'photE'])
+phot_dep = Interpolator(Depositions, phot_depgv, abscs,
+                        ['nBs', 'x', 'rs'], ['photE', 'dep_c'])
+pickle.dump(phot_tf, open(SAVE_DIR+'/phot_tf.interp', 'wb'))
+pickle.dump(phot_dep, open(SAVE_DIR+'/phot_dep.interp', 'wb'))

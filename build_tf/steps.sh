@@ -8,4 +8,5 @@
 . fits_to_array_nBs.sh | tqdms # paraleleizes fits_to_array_nBs_A.py
 python fits_to_array_nBs_B.py
 
-## step 3
+## step 3: process fits output to make transfer function grid values
+python array_to_tfgv.py

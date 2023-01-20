@@ -31,9 +31,9 @@ def elecEk_DH(n=500):
     return eleceng
 
 abscs_nBs_test = {
-    'nBs' : np.linspace(0., 2.7, 5),
-    'x' : np.linspace(1e-5, 1-1e-5, 5),
-    'rs' : np.logspace(np.log10(5.), np.log10(50.), 5),
+    'nBs' : np.linspace(0., 2.7, 10),
+    'x' : np.linspace(1e-5, 1-1e-5, 10),
+    'rs' : np.logspace(np.log10(5.), np.log10(50.), 20),
     'photE' : photE_DH(n=500),
     'elecEk' : elecEk_DH(n=500),
     'dep_c' : ['H ion', 'He ion', 'exc', 'heat', 'cont']

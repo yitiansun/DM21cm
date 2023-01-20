@@ -26,7 +26,7 @@ nelecE = len(elecE)
 injElow_i = np.searchsorted(abscs['photE'], 125) + 1
 nBs_i = int(sys.argv[1])
 x_i = int(sys.argv[2])
-part_i = nBs_i*5+x_i
+part_i = nBs_i*len(x)+x_i
 
 FITS_DIR = '../data/idl_output/test_nBs_tf'
 ARRAY_DIR = '../data/tfdata/array/nBs_test/tmp'

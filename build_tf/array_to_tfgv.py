@@ -1,8 +1,10 @@
+import argparse
 import os, sys
 sys.path.append(os.environ['DH_DIR'])
 sys.path.append('..')
 
 import numpy as np
+import pickle
 
 from tqdm import tqdm
 
@@ -25,6 +27,13 @@ abscs = abscs_nBs_test
 DATA_DIR = '/zfs/yitians/DM21cm/data/tfdata/array/nBs_test'
 SAVE_DIR = '/zfs/yitians/DM21cm/transferfunctions/nBs_test'
 os.makedirs(SAVE_DIR, exist_ok=True)
+
+parser = argparse.ArgumentParser(prog = 'array_to_tfgv',
+                                 description = 'convert array to transfer functions.')
+parser.add_argument('--fixed-cfdt', action='store_true', default=False,
+                    help="whether to use fixed conformal dt",)
+args = parser.parse_args()
+print(f'Use fixed_cfdt = {args.fixed_cfdt}')
 
 
 ####################
@@ -61,8 +70,12 @@ for i_nBs, nBs in enumerate(abscs['nBs']):
     for i_x, x in enumerate(abscs['x']):
         for i_rs, rs in enumerate(abscs['rs']):
             
-            dt = fixed_cfdt / rs
-            dlnz = dt * phys.hubble(rs)
+            if args.fixed_cfdt:
+                dt = fixed_cfdt / rs
+                dlnz = dt * phys.hubble(rs)
+            else:
+                dlnz = 0.001
+                dt = dlnz / phys.hubble(rs)
             
             ###################################
             ## 3. Add cmbloss to highengphot

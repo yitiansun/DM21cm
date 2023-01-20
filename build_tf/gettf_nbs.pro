@@ -1,10 +1,10 @@
-pro gettf_nbs, check=check, fixed_cfdt=fixed_cfdt, part_nbs_i=part_nbs_i, part_x_i=part_x_i
+pro gettf_nbs, check=check, fixed_cfdt=fixed_cfdt, part_i=part_i
 ; fixed_cfdt : flag for fixed conformal delta t
 
-    ; test abscissa for nBs, xH=xHe, z(actually 1+z)
-    nBs_s_global = [0.0000000000d, 0.6750000000d, 1.3500000000d, 2.0250000000d, 2.7000000000d]
-    x_s_global = [0.0000100000d, 0.2500050000d, 0.5000000000d, 0.7499950000d, 0.9999900000d]
-    z_s = [5.0000000000d, 8.8913970502d, 15.8113883008d, 28.1170662595d, 50.0000000000d]
+    ; abscissa for nBs, xH=xHe, z(actually 1+z)
+    nBs_s_global = [0.0000000000d, 0.3000000000d, 0.6000000000d, 0.9000000000d, 1.2000000000d, 1.5000000000d, 1.8000000000d, 2.1000000000d, 2.4000000000d, 2.7000000000d]
+    x_s_global = [0.0000100000d, 0.1111188889d, 0.2222277778d, 0.3333366667d, 0.4444455556d, 0.5555544444d, 0.6666633333d, 0.7777722222d, 0.8888811111d, 0.9999900000d]
+    z_s_global = [5.0000000000d, 5.6441894584d, 6.3713749285d, 7.1922494414d, 8.1188836959d, 9.1649035542d, 10.3456904056d, 11.6786073455d, 13.1832544937d, 14.8817572082d, 16.7990914314d, 18.9634509537d, 21.4066619936d, 24.1646511929d, 27.2779739058d, 30.7924105533d, 34.7596398089d, 39.2379985176d, 44.2933395205d, 50.0000000000d]
     
     ; photeng
     nphoteng    = 500
@@ -17,9 +17,10 @@ pro gettf_nbs, check=check, fixed_cfdt=fixed_cfdt, part_nbs_i=part_nbs_i, part_x
     injE_s      = injE[injElow_i:*]
     
     ; part & tqdms
-    part_i = part_nbs_i * 5 + part_x_i
-    nBs_s = [nBs_s_global[part_nbs_i]]
-    xH_s = [x_s_global[part_x_i]]
+    nBs_s  = nBs_s_global
+    xH_s   = x_s_global
+    z_s    = [z_s_global[part_i]]
+    part_total = n_elements(xH_s) * n_elements(nBs_s) * n_elements(injE_s)
     
     ; config
     if n_elements(fixed_cfdt) NE 0 then begin
@@ -28,7 +29,7 @@ pro gettf_nbs, check=check, fixed_cfdt=fixed_cfdt, part_nbs_i=part_nbs_i, part_x
         cfdt = 0.6742 * 1d * Mpc / c0 ; s
     endif
     channel = 'delta'
-    outfolder = '/zfs/yitians/dm21cm/data/idl_output/test_nBs_tf/'
+    outfolder = '/zfs/yitians/DM21cm/data/idl_output/test_nBs_tf/'
     
     ; Planck parameters
     H0 = 1d/4.5979401d17 ; s^-1
@@ -46,7 +47,6 @@ pro gettf_nbs, check=check, fixed_cfdt=fixed_cfdt, part_nbs_i=part_nbs_i, part_x
     
     if keyword_set(check) then return
     
-    part_total = n_elements(z_s) * n_elements(injE_s)
     print, string('tqdms init ', part_i, ' ', part_total, format='(A,I0,A,I0)')
     
     ; block should apply for redshift or xe, since the larger masses take a longer time.
@@ -88,8 +88,6 @@ pro gettf_nbs, check=check, fixed_cfdt=fixed_cfdt, part_nbs_i=part_nbs_i, part_x
         str += string(' injE=', injE  , ': ', injE_i+1, '/', n_elements(injE_s), format='(A,E0.3,A,I0,A,I0)')
         print, str
         
-        
-
     endfor
     endfor
     endfor

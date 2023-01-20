@@ -1,17 +1,7 @@
 #!/bin/bash
 
-for i in $(seq 0 2); do  # end inclusive
-for j in $(seq 0 4); do
-    idl <<< "gettf_nbs, /fixed_cfdt, part_nbs_i=$i, part_x_i=$j" &
-done
-done
-
-wait
-
-for i in $(seq 3 4); do  # end inclusive
-for j in $(seq 0 4); do
-    idl <<< "gettf_nbs, /fixed_cfdt, part_nbs_i=$i, part_x_i=$j" &
-done
+for i in $(seq 0 19); do  # end inclusive
+    idl <<< "gettf_nbs, part_i=$i" &
 done
 
 wait

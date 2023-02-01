@@ -39,6 +39,15 @@ abscs_nBs_test = {
     'dep_c' : ['H ion', 'He ion', 'exc', 'heat', 'cont']
 }
 
+abscs_nBs_test_2 = {
+    'nBs' : np.linspace(0., 15., 10),
+    'x' : np.linspace(1e-5, 1-1e-5, 10),
+    'rs' : np.logspace(np.log10(5.), np.log10(100.), 20),
+    'photE' : photE_DH(n=500),
+    'elecEk' : elecEk_DH(n=500),
+    'dep_c' : ['H ion', 'He ion', 'exc', 'heat', 'cont']
+}
+
 
 ## utilities
 

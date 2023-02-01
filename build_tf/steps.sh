@@ -12,5 +12,5 @@ python fits_to_array_nBs_B.py
 ## step 3: process fits output to make transfer function grid values
 python array_to_tfgv.py [--fixed_cfdt]
 
-## step 4 (tmp): save grid_value with abscissa
+## step 4 (tmp): save grid_value with abscissa (multiple conventions)
 # run rebuild_tfgv_to_ad.ipynb

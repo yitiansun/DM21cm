@@ -8,11 +8,11 @@ from darkhistory.spec.spectrum import Spectrum
 import darkhistory.physics as phys
 
 sys.path.append('..')
-from dm21cm.common import abscs_nBs_test, fitsfn
+from dm21cm.common import abscs_nBs_test_2, fitsfn
 
 ## config
 
-abscs = abscs_nBs_test
+abscs = abscs_nBs_test_2
 
 nBs    = abscs['nBs']
 x      = abscs['x']
@@ -28,8 +28,8 @@ nBs_i = int(sys.argv[1])
 x_i = int(sys.argv[2])
 part_i = nBs_i*len(x)+x_i
 
-FITS_DIR = '../data/idl_output/test_nBs_tf'
-ARRAY_DIR = '../data/tfdata/array/nBs_test/tmp'
+FITS_DIR = '../data/idl_output/test_nBs_2_tf'
+ARRAY_DIR = '../data/tfdata/array/nBs_test_2/tmp'
 os.makedirs(ARRAY_DIR, exist_ok=True)
 
 EPSILON = 1e-100
@@ -45,6 +45,7 @@ lowerbound = np.full((nrs,), 0.0)
 
 ## extract
 
+print()
 print(f'tqdms init {part_i} {int(nrs*(nphotE-injElow_i))}', flush=True)
 
 for rs_i in range(nrs):

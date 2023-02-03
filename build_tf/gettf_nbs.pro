@@ -65,7 +65,7 @@ pro gettf_nbs, check=check, fixed_cfdt=fixed_cfdt, part_i=part_i
         nBs = nBs_s[nBs_i]
         
         if n_elements(fixed_cfdt) EQ 0 then begin
-            dlnz = 1d-3 ; nBs_test
+            ; dlnz = 1d-3 ; nBs_test
             dlnz = 0.04879016d ; nBs_test_2
         endif else begin
             hubblerate = H0 * sqrt(Omega_M*zinit^3 + Omega_rad*zinit^4 + Omega_Lam) ;inverse timescale for redshifting

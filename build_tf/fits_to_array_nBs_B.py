@@ -4,9 +4,9 @@ import pickle
 from tqdm import tqdm
 
 sys.path.append('..')
-from dm21cm.common import abscs_nBs_test
+from dm21cm.common import abscs_nBs_test_2
 
-abscs = abscs_nBs_test
+abscs = abscs_nBs_test_2
 
 interp_shape = (len(abscs['nBs']), len(abscs['x']), len(abscs['rs']))
 
@@ -25,7 +25,7 @@ hed_tf  = np.full(interp_shape + (len(abscs['photE']), len(abscs['dep_c'])-1), 0
 print('initializing lowerbound...')
 lowerbound = np.full(interp_shape, 0.0)
 
-DIR = '../data/tfdata/array/nBs_test'
+DIR = '../data/tfdata/array/nBs_test_2'
 
 pbar = tqdm(total=interp_shape[0]*interp_shape[1])
 

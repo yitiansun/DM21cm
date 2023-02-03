@@ -14,7 +14,7 @@ import darkhistory.physics as phys
 from darkhistory.low_energy.lowE_deposition import compute_fs
 import darkhistory.spec.spectools as spectools
 
-from dm21cm.common import abscs_nBs_test
+from dm21cm.common import abscs_nBs_test_2
 from dm21cm.common import fixed_cfdt
 
 from dm21cm.transferfunction import TransferFunction, Depositions
@@ -23,9 +23,9 @@ from dm21cm.transferfunction import Interpolator
 
 ####################
 ## Config
-abscs = abscs_nBs_test
-DATA_DIR = '/zfs/yitians/DM21cm/data/tfdata/array/nBs_test'
-SAVE_DIR = '/zfs/yitians/DM21cm/transferfunctions/nBs_test'
+abscs = abscs_nBs_test_2
+DATA_DIR = '/zfs/yitians/DM21cm/data/tfdata/array/nBs_test_2'
+SAVE_DIR = '/zfs/yitians/DM21cm/transferfunctions/nBs_test_2'
 os.makedirs(SAVE_DIR, exist_ok=True)
 
 parser = argparse.ArgumentParser(prog = 'array_to_tfgv',
@@ -74,7 +74,8 @@ for i_nBs, nBs in enumerate(abscs['nBs']):
                 dt = fixed_cfdt / rs
                 dlnz = dt * phys.hubble(rs)
             else:
-                dlnz = 0.001
+                #dlnz = 0.001 # abscs_nBs_test
+                dlnz = 0.04879016 # abscs_nBs_test_2
                 dt = dlnz / phys.hubble(rs)
             
             ###################################
@@ -157,14 +158,14 @@ for i_nBs, nBs in enumerate(abscs['nBs']):
             pbar.update()
             
 ###################################
-## 11. Build transfer function
+## 11. Save transfer function
     
 np.save(SAVE_DIR+'/phot_tfgv.npy', phot_tfgv)
 np.save(SAVE_DIR+'/phot_depgv.npy', phot_depgv)
 
-phot_tf = Interpolator(TransferFunction, phot_tfgv, abscs,
-                       ['nBs', 'x', 'rs'], ['photE', 'photE'])
-phot_dep = Interpolator(Depositions, phot_depgv, abscs,
-                        ['nBs', 'x', 'rs'], ['photE', 'dep_c'])
-pickle.dump(phot_tf, open(SAVE_DIR+'/phot_tf.interp', 'wb'))
-pickle.dump(phot_dep, open(SAVE_DIR+'/phot_dep.interp', 'wb'))
+# phot_tf = Interpolator(TransferFunction, phot_tfgv, abscs,
+#                        ['nBs', 'x', 'rs'], ['photE', 'photE'])
+# phot_dep = Interpolator(Depositions, phot_depgv, abscs,
+#                         ['nBs', 'x', 'rs'], ['photE', 'dep_c'])
+# pickle.dump(phot_tf, open(SAVE_DIR+'/phot_tf.interp', 'wb'))
+# pickle.dump(phot_dep, open(SAVE_DIR+'/phot_dep.interp', 'wb'))

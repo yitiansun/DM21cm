@@ -3,15 +3,16 @@
 import numpy as np
 import os, sys
 
-## units & constants
-Mpc = 3.08568e24 # cm
-c0 = 29979245800. # cm/s
-fixed_cfdt = 0.6742 * 1 * Mpc / c0 # s
-
+#########################################
+# Constants                             #
+#########################################
+fixed_cfdt = 0.6742 * 1 * Mpc / c0 # [s]
 EPSILON = 1e-100
 
 
-## abscissa
+#########################################
+# Abscissa                              #
+#########################################
 
 def photE_DH(n=500):
     dlnphoteng   = np.log(5565952217145.328/1e-4) / n
@@ -49,7 +50,9 @@ abscs_nBs_test_2 = {
 }
 
 
-## utilities
+#########################################
+# Utilities                             #
+#########################################
 
 def fitsfn(z, log10E, x, nBs, base=''):
     return f'{base}tf_z_{z:.3E}_logE_{log10E:.3E}_x_{x:.3E}_nBs_{nBs:.3E}.fits'

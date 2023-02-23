@@ -28,6 +28,11 @@ c            = 299792458e2
 kB           = 8.6173324e-5
 """Boltzmann constant in eV K\ :sup:`-1`\ ."""
 
+rydberg      = 13.60569253
+"""Ionization potential of ground state hydrogen in eV."""
+lya_eng      = rydberg*3/4
+"""Lyman alpha transition energy in eV."""
+
 
 #########################################
 # Densities and Hubble                  #
@@ -164,7 +169,7 @@ def inj_rate_box(rho_DM_box, mode=None, mDM=None, sigmav=None, lifetime=None):
     mDM : float, optional
         DM mass in eV.
     sigmav : float, optional
-        Annihilation cross section in cm\ :sup:`-3`\ s\ :sup:`-1`\ .
+        Annihilation cross section in cm\ :sup:`3`\ s\ :sup:`-1`\ .
     lifetime : float, optional
         Decay lifetime in s.
 

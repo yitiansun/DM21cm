@@ -2,6 +2,7 @@ transferfunctions/
 data/
 output/
 cooling_rates/rates/*.p
+notebooks/plots/tmp
 
 **/.DS_Store
 

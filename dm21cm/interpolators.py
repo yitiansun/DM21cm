@@ -80,21 +80,25 @@ class BatchInterpolator:
     
     
     #@partial(jit, static_argnums=(0,))
-    def __call__(self, rs, spec, nBs_s, x_s):
+    def __call__(self, rs, spec, nBs_s, x_s, out_of_bounds_action='error'):
         """Batch interpolate in nBs and x directions.
         
         Will first interpolate at a rs point, and sum with spec (a fixed
         spectral shape) in the second direction.
         """
-        if not v_is_within(rs, self.abscs['rs']):
-            raise ValueError('rs out of bounds.')
-        if not v_is_within(nBs_s, self.abscs['nBs']):
-            raise ValueError('nBs_s out of bounds.')
-        if not v_is_within(x_s, self.abscs['x']):
-            raise ValueError('x_s out of bounds.')
+        if out_of_bounds_action == 'clip':
+            rs    = jnp.clip(rs   , jnp.min(self.abscs['rs']) , jnp.max(self.abscs['rs']))
+            nBs_s = jnp.clip(nBs_s, jnp.min(self.abscs['nBs']), jnp.max(self.abscs['nBs']))
+            x_s   = jnp.clip(x_s  , jnp.min(self.abscs['x'])  , jnp.max(self.abscs['x']))
+        else:
+            if not v_is_within(rs, self.abscs['rs']):
+                raise ValueError('rs out of bounds.')
+            if not v_is_within(nBs_s, self.abscs['nBs']):
+                raise ValueError('nBs_s out of bounds.')
+            if not v_is_within(x_s, self.abscs['x']):
+                raise ValueError('x_s out of bounds.')
         
         data_at_rs = interp1d(self.data, self.abscs['rs'], rs)
-        #data_to_interp = jnp.tensordot(spec, data_at_rs, axes=(0, 0))
         data_to_interp = jnp.einsum('i,ijkl->jkl', spec, data_at_rs)
         
         nBs_x_in = jnp.stack([nBs_s, x_s], axis=-1)

@@ -77,7 +77,9 @@ class BatchInterpolator:
         if isinstance(abscs_data, str):
             abscs_data = pickle.load(open(abscs_data, 'rb'))
         self.abscs, self.data = abscs_data
-    
+        self.fixed_spec = None
+        self.fixed_spec_data = None
+        
     
     #@partial(jit, static_argnums=(0,))
     def __call__(self, rs, spec, nBs_s, x_s, out_of_bounds_action='error'):
@@ -97,10 +99,13 @@ class BatchInterpolator:
                 raise ValueError('nBs_s out of bounds.')
             if not v_is_within(x_s, self.abscs['x']):
                 raise ValueError('x_s out of bounds.')
+                
+        # check if cached self.fixed_spec_data can be used
+        if not jnp.all(spec == self.fixed_spec):
+            self.fixed_spec_data = jnp.einsum('e,renxo->rnxo', spec, self.data)
         
-        data_at_rs = interp1d(self.data, self.abscs['rs'], rs)
-        data_to_interp = jnp.einsum('i,ijkl->jkl', spec, data_at_rs)
+        data_at_rs = interp1d(self.fixed_spec_data, self.abscs['rs'], rs)
         
         nBs_x_in = jnp.stack([nBs_s, x_s], axis=-1)
-        return interp2d_vmap(data_to_interp,
+        return interp2d_vmap(data_at_rs,
                              self.abscs['nBs'], self.abscs['x'], nBs_x_in)

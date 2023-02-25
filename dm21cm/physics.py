@@ -156,7 +156,7 @@ def dt_between_z(z_high, z_low, **kwargs):
 # Dark Matter                           #
 #########################################
 
-def inj_rate_box(rho_DM_box, mode=None, mDM=None, sigmav=None, lifetime=None):
+def inj_rate_box(rho_DM_box, dm_params):
     """ Dark matter annihilation/decay energy injection rate box.
     (Based on darkhistory.physics.inj_rate)
 
@@ -164,29 +164,22 @@ def inj_rate_box(rho_DM_box, mode=None, mDM=None, sigmav=None, lifetime=None):
     ----------
     rho_DM_box : ndarray (3D)
         DM density box at redshift in eV cm\ :sup:`-3`\ .
-    mode : {'swave', 'decay'}
-        Type of injection.
-    mDM : float, optional
-        DM mass in eV.
-    sigmav : float, optional
-        Annihilation cross section in cm\ :sup:`3`\ s\ :sup:`-1`\ .
-    lifetime : float, optional
-        Decay lifetime in s.
+    dm_params : DMParams
+        Dataclass storing dark matter related parameters.
 
     Returns
     -------
     ndarray
         The dE/dV_dt injection rate box in eV cm\ :sup:`-3`\ s\ :sup:`-1`\ .
-
     """
-    if mode == 'swave':
-        return rho_DM_box**2 * sigmav / mDM
+    if dm_params.mode == 'swave':
+        return rho_DM_box**2 * dm_params.sigmav / dm_params.m_DM
     
-    elif mode == 'decay':
-        return rho_DM_box / lifetime
+    elif dm_params.mode == 'decay':
+        return rho_DM_box / dm_params.lifetime
     
     else:
-        raise ValueError('Unknown mode.')
+        raise NotImplementedError(dm_params.mode)
         
         
 def struct_boost_func(model='einasto_subs', model_params=None):

@@ -1,3 +1,3 @@
 # DM21cm
 
-![plot](notebooks/plots/dh.gif)
+![plot](notebooks/plots/DH.gif)

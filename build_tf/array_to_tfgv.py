@@ -1,4 +1,5 @@
-import argparse
+"""Makes electron transfer functions for 21cmFAST"""
+
 import os, sys
 sys.path.append(os.environ['DH_DIR'])
 sys.path.append('..')
@@ -15,25 +16,16 @@ from darkhistory.low_energy.lowE_deposition import compute_fs
 import darkhistory.spec.spectools as spectools
 
 from dm21cm.common import abscs_nBs_test_2
-from dm21cm.common import fixed_cfdt
-
-from dm21cm.transferfunction import TransferFunction, Depositions
-from dm21cm.transferfunction import Interpolator
 
 
 ####################
 ## Config
+make_tf_type = 'elec'
+#make_tf_type = 'phot'
 abscs = abscs_nBs_test_2
 DATA_DIR = '/zfs/yitians/DM21cm/data/tfdata/array/nBs_test_2'
 SAVE_DIR = '/zfs/yitians/DM21cm/transferfunctions/nBs_test_2'
 os.makedirs(SAVE_DIR, exist_ok=True)
-
-parser = argparse.ArgumentParser(prog = 'array_to_tfgv',
-                                 description = 'convert array to transfer functions.')
-parser.add_argument('--fixed-cfdt', action='store_true', default=False,
-                    help="whether to use fixed conformal dt",)
-args = parser.parse_args()
-print(f'Use fixed_cfdt = {args.fixed_cfdt}')
 
 
 ####################
@@ -55,9 +47,12 @@ print('cmb', end='.', flush=True)
 ####################
 ## 2. Setup
 
-phot_tfgv = np.zeros_like(hep_tfgv)
-phot_depgv = np.zeros(hed_tfgv.shape[:-1] + (len(abscs['dep_c']),))
-# channels: {H ionization, He ionization, excitation, heat, continuum}
+if make_tf_type == 'phot':
+    phot_tfgv = np.zeros_like(hep_tfgv)
+    phot_depgv = np.zeros(hed_tfgv.shape[:-1] + (len(abscs['dep_c']),))
+    # channels: {H ionization, He ionization, excitation, heat, continuum}
+elif make_tf_type == 'elec':
+    elec_phot_tfgv
 
 MEDEA_interp = make_interpolator(interp_type='2D', cross_check=False)
 
@@ -70,13 +65,9 @@ for i_nBs, nBs in enumerate(abscs['nBs']):
     for i_x, x in enumerate(abscs['x']):
         for i_rs, rs in enumerate(abscs['rs']):
             
-            if args.fixed_cfdt:
-                dt = fixed_cfdt / rs
-                dlnz = dt * phys.hubble(rs)
-            else:
-                #dlnz = 0.001 # abscs_nBs_test
-                dlnz = 0.04879016 # abscs_nBs_test_2
-                dt = dlnz / phys.hubble(rs)
+            #dlnz = 0.001 # abscs_nBs_test
+            dlnz = 0.04879016 # abscs_nBs_test_2
+            dt = dlnz / phys.hubble(rs)
             
             ###################################
             ## 3. Add cmbloss to highengphot

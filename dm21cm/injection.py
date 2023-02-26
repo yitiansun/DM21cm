@@ -140,6 +140,9 @@ def get_EMF_f_boxs(x_e_box):
 ## input spectrum
 
 def get_eng_normalized_specs(dm_params):
+    """DM injection spectra normalized such that the total energy of all the
+    spectra is 1 (dimensionless).
+    """
     
     if dm_params.channel == 'phph':
         

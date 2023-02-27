@@ -74,11 +74,16 @@ engloss_ref_tf     = ics_tf_data['engloss']
 
 MEDEA_interp = make_interpolator(interp_type='2D', cross_check=False)
 
+# Get the spectrum from positron annihilation, per injection event.
+# Only half of in_spec_elec is positrons!
+positronium_phot_spec = pos.weighted_photon_spec(abscs['photE']) * 0.5
+positronium_phot_spec.switch_spec_type('N')
+
 
 ####################
 ## Loop over rs x
 if use_tqdm:
-    pbar = tqdm( total = len(abscs['x'])*len(abscs['rs']) )
+    pbar = tqdm( total = len(abscs['x'])*len(abscs['rs'])*len(abscs['elecEk']) )
 
 for i_rs, rs in enumerate(abscs['rs']):
     for i_x, x in enumerate(abscs['x']):
@@ -106,44 +111,36 @@ for i_rs, rs in enumerate(abscs['rs']):
         for i_injE, injE in enumerate(abscs['elecEk']):
 
             ###################################
-            ## Injection one electron
-            in_spec_elec_N = np.zeros_like(abscs['elecEk'], dtype=np.float32)
-            in_spec_elec_N[i_injE] = 1.
-
-            in_spec_elec = Spectrum(abscs['elecEk'], in_spec_elec_N, spec_type='N') # per injection
-            in_spec_elec.rs = rs
-
-            ###################################
-            ## Apply elec to elec tf
+            ## Inject one electron
             # Low energy electrons from electron cooling, per injection event.
-            lowengelec_spec_at_rs = elec_processes_lowengelec_tf.sum_specs(in_spec_elec)
+            lowengelec_spec_at_rs = Spectrum(
+                abscs['elecEk'],
+                elec_processes_lowengelec_tf.grid_vals[i_injE],
+                spec_type='N'
+            )
+            lowengelec_spec_at_rs.rs = rs
 
             ###################################
             ## Apply deposition tfs
             # All of below value is [eV] per injection event. removed norm_fac.
-            deposited_ion = np.dot(deposited_ion_arr, in_spec_elec.N)
-            deposited_exc = np.dot(deposited_exc_arr, in_spec_elec.N)
-            deposited_heat = np.dot(deposited_heat_arr, in_spec_elec.N)
-            deposited_ICS = np.dot(deposited_ICS_arr, in_spec_elec.N) # ??? High-energy deposition numerical error ???
+            deposited_ion = deposited_ion_arr[i_injE]
+            deposited_exc = deposited_exc_arr[i_injE]
+            deposited_heat = deposited_heat_arr[i_injE]
+            deposited_ICS = deposited_ICS_arr[i_injE] # ??? High-energy deposition numerical error ???
             highengdep_at_rs = np.array([
-                deposited_ion/dt,
-                deposited_exc/dt,
-                deposited_heat/dt,
-                deposited_ICS/dt # continuum
-            ])
+                deposited_ion, deposited_exc, deposited_heat, deposited_ICS # continuum
+            ]) / dt
 
             ###################################
             ## Apply elec to phot tfs
 
             # ICS secondary photon spectrum after electron cooling, 
-            ics_phot_spec = ics_sec_phot_tf.sum_specs(in_spec_elec) # per injection
-
-            # Get the spectrum from positron annihilation, per injection event.
-            # Only half of in_spec_elec is positrons!
-            positronium_phot_spec = pos.weighted_photon_spec(abscs['photE']) * (
-                in_spec_elec.totN()/2
+            ics_phot_spec = Spectrum(
+                abscs['photE'],
+                ics_sec_phot_tf.grid_vals[i_injE],
+                spec_type='N'
             )
-            positronium_phot_spec.switch_spec_type('N')
+            ics_phot_spec.rs = rs
 
             # Add injected photons + photons from injected electrons
             # to the photon spectrum that got propagated forward. 
@@ -153,7 +150,7 @@ for i_rs, rs in enumerate(abscs['rs']):
             # make an empty lowengphot
             lowengphot_spec_at_rs = highengphot_spec_at_rs * 0
             lowengphot_spec_at_rs.rs = rs
-
+            
             ###################################
             ## Compute f's for lowengelec
             x_vec_for_f = np.array( [1-x, phys.chi*(1-x), x] ) # [HI, HeI, HeII]/nH
@@ -185,8 +182,8 @@ for i_rs, rs in enumerate(abscs['rs']):
             ## Check energy conservation
             if np.abs(f_tot - 1.) > 1e-4:
                 print(f'  Warning: energy non-conservation at level greater than 1e-4.')
-                print(f'nBs[{i_nBs}]={nBs:.3e} x[{i_x}]={x:.3e} ' + \
-                      f'rs[{i_rs}]={rs:.3e} injE[{i_injE}]={injE:.3e} ' + \
+                print(f'rs[{i_rs}]={rs:.3e} x[{i_x}]={x:.3e} ' + \
+                      f'injE[{i_injE}]={injE:.3e} ' + \
                       f'f_dep=[{f_dep[0]:.6f}, {f_dep[1]:.6f}, {f_dep[2]:.6f}, {f_dep[3]:.6f}, {f_dep[4]:.6f}] ' + \
                       f'f_prop={f_prop:.6f} f_tot={f_tot:.8f}')
 
@@ -195,9 +192,10 @@ for i_rs, rs in enumerate(abscs['rs']):
             elec_phot_tfgv[i_rs, i_injE, i_x] = highengphot_spec_at_rs.N
             elec_depgv[i_rs, i_injE, i_x] = f_dep
                     
-        if use_tqdm:
-            pbar.update()
-            
+            if use_tqdm:
+                pbar.update()
+    
+    
 ###################################
 ## Save transfer function
 

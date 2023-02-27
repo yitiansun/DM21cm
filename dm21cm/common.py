@@ -37,7 +37,8 @@ abscs_nBs_test = {
     'rs' : np.logspace(np.log10(5.), np.log10(50.), 20),
     'photE' : photE_DH(n=500),
     'elecEk' : elecEk_DH(n=500),
-    'dep_c' : ['H ion', 'He ion', 'exc', 'heat', 'cont']
+    'dep_c' : ['H ion', 'He ion', 'exc', 'heat', 'cont'],
+    'dlnz' : 0.001,
 }
 
 abscs_nBs_test_2 = {
@@ -46,7 +47,8 @@ abscs_nBs_test_2 = {
     'rs' : np.logspace(np.log10(5.), np.log10(100.), 20),
     'photE' : photE_DH(n=500),
     'elecEk' : elecEk_DH(n=500),
-    'dep_c' : ['H ion', 'He ion', 'exc', 'heat', 'cont']
+    'dep_c' : ['H ion', 'He ion', 'exc', 'heat', 'cont'],
+    'dlnz' : 0.04879016,
 }
 
 

@@ -1,6 +1,7 @@
 """Functions handling dark matter energy injection."""
 
 import os, sys
+import pandas as pd
 
 import numpy as np
 import jax.numpy as jnp
@@ -94,8 +95,10 @@ def get_input_boxs(delta_box, x_e_box, z_prev, z, dm_params, f_scheme='DH'):
     
     if f_scheme == 'DH':
         f_boxs = get_DH_f_boxs(delta_box, x_e_box, z, dm_params)
-    elif f_scheme == 'EMF':
-        f_boxs = get_EMF_f_boxs(x_e_box)
+    elif f_scheme == 'EVFY':
+        f_boxs = get_EVFY_f_boxs(x_e_box, z)
+    elif f_scheme == 'CK':
+        f_boxs = get_CK_f_boxs(x_e_box)
     else:
         raise ValueError('unknown f_scheme.')
     
@@ -163,8 +166,56 @@ def get_DH_f_boxs(delta_box, x_e_box, z, dm_params):
     return f_boxs
 
 
-def get_EMF_f_boxs(x_e_box):
-    """Evoli Mesinger Ferrara 1408.1109"""
+global_EVFY_f_data = None
+
+def get_EVFY_f_boxs(x_e_box, z):
+    """Evoli Mesinger Ferrara 1408.1109 uses
+    Evoli Valdes Ferrara Yoshida
+    https://academic.oup.com/mnras/article/422/1/420/1022144"""
+    
+    global global_EVFY_f_data
+    
+    if global_EVFY_f_data is None:
+        global_EVFY_f_data = pd.read_csv('../data/EVFY_f_mumu1TeV.txt', sep=' ', index_col=0)
+        
+    logz = np.log10(z)
+    # heat
+    fd = global_EVFY_f_data.loc['f_h']
+    Az = fd['A0'] + logz * fd['A1'] + logz**2 * fd['A2']
+    Bz = fd['B0'] + logz * fd['B1'] + logz**2 * fd['B2']
+    Cz = fd['C0'] + logz * fd['C1'] + logz**2 * fd['C2']
+    f_heat = 10**Az * (1 - Cz * x_e_box**Bz)
+    
+    # H ion
+    fd = global_EVFY_f_data.loc['f_iH']
+    Az = fd['A0'] + logz * fd['A1'] + logz**2 * fd['A2']
+    Bz = fd['B0'] + logz * fd['B1'] + logz**2 * fd['B2']
+    Cz = fd['C0'] + logz * fd['C1'] + logz**2 * fd['C2']
+    f_H_ion = 10**Az * (1 - x_e_box**Bz)**Cz
+    
+    # He ion
+    fd = global_EVFY_f_data.loc['f_iHe']
+    Az = fd['A0'] + logz * fd['A1'] + logz**2 * fd['A2']
+    Bz = fd['B0'] + logz * fd['B1'] + logz**2 * fd['B2']
+    Cz = fd['C0'] + logz * fd['C1'] + logz**2 * fd['C2']
+    f_He_ion = 10**Az * (1 - x_e_box**Bz)**Cz
+    
+    # exc
+    fd = global_EVFY_f_data.loc['f_a']
+    Az = fd['A0'] + logz * fd['A1'] + logz**2 * fd['A2']
+    Bz = fd['B0'] + logz * fd['B1'] + logz**2 * fd['B2']
+    Cz = fd['C0'] + logz * fd['C1'] + logz**2 * fd['C2']
+    f_exc = 10**Az * (1 - x_e_box**Bz)**Cz
+    
+    return {
+        'heat' : f_heat,
+        'ion'  : f_H_ion + f_He_ion,
+        'exc'  : f_exc,
+    }
+
+
+def get_CK_f_boxs(x_e_box):
+    """Chen kamionkowski 0310473"""
     
     return {
         'heat' : (1 + 2 * x_e_box) / 3,

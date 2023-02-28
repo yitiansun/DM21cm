@@ -1,14 +1,12 @@
 """Functions handling dark matter energy injection."""
 
 import os, sys
-from dataclasses import dataclass
-from typing import Optional
 
 import numpy as np
 import jax.numpy as jnp
 
 if os.environ['USER'] == 'yitians' and 'submit' in os.uname().nodename:
-    os.environ['DM21CM_DATA_DIR'] = '/data/submit/yitians/DM21cm'
+    os.environ['DM21CM_DATA_DIR'] = '/data/submit/yitians/dm21cm/DM21cm'
     os.environ['DH_DIR'] = '/work/submit/yitians/darkhistory/DarkHistory'
 
 sys.path.append('..')
@@ -16,19 +14,20 @@ sys.path.append(os.environ['DH_DIR'])
     
 from darkhistory.spec.spectrum import Spectrum
 import darkhistory.spec.spectools as spectools
+from darkhistory.spec.pppc import get_pppc_spec
 
 import dm21cm.physics as phys
 from dm21cm.common import abscs_nBs_test_2 as abscs
-from dm21cm.interpolators import BatchInterpolator
+from dm21cm.interpolators import BatchInterpolator5D, BatchInterpolator4D
 
 
 # Global data structures
 global_phot_dep_tf = None
+global_elec_dep_tf = None
 
 
 ####################
 ## DMParams
-@dataclass
 class DMParams:
     """Dark matter parameters.
     
@@ -45,22 +44,36 @@ class DMParams:
     lifetime : float, optional
         Decay lifetime in s.
     """
-    mode : str
-    channel : str
-    m_DM : float
-    sigmav : Optional[float] = None
-    lifetime : Optional[float] = None
     
-    def __post_init__(self):
+    def __init__(self, mode, primary, m_DM, sigmav=None, lifetime=None):
         
-        if self.mode == 'swave':
-            if self.sigmav is None:
+        if mode == 'swave':
+            if sigmav is None:
                 raise ValueError('must initialize sigmav.')
-        elif self.mode == 'decay':
-            if self.lifetime is None:
+        elif mode == 'decay':
+            if lifetime is None:
                 raise ValueError('must initialize lifetime.')
         else:
-            raise NotImplementedError(self.mode)
+            raise NotImplementedError(mode)
+        
+        self.mode = mode
+        self.primary = primary
+        self.m_DM = m_DM
+        self.sigmav = sigmav
+        self.lifetime = lifetime
+        
+        self.inj_phot_spec = get_pppc_spec(
+            self.m_DM, abscs['photE'], self.primary, 'phot',
+            decay=(self.mode=='decay')
+        ) # injected spectrum per injection event
+        self.inj_elec_spec = get_pppc_spec(
+            self.m_DM, abscs['elecEk'], self.primary, 'elec',
+            decay=(self.mode=='decay')
+        ) # injected spectrum per injection event
+        
+        toteng = self.inj_phot_spec.toteng() + self.inj_elec_spec.toteng()
+        self.inj_phot_spec_eng_normalized = self.inj_phot_spec / toteng
+        self.inj_elec_spec_eng_normalized = self.inj_elec_spec / toteng
 
 
 ####################
@@ -99,31 +112,55 @@ def get_input_boxs(delta_box, x_e_box, z_prev, z, dm_params, f_scheme='DH'):
         
 def get_DH_f_boxs(delta_box, x_e_box, z, dm_params):
     
-    global global_phot_dep_tf
-    if global_phot_dep_tf is None:
-        global_phot_dep_tf = BatchInterpolator(os.environ['DM21CM_DATA_DIR'] + '/transferfunctions/nBs_test_2/phot_dep_dlnz4.879E-2_renxo_ad.p')
+    global global_phot_dep_tf, global_elec_dep_tf
     
+    if global_phot_dep_tf is None:
+        global_phot_dep_tf = BatchInterpolator5D(
+            os.environ['DM21CM_DATA_DIR'] + \
+            '/transferfunctions/nBs_test_2/phot_dep_dlnz4.879E-2_renxo_ad.p'
+        )
+    if global_elec_dep_tf is None:
+        global_elec_dep_tf = BatchInterpolator4D(
+            os.environ['DM21CM_DATA_DIR'] + \
+            '/transferfunctions/nBs_test_2/elec_dep_dlnz4.879E-2_rexo_ad.p'
+        )
+    
+    # add input checks
     DIM = delta_box.shape[0]
     
     nBs_in = jnp.array(1+delta_box).flatten()
     x_in = jnp.array(x_e_box).flatten()
     
-    f_boxs = global_phot_dep_tf(
+    phot_f_boxs = global_phot_dep_tf(
         1+z,
-        get_eng_normalized_specs(dm_params),
+        dm_params.inj_phot_spec_eng_normalized.N,
         nBs_in,
+        x_in,
+        out_of_bounds_action='clip'
+    ).reshape(DIM, DIM, DIM, 5)
+    
+    elec_f_boxs = global_elec_dep_tf(
+        1+z,
+        dm_params.inj_elec_spec_eng_normalized.N,
         x_in,
         out_of_bounds_action='clip'
     ).reshape(DIM, DIM, DIM, 5)
     
     out_absc = np.array(global_phot_dep_tf.abscs['out'])
     
-    return {
-        'heat' : f_boxs[:,:,:, np.where(out_absc=='heat')[0][0]  ],
-        'ion'  : f_boxs[:,:,:, np.where(out_absc=='H ion')[0][0] ] \
-               + f_boxs[:,:,:, np.where(out_absc=='He ion')[0][0] ],
-        'exc'  : f_boxs[:,:,:, np.where(out_absc=='exc')[0][0]   ],
-    }
+    f_boxs = {}
+    i = np.where(out_absc=='heat')[0][0]
+    f_boxs['heat'] = phot_f_boxs[:,:,:,i] + elec_f_boxs[:,:,:,i]
+    
+    i = np.where(out_absc=='H ion')[0][0]
+    f_boxs['ion'] = phot_f_boxs[:,:,:,i] + elec_f_boxs[:,:,:,i]
+    i = np.where(out_absc=='He ion')[0][0]
+    f_boxs['ion'] = phot_f_boxs[:,:,:,i] + elec_f_boxs[:,:,:,i]
+    
+    i = np.where(out_absc=='exc')[0][0]
+    f_boxs['exc'] = phot_f_boxs[:,:,:,i] + elec_f_boxs[:,:,:,i]
+    
+    return f_boxs
 
 
 def get_EMF_f_boxs(x_e_box):
@@ -134,25 +171,3 @@ def get_EMF_f_boxs(x_e_box):
         'ion'  : (1 - x_e_box) / 3,
         'exc'  : (1 - x_e_box) / 3,
     }
-
-
-####################
-## input spectrum
-
-def get_eng_normalized_specs(dm_params):
-    """DM injection spectra normalized such that the total energy of all the
-    spectra is 1 (dimensionless).
-    """
-    
-    if dm_params.channel == 'phph':
-        
-        spec = spectools.rebin_N_arr(
-            np.array([1.]),
-            np.array([dm_params.m_DM / 2]),
-            out_eng=abscs['photE']
-        )
-        return spec.N/spec.toteng()
-    
-    else:
-        raise NotImplementedError(dm_params.channel)
-        

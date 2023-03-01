@@ -182,16 +182,15 @@ def inj_rate_box(rho_DM_box, dm_params):
         raise NotImplementedError(dm_params.mode)
         
         
-def struct_boost_func(model='einasto_subs', model_params=None):
+def struct_boost_func(model=None):
     """Structure formation boost factor 1+B(z).
     (Copied from darkhistory.physics.struct_boost_func)
 
     Parameters
     ----------
-    model : {'einasto_subs', 'einasto_no_subs', 'NFW_subs', 'NFW_no_subs', 'erfc'}
-        Model to use. See 1604.02457. 
-    model_params : tuple of floats
-        Model parameters (b_h, delta, z_h) for 'erfc' option. 
+    model : {'einasto_subs', 'einasto_no_subs', 'NFW_subs', 'NFW_no_subs',
+             'erfc 1e-3', 'erfc 1e-6', 'erfc 1e-9'}
+        Model to use.
 
     Returns
     -------
@@ -200,27 +199,25 @@ def struct_boost_func(model='einasto_subs', model_params=None):
 
     Notes
     -----
-    Refer to 1408.1109 for erfc model, 1604.02457 for all other model
+    Refer to 1408.1109 for erfc models, 1604.02457 for all other model
     descriptions and parameters.
 
     """
 
-    if model == 'erfc':
+    if model.startswith('erfc'):
 
         from scipy.special import erfc
 
-        if model_params is None:
-            # Smallest boost in 1408.1109. 
-            b_h   = 1.6e5
-            delta = 1.54
-            z_h   = 19.5
+        if model == 'erfc 1e-3':
+            b_h, z_h, delta = 1.6e5, 19.5, 1.54 # M_h,min = 1e-3 Msun
+        elif model == 'erfc 1e-6':
+            b_h, z_h, delta = 6.0e5, 19.0, 1.52 # M_h,min = 1e-6 Msun
+        elif model == 'erfc 1e-9':
+            b_h, z_h, delta = 2.3e6, 18.6, 1.48 # M_h,min = 1e-9 Msun
         else:
-            b_h   = model_params[0]
-            delta = model_params[1]
-            z_h   = model_params[2]
+            raise ValueError(model)
 
-        def func(rs):
-            return 1. + b_h / rs**delta * erfc( rs/(1+z_h) )
+        return lambda rs: 1 + b_h / rs**delta * erfc( rs/(1+z_h) )
 
     else:
 
@@ -230,7 +227,4 @@ def struct_boost_func(model='einasto_subs', model_params=None):
             bounds_error=False, fill_value=(np.nan, 0.)
         )
 
-        def func(rs):
-            return np.exp(log_struct_interp(np.log(rs)))
-
-    return func
+        return lambda rs: np.exp(log_struct_interp(np.log(rs)))

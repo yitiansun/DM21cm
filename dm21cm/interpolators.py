@@ -2,6 +2,7 @@
 
 import pickle
 
+import numpy as np
 import jax.numpy as jnp
 from jax import jit, vmap
 from functools import partial
@@ -80,16 +81,16 @@ class BatchInterpolator:
         if isinstance(abscs_axes_data, str):
             abscs_axes_data = pickle.load(open(abscs_axes_data, 'rb'))
         self.abscs, self.axes, self.data = abscs_axes_data
-        self.fixed_spec = None
-        self.fixed_spec_data = None
+        self.fixed_in_spec = None
+        self.fixed_in_spec_data = None
         
     
     def __call__(self, rs=None, in_spec=None, nBs_s=None, x_s=None,
-                 return_sum=False, sum_batch_size=1000,
+                 sum_result=False, sum_batch_size=1000,
                  out_of_bounds_action='error'):
         """Batch interpolate in (nBs and) x directions.
         
-        Will first sum with spec (with caching), then interpolate to a rs point,
+        Will first sum with in_spec (with caching), then interpolate to a rs point,
         then perform the interpolation.
         
         return_sum : if True, return sum in the batch dimension.
@@ -110,19 +111,19 @@ class BatchInterpolator:
             if not v_is_within(x_s, self.abscs['x']):
                 raise ValueError('x_s out of bounds.')
                 
-        if jnp.all(spec == 0):
+        if jnp.all(in_spec == 0):
             return jnp.zeros((len(x_s), len(self.abscs['out'])))
                 
-        # check if cached self.fixed_spec_data can be used
-        if not jnp.all(spec == self.fixed_spec):
+        # check if cached self.fixed_in_spec_data can be used
+        if not jnp.all(in_spec == self.fixed_in_spec):
             if 'nBs' in self.axes:
-                self.fixed_spec_data = jnp.einsum('e,renxo->rnxo', spec, self.data)
+                self.fixed_in_spec_data = jnp.einsum('e,renxo->rnxo', in_spec, self.data)
             else:
-                self.fixed_spec_data = jnp.einsum('e,rexo->rxo', spec, self.data)
+                self.fixed_in_spec_data = jnp.einsum('e,rexo->rxo', in_spec, self.data)
         
-        data_at_rs = interp1d(self.fixed_spec_data, self.abscs['rs'], rs)
+        data_at_rs = interp1d(self.fixed_in_spec_data, self.abscs['rs'], rs)
         
-        if not return_sum: # interpolate only
+        if not sum_result: # interpolate only
             
             if 'nBs' in self.axes:
                 nBs_x_in = jnp.stack([nBs_s, x_s], axis=-1)

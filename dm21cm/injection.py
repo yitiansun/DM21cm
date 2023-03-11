@@ -21,7 +21,7 @@ from darkhistory.spec.pppc import get_pppc_spec
 
 import dm21cm.physics as phys
 from dm21cm.common import abscs_nBs_test_2 as abscs
-from dm21cm.interpolators import BatchInterpolator5D, BatchInterpolator4D
+from dm21cm.interpolators import BatchInterpolator
 
 
 # Global data structures
@@ -138,14 +138,14 @@ def get_DH_f_boxs(delta_box, x_e_box, z, dm_params):
     global global_phot_dep_tf, global_elec_dep_tf
     
     if global_phot_dep_tf is None:
-        global_phot_dep_tf = BatchInterpolator5D(
+        global_phot_dep_tf = BatchInterpolator(
             os.environ['DM21CM_DATA_DIR'] + \
-            '/transferfunctions/nBs_test_2/phot_dep_dlnz4.879E-2_renxo_ad.p'
+            '/transferfunctions/nBs_test_2/phot_dep_dlnz4.879E-2_aad.p'
         )
     if global_elec_dep_tf is None:
-        global_elec_dep_tf = BatchInterpolator4D(
+        global_elec_dep_tf = BatchInterpolator(
             os.environ['DM21CM_DATA_DIR'] + \
-            '/transferfunctions/nBs_test_2/elec_dep_dlnz4.879E-2_rexo_ad.p'
+            '/transferfunctions/nBs_test_2/elec_dep_dlnz4.879E-2_aad.p'
         )
     
     # add input checks
@@ -155,18 +155,18 @@ def get_DH_f_boxs(delta_box, x_e_box, z, dm_params):
     x_in = jnp.array(x_e_box).flatten()
     
     phot_f_boxs = global_phot_dep_tf(
-        1+z,
-        dm_params.inj_phot_spec_eng_normalized.N,
-        nBs_in,
-        x_in,
-        out_of_bounds_action='clip'
+        rs = 1+z,
+        in_spec = dm_params.inj_phot_spec_eng_normalized.N,
+        nBs_s = nBs_in,
+        x_s = x_in,
+        out_of_bounds_action = 'clip'
     ).reshape(DIM, DIM, DIM, 5)
     
     elec_f_boxs = global_elec_dep_tf(
-        1+z,
-        dm_params.inj_elec_spec_eng_normalized.N,
-        x_in,
-        out_of_bounds_action='clip'
+        rs = 1+z,
+        in_spec = dm_params.inj_elec_spec_eng_normalized.N,
+        x_s = x_in,
+        out_of_bounds_action = 'clip'
     ).reshape(DIM, DIM, DIM, 5)
     
     out_absc = np.array(global_phot_dep_tf.abscs['out'])

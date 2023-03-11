@@ -62,42 +62,51 @@ def v_is_within(v, absc):
 ##############################
 ## interpolator classes
 
-class BatchInterpolator5D:
-    """Interpolator for (rs, Ein, nBs, x, out) data. Vectorized in nBs and x
-    directions.
+class BatchInterpolator:
+    """Interpolator for multidimensional data. Currently support
+    axes = ('rs', 'Ein', 'nBs', 'x', 'out') and 
+    axes = ('rs', 'Ein', 'x', 'out')
     
-    abscs : abscissas containing 'rs', 'Ein', 'nBs', 'x', and an out channel.
-    data : grid data like (rs, Ein, nBs, x, out).
+    abscs : abscissas of axes.
+    axes : tuple of name of axes.
+    data : grid data consistent with axes and abscs.
     
-    Initialize with tuple (abscs, data) or a pickle filename containing this
-    structure.
+    Initialize with tuple (abscs, axes, data) or a pickle filename containing
+    this structure.
     """
     
-    def __init__(self, abscs_data):
+    def __init__(self, abscs_axes_data):
         
-        if isinstance(abscs_data, str):
-            abscs_data = pickle.load(open(abscs_data, 'rb'))
-        self.abscs, self.data = abscs_data
+        if isinstance(abscs_axes_data, str):
+            abscs_axes_data = pickle.load(open(abscs_axes_data, 'rb'))
+        self.abscs, self.axes, self.data = abscs_axes_data
         self.fixed_spec = None
         self.fixed_spec_data = None
         
     
-    #@partial(jit, static_argnums=(0,))
-    def __call__(self, rs, spec, nBs_s, x_s, out_of_bounds_action='error'):
-        """Batch interpolate in nBs and x directions.
+    def __call__(self, rs=None, in_spec=None, nBs_s=None, x_s=None,
+                 return_sum=False, sum_batch_size=1000,
+                 out_of_bounds_action='error'):
+        """Batch interpolate in (nBs and) x directions.
         
-        Will first interpolate at a rs point, and sum with spec (a fixed
-        spectral shape) in the second direction.
+        Will first sum with spec (with caching), then interpolate to a rs point,
+        then perform the interpolation.
+        
+        return_sum : if True, return sum in the batch dimension.
+        sum_batch_size : perform batch interpolation (and sum) in batches of this size.
         """
+        
         if out_of_bounds_action == 'clip':
             rs    = jnp.clip(rs   , jnp.min(self.abscs['rs']) , jnp.max(self.abscs['rs']))
-            nBs_s = jnp.clip(nBs_s, jnp.min(self.abscs['nBs']), jnp.max(self.abscs['nBs']))
+            if 'nBs' in self.axes:
+                nBs_s = jnp.clip(nBs_s, jnp.min(self.abscs['nBs']), jnp.max(self.abscs['nBs']))
             x_s   = jnp.clip(x_s  , jnp.min(self.abscs['x'])  , jnp.max(self.abscs['x']))
         else:
             if not v_is_within(rs, self.abscs['rs']):
                 raise ValueError('rs out of bounds.')
-            if not v_is_within(nBs_s, self.abscs['nBs']):
-                raise ValueError('nBs_s out of bounds.')
+            if 'nBs' in self.axes:
+                if not v_is_within(nBs_s, self.abscs['nBs']):
+                    raise ValueError('nBs_s out of bounds.')
             if not v_is_within(x_s, self.abscs['x']):
                 raise ValueError('x_s out of bounds.')
                 
@@ -106,57 +115,40 @@ class BatchInterpolator5D:
                 
         # check if cached self.fixed_spec_data can be used
         if not jnp.all(spec == self.fixed_spec):
-            self.fixed_spec_data = jnp.einsum('e,renxo->rnxo', spec, self.data)
+            if 'nBs' in self.axes:
+                self.fixed_spec_data = jnp.einsum('e,renxo->rnxo', spec, self.data)
+            else:
+                self.fixed_spec_data = jnp.einsum('e,rexo->rxo', spec, self.data)
         
         data_at_rs = interp1d(self.fixed_spec_data, self.abscs['rs'], rs)
         
-        nBs_x_in = jnp.stack([nBs_s, x_s], axis=-1)
-        return interp2d_vmap(data_at_rs,
-                             self.abscs['nBs'], self.abscs['x'], nBs_x_in)
-    
-
-class BatchInterpolator4D:
-    """Interpolator for (rs, Ein, x, out) data. Vectorized in the x direction.
-    
-    abscs : abscissas containing 'rs', 'Ein', 'x', and an out channel.
-    data : grid data like (rs, Ein, x, out).
-    
-    Initialize with tuple (abscs, data) or a pickle filename containing this
-    structure.
-    """
-    
-    def __init__(self, abscs_data):
-        
-        if isinstance(abscs_data, str):
-            abscs_data = pickle.load(open(abscs_data, 'rb'))
-        self.abscs, self.data = abscs_data
-        self.fixed_spec = None
-        self.fixed_spec_data = None
-        
-    
-    #@partial(jit, static_argnums=(0,))
-    def __call__(self, rs, spec, x_s, out_of_bounds_action='error'):
-        """Batch interpolate in the x direction.
-        
-        Will first interpolate at a rs point, and sum with spec (a fixed
-        spectral shape) in the second direction.
-        """
-        if out_of_bounds_action == 'clip':
-            rs    = jnp.clip(rs   , jnp.min(self.abscs['rs']) , jnp.max(self.abscs['rs']))
-            x_s   = jnp.clip(x_s  , jnp.min(self.abscs['x'])  , jnp.max(self.abscs['x']))
-        else:
-            if not v_is_within(rs, self.abscs['rs']):
-                raise ValueError('rs out of bounds.')
-            if not v_is_within(x_s, self.abscs['x']):
-                raise ValueError('x_s out of bounds.')
+        if not return_sum: # interpolate only
+            
+            if 'nBs' in self.axes:
+                nBs_x_in = jnp.stack([nBs_s, x_s], axis=-1)
+                return interp2d_vmap(data_at_rs, self.abscs['nBs'], self.abscs['x'], nBs_x_in)
+            else:
+                return interp1d_vmap(data_at_rs, self.abscs['x'], x_s)
+            
+        else: # interpolate and sum
+            
+            split_n = int(jnp.ceil( len(x_s)/sum_batch_size ))
+            result = np.zeros( (len(self.abscs['out']),) )
+            
+            if 'nBs' in self.axes:
+                nBs_x_in = jnp.stack([nBs_s, x_s], axis=-1)
+                nBs_x_in_batches = jnp.array_split(nBs_x_in, split_n)
                 
-        if jnp.all(spec == 0):
-            return jnp.zeros((len(x_s), len(self.abscs['out'])))
+                for nBs_x_in_batch in nBs_x_in_batches:
+                    interp_result = interp2d_vmap(data_at_rs, self.abscs['nBs'], self.abscs['x'], nBs_x_in_batch)
+                    result += np.array(jnp.sum(interp_result, axis=0))
+            
+            else:
+                x_in_batches = jnp.array_split(x_s, split_n)
                 
-        # check if cached self.fixed_spec_data can be used
-        if not jnp.all(spec == self.fixed_spec):
-            self.fixed_spec_data = jnp.einsum('e,rexo->rxo', spec, self.data)
-        
-        data_at_rs = interp1d(self.fixed_spec_data, self.abscs['rs'], rs)
-        
-        return interp1d_vmap(data_at_rs, self.abscs['x'], x_s)
+                for x_in_batch in x_in_batches:
+                    interp_result = interp1d_vmap(data_at_rs, self.abscs['x'], x_in_batch)
+                    result += np.array(jnp.sum(interp_result, axis=0))
+                    
+            return result
+            

@@ -81,75 +81,132 @@ class BatchInterpolator:
         if isinstance(abscs_axes_data, str):
             abscs_axes_data = pickle.load(open(abscs_axes_data, 'rb'))
         self.abscs, self.axes, self.data = abscs_axes_data
+        
+        if self.axes == ('rs', 'Ein', 'nBs', 'x', 'out'):
+            self.type = 'renxo'
+        elif self.axes == ('rs', 'Ein', 'x', 'out'):
+            self.type = 'rexo'
+        else:
+            raise ValueError('Unknown axes type.')
+        
         self.fixed_in_spec = None
         self.fixed_in_spec_data = None
         
+        
+    def set_fixed_in_spec(self, in_spec):
+        
+        self.fixed_in_spec = in_spec
+        if self.type == 'renxo':
+            self.fixed_in_spec_data = jnp.einsum('e,renxo->rnxo', in_spec, self.data)
+        else:
+            self.fixed_in_spec_data = jnp.einsum('e,rexo->rxo', in_spec, self.data)
+        
     
     def __call__(self, rs=None, in_spec=None, nBs_s=None, x_s=None,
-                 sum_result=False, sum_batch_size=1000,
+                 sum_result=False, sum_weight=None, sum_batch_size=10000,
                  out_of_bounds_action='error'):
         """Batch interpolate in (nBs and) x directions.
         
-        Will first sum with in_spec (with caching), then interpolate to a rs point,
-        then perform the interpolation.
+        First sum with in_spec (with caching), then interpolate to a rs point,
+        then perform the interpolation on [(nBs_s), x_s]. If sum_result is True,
+        sum over all interpolated value.
         
-        return_sum : if True, return sum in the batch dimension.
-        sum_batch_size : perform batch interpolation (and sum) in batches of this size.
+        Parameters:
+            rs : [1]
+            in_spec : [N * ...]
+            nBs_s : [1]
+            x_s : [1]
+            sum_result : if True, return average in the batch dimension.
+            sum_weight : if None, just sum. otherwise dot.
+            sum_batch_size : perform batch interpolation (and averaging) in batches of this size.
+            out_of_bounds_action : {'error', 'clip'}
+        
+        Return:
+            interpolated box or average
         """
         
         if out_of_bounds_action == 'clip':
-            rs    = jnp.clip(rs   , jnp.min(self.abscs['rs']) , jnp.max(self.abscs['rs']))
-            if 'nBs' in self.axes:
+            rs  = jnp.clip(rs,  jnp.min(self.abscs['rs']), jnp.max(self.abscs['rs']))
+            x_s = jnp.clip(x_s, jnp.min(self.abscs['x']),  jnp.max(self.abscs['x']))
+            if self.type == 'renxo':
                 nBs_s = jnp.clip(nBs_s, jnp.min(self.abscs['nBs']), jnp.max(self.abscs['nBs']))
-            x_s   = jnp.clip(x_s  , jnp.min(self.abscs['x'])  , jnp.max(self.abscs['x']))
         else:
             if not v_is_within(rs, self.abscs['rs']):
                 raise ValueError('rs out of bounds.')
-            if 'nBs' in self.axes:
-                if not v_is_within(nBs_s, self.abscs['nBs']):
-                    raise ValueError('nBs_s out of bounds.')
             if not v_is_within(x_s, self.abscs['x']):
                 raise ValueError('x_s out of bounds.')
-                
-        if jnp.all(in_spec == 0):
-            return jnp.zeros((len(x_s), len(self.abscs['out'])))
-                
-        # check if cached self.fixed_in_spec_data can be used
-        if not jnp.all(in_spec == self.fixed_in_spec):
-            if 'nBs' in self.axes:
-                self.fixed_in_spec_data = jnp.einsum('e,renxo->rnxo', in_spec, self.data)
+            if self.type == 'renxo':
+                if not v_is_within(nBs_s, self.abscs['nBs']):
+                    raise ValueError('nBs_s out of bounds.')
+        
+        ## 1. in_spec sum
+        if jnp.all(in_spec == self.fixed_in_spec):
+            in_spec_data = self.fixed_in_spec_data
+        else:
+            if self.type == 'renxo':
+                in_spec_data = jnp.einsum('e,renxo->rnxo', in_spec, self.data)
             else:
-                self.fixed_in_spec_data = jnp.einsum('e,rexo->rxo', in_spec, self.data)
+                in_spec_data = jnp.einsum('e,rexo->rxo', in_spec, self.data)
         
-        data_at_rs = interp1d(self.fixed_in_spec_data, self.abscs['rs'], rs)
+        ## 2. rs interpolation
+        data_at_rs = interp1d(in_spec_data, self.abscs['rs'], rs)
         
-        if not sum_result: # interpolate only
+        if not sum_result:
             
-            if 'nBs' in self.axes:
+            ## 3. (nBs) x interpolation
+            if self.type == 'renxo':
                 nBs_x_in = jnp.stack([nBs_s, x_s], axis=-1)
-                return interp2d_vmap(data_at_rs, self.abscs['nBs'], self.abscs['x'], nBs_x_in)
+                return interp2d_vmap(
+                    data_at_rs,
+                    self.abscs['nBs'],
+                    self.abscs['x'],
+                    nBs_x_in
+                )
             else:
-                return interp1d_vmap(data_at_rs, self.abscs['x'], x_s)
+                x_in = jnp.asarray(x_s)
+                return interp1d_vmap(
+                    data_at_rs,
+                    self.abscs['x'],
+                    x_in
+                )
             
-        else: # interpolate and sum
+        else:
             
+            ## 3. (nBs) x sum
             split_n = int(jnp.ceil( len(x_s)/sum_batch_size ))
-            result = np.zeros( (len(self.abscs['out']),) )
+            if sum_weight is not None:
+                sum_weight_batches = jnp.array_split(sum_weight, split_n)
+                
+            result = jnp.zeros( (len(self.abscs['out']),) ) # use numpy?
             
-            if 'nBs' in self.axes:
+            if self.type == 'renxo':
                 nBs_x_in = jnp.stack([nBs_s, x_s], axis=-1)
                 nBs_x_in_batches = jnp.array_split(nBs_x_in, split_n)
                 
-                for nBs_x_in_batch in nBs_x_in_batches:
-                    interp_result = interp2d_vmap(data_at_rs, self.abscs['nBs'], self.abscs['x'], nBs_x_in_batch)
-                    result += np.array(jnp.sum(interp_result, axis=0))
+                for i_batch, nBs_x_in_batch in enumerate(nBs_x_in_batches):
+                    interp_result = interp2d_vmap(
+                        data_at_rs,
+                        self.abscs['nBs'],
+                        self.abscs['x'],
+                        nBs_x_in_batch
+                    )
+                    if sum_weight is None:
+                        result += jnp.sum(interp_result, axis=0)
+                    else:
+                        result += jnp.dot(sum_weight_batches[i_batch], interp_result)
             
             else:
                 x_in_batches = jnp.array_split(x_s, split_n)
                 
-                for x_in_batch in x_in_batches:
-                    interp_result = interp1d_vmap(data_at_rs, self.abscs['x'], x_in_batch)
-                    result += np.array(jnp.sum(interp_result, axis=0))
+                for i_batch, x_in_batch in enumerate(x_in_batches):
+                    interp_result = interp1d_vmap(
+                        data_at_rs,
+                        self.abscs['x'],
+                        x_in_batch
+                    )
+                    if sum_weight is None:
+                        result += jnp.sum(interp_result, axis=0)
+                    else:
+                        result += jnp.dot(sum_weight_batches[i_batch], interp_result)
                     
             return result
-            

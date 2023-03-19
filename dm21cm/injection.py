@@ -5,7 +5,6 @@ import pandas as pd
 
 import numpy as np
 import jax.numpy as jnp
-
 from scipy import interpolate
 
 if os.environ['USER'] == 'yitians' and 'submit' in os.uname().nodename:
@@ -14,23 +13,18 @@ if os.environ['USER'] == 'yitians' and 'submit' in os.uname().nodename:
 
 sys.path.append('..')
 sys.path.append(os.environ['DH_DIR'])
-    
 from darkhistory.spec.spectrum import Spectrum
 import darkhistory.spec.spectools as spectools
 from darkhistory.spec.pppc import get_pppc_spec
 
 import dm21cm.physics as phys
 from dm21cm.common import abscs_nBs_test_2 as abscs
-from dm21cm.interpolators import BatchInterpolator
 
-
-# Global data structures
-global_phot_dep_tf = None
-global_elec_dep_tf = None
 
 
 ####################
 ## DMParams
+
 class DMParams:
     """Dark matter parameters.
     
@@ -38,14 +32,23 @@ class DMParams:
     ----------
     mode : {'swave', 'decay'}
         Type of injection.
-    channel : see darkhistory.pppc.get_pppc_spec
-        Injection channel.
+    primary : see darkhistory.pppc.get_pppc_spec
+        Primary injection channel.
     m_DM : float
         DM mass in eV.
     sigmav : float, optional
         Annihilation cross section in cm\ :sup:`3`\ s\ :sup:`-1`\ .
     lifetime : float, optional
         Decay lifetime in s.
+        
+    Attributes
+    ----------
+    inj_phot_spec : Spectrum
+        Injected photon spectrum per injection event.
+    inj_elec_spec : Spectrum
+        Injected electron positron spectrum per injection event.
+    eng_per_inj : float
+        Injected energy per injection event.
     """
     
     def __init__(self, mode, primary, m_DM, sigmav=None, lifetime=None):
@@ -74,23 +77,23 @@ class DMParams:
             decay=(self.mode=='decay')
         ) # injected spectrum per injection event
         
-        toteng = self.inj_phot_spec.toteng() + self.inj_elec_spec.toteng()
-        self.inj_phot_spec_eng_normalized = self.inj_phot_spec / toteng
-        self.inj_elec_spec_eng_normalized = self.inj_elec_spec / toteng
+        self.eng_per_inj = self.m_DM if self.mode=='decay' else 2 * self.m_DM
         
         
     def __repr__(self):
         
         return f"DMParams(mode={self.mode}, primary={self.primary}, "\
     f"m_DM={self.m_DM:.4e}, sigmav={self.sigmav}, lifetime={self.lifetime})"
-        
 
 
-####################
-## input boxs
 
-def get_input_boxs(delta_box, x_e_box, z_prev, z, dm_params,
-                   f_scheme='DH', struct_boost_model='erfc 1e-3'):
+##############################
+## DM (old)
+
+
+def get_DM_dep_boxs(delta_box, x_e_box, z, dt, dm_params,
+                    f_scheme='DH', struct_boost_model='erfc 1e-3'):
+    """Return dark matter deposition boxs."""
     
     # assuming delta = delta_B = delta_DM
     rho_DM_box = phys.rho_DM * (1+z)**3 * (1 + delta_box) # [eV cm^-3]
@@ -100,7 +103,6 @@ def get_input_boxs(delta_box, x_e_box, z_prev, z, dm_params,
     if dm_params.mode == 'swave':
         dE_inj_dVdt_box *= phys.struct_boost_func(model=struct_boost_model)(1+z)
 
-    dt = phys.dt_between_z(z_prev, z)
     dE_inj_per_B_box = dE_inj_dVdt_box * dt / n_B_box # [eV per B]
     
     # get f boxs

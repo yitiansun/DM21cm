@@ -1,16 +1,11 @@
 PRO gettf_nbs, check=check, fixed_cfdt=fixed_cfdt, part_i=part_i
 ; fixed_cfdt : flag for fixed conformal delta t
 
-    ;---------- config ----------
     ; abscissa for nBs, xH=xHe, z(actually 1+z)
-    z_s_global = [15.0000000000d] ; actually 1+z
+    nBs_s_global = [0.0001000000d, 0.0001995262d, 0.0003981072d, 0.0007943282d, 0.0015848932d, 0.0031622777d, 0.0063095734d, 0.0125892541d, 0.0251188643d, 0.0501187234d, 0.1000000000d, 0.2600000000d, 0.4200000000d, 0.5800000000d, 0.7400000000d, 0.9000000000d, 1.0600000000d, 1.2200000000d, 1.3800000000d, 1.5400000000d, 1.7000000000d, 3.1777777778d, 4.6555555556d, 6.1333333333d, 7.6111111111d, 9.0888888889d, 10.5666666667d, 12.0444444444d, 13.5222222222d, 15.0000000000d]
     x_s_global = [0.0000100000d, 0.5000000000d, 0.9999900000d]
-    nBs_s_global = [0.0001000000d, 0.0001995262d, 0.0003981072d, 0.0007943282d, 0.0015848932d, 0.0031622777d, 0.0063095734d, 0.0125892541d, 0.0251188643d, 0.0501187234d, 0.1000000000d, 0.2900000000d, 0.4800000000d, 0.6700000000d, 0.8600000000d, 1.0500000000d, 1.2400000000d, 1.4300000000d, 1.6200000000d, 1.8100000000d, 2.0000000000d, 3.4444444444d, 4.8888888889d, 6.3333333333d, 7.7777777778d, 9.2222222222d, 10.6666666667d, 12.1111111111d, 13.5555555556d, 15.0000000000d]
+    z_s_global = [10.0000000000d]
     
-    channel = 'delta'
-    outfolder = '/zfs/yitians/dm21cm/DM21cm/data/idl_output/test/'
-    
-    ;---------- abscissa ----------
     ; photeng
     nphoteng     = 500
     dlnphoteng   = ALOG(5565952217145.328d/1d-4)/nphoteng
@@ -33,18 +28,20 @@ PRO gettf_nbs, check=check, fixed_cfdt=fixed_cfdt, part_i=part_i
     eleceng      = melec + SQRT((elecenglow-melec)*(elecenghigh-melec)) ; electron total energies [eV]
     
     ; part & tqdms
-    nBs_s  = [nBs_s_global[2*part_i], nBs_s_global[2*part_i+1]]
-    xH_s   = x_s_global
+    nBs_s  = nBs_s_global
+    xH_s   = [x_s_global[part_i]]
     z_s    = z_s_global
     part_total = N_ELEMENTS(xH_s) * N_ELEMENTS(nBs_s) * N_ELEMENTS(injE_s)
     prog   = 0
     
-    ; cfdt
+    ; config
     IF N_ELEMENTS(fixed_cfdt) NE 0 THEN BEGIN
         Mpc = 3.08568d24 ; cm
         c0 = 29979245800d ; cm/s
         cfdt = 0.6742 * 1d * Mpc / c0 ; s
     ENDIF
+    channel = 'delta'
+    outfolder = '/zfs/yitians/dm21cm/DM21cm/data/idl_output/test/'
     
     ; Planck parameters
     H0 = 1d/4.5979401d17 ; s^-1
@@ -69,7 +66,7 @@ PRO gettf_nbs, check=check, fixed_cfdt=fixed_cfdt, part_i=part_i
     for nBs_i  = 0, N_ELEMENTS(nBs_s)-1  DO BEGIN
     for z_i    = 0, N_ELEMENTS(z_s)-1    DO BEGIN
     
-        ;---------- Initialize tfs ----------
+        ; ---------- Initialize tfs ----------
         zinit = z_s[z_i] ; actually 1+z
         xH  = xH_s[xH_i]
         xHe = xH_s[xH_i]
@@ -92,7 +89,7 @@ PRO gettf_nbs, check=check, fixed_cfdt=fixed_cfdt, part_i=part_i
         cmbloss = DBLARR(nphoteng)
         lowerbound = 0d
         
-        ;---------- Initialize variables for each tf ----------
+        ; ---------- Initialize variables for each tf ----------
         UNDEFINE, tot_time
         UNDEFINE, reuse_electronprocesses
         UNDEFINE, reuse_photon_input_electronprocesses
@@ -101,7 +98,7 @@ PRO gettf_nbs, check=check, fixed_cfdt=fixed_cfdt, part_i=part_i
         
             injE = injE_s[injE_i]
 
-            ;---------- Call ih_transferfunction ----------
+            ; ---------- Call ih_transferfunction ----------
             ih_transferfunction, $
             dlnz=dlnz, zinit=zinit, zfinal=zfinal, $
             numsteps=2, mwimp=injE, channel=channel, $
@@ -115,7 +112,7 @@ PRO gettf_nbs, check=check, fixed_cfdt=fixed_cfdt, part_i=part_i
             /singleinjection, /altpp, /ionizationdetailed, /comptonsmooth, $
             /modIFiedheat, /modIFiedion, /depositiondetailed, depositionpartition=3d3, $
             /planckparams,/fixedbinning, nphoteng=nphoteng, /heliumseparated, $
-            /dontredshiftphotons, /silent
+            /dontredshIFtphotons, /silent
 
             prog += 1
             str  = STRING('tqdms ', part_i, ' ', prog, format='(A,I0,A,I0)')
@@ -127,17 +124,17 @@ PRO gettf_nbs, check=check, fixed_cfdt=fixed_cfdt, part_i=part_i
             str += STRING(' injE=', injE  , ': ', injE_i+1, '/', N_ELEMENTS(injE_s), format='(A,E0.3,A,I0,A,I0)')
             PRINT, str
             
-            ;---------- Save output ----------
+            ; ---------- Save output ----------
             E_i = injElow_i + injE_i
             
-            hep_tf[*, E_i] = output.photonspectrum[*, 1] / 2d ; dNdE
-            lep_tf[*, E_i] = output.lowengphot[*, 1] / 2d ; dNdE
-            lee_tf[*, E_i] = output.lowengelec[*, 1] / 2d ; dNdE
+            hep_tf[*, E_i] = output.photonspectrum[*, 1]*photbinwidth / 2d
+            lep_tf[*, E_i] = output.lowengphot[*, 1]*photbinwidth / 2d
+            lee_tf[*, E_i] = output.lowengelec[*, 1]*elecbinwidth / 2d
             hed_tf[*, E_i] = output.highdeposited_grid[1, *] / 2d
             cmbloss[E_i] = output.cmblosstable[1] / 2d
             lowerbound = output.lowerbound[1]
             
-            ;---------- timeinfo ----------
+            ; ---------- timeinfo ----------
             IF injE_i GE 1 THEN BEGIN
                 IF KEYWORD_SET(tot_time) THEN BEGIN
                     tot_time += REFORM(timeinfo.time.TOARRAY())
@@ -148,7 +145,7 @@ PRO gettf_nbs, check=check, fixed_cfdt=fixed_cfdt, part_i=part_i
 
         ENDFOR
         
-        ;---------- Save to file ----------
+        ; ---------- Save to file ----------
         save_struct = { $
             hep_tf : hep_tf, $
             lep_tf : lep_tf, $

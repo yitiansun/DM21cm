@@ -1,6 +1,7 @@
 transferfunctions/
 data/idl_output*
 data/tfdata/
+data/run_info/
 output/
 cooling_rates/rates/*.p
 notebooks/plots/tmp

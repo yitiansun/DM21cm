@@ -2,18 +2,16 @@ import numpy as np
 from scipy import integrate
 
 
-#########################################
-# Units in cgs                          #
-#########################################
+#========================================
+# Units in cgs
 
 Mpc = 3.08568e24
 """Mpc in cm."""
 
 
-#########################################
-# Fundamental Particles and Constants   #
-#########################################
-# Based on darkhistory.physics
+#========================================
+# Fundamental Particles and Constants
+# (Based on darkhistory.physics)
 
 m_p          = 0.938272081e9
 """Proton mass in eV."""
@@ -34,10 +32,9 @@ lya_eng      = rydberg*3/4
 """Lyman alpha transition energy in eV."""
 
 
-#########################################
-# Densities and Hubble                  #
-#########################################
-# Based on darkhistory.physics
+#========================================
+# Densities and Hubble
+# (Based on darkhistory.physics)
 
 h    = 0.6736
 """ h parameter."""
@@ -163,9 +160,8 @@ def dt_between_z(z_high, z_low, **kwargs):
     return dt
 
 
-#########################################
-# Dark Matter                           #
-#########################################
+#========================================
+# Dark Matter
 
 def inj_rate(rho_DM, dm_params):
     """ Dark matter annihilation/decay event injection rate.

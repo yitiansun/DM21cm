@@ -8,7 +8,7 @@ PRO gettf_nbs, check=check, fixed_cfdt=fixed_cfdt, part_i=part_i
     nBs_s_global = [0.0000000000d, 0.2620000000d, 0.7080000000d, 0.8180000000d, 0.8880000000d, 0.9440000000d, 1.0060000000d, 1.1020000000d, 4.8550000000d, 10.0000000000d]
     
     channel = 'delta'
-    outfolder = '/zfs/yitians/dm21cm/DM21cm/data/idl_output/test/'
+    outfolder = '/zfs/yitians/dm21cm/DM21cm/data/idl_output/230408/'
     
     ;---------- abscissa ----------
     ; photeng
@@ -62,6 +62,7 @@ PRO gettf_nbs, check=check, fixed_cfdt=fixed_cfdt, part_i=part_i
     
     IF KEYWORD_SET(check) THEN RETURN
     
+    PRINT, ''
     PRINT, '' ; preventing printing tqdms line together with idl outputs
     PRINT, STRING('tqdms init ', part_i, ' ', part_total, format='(A,I0,A,I0)')
     

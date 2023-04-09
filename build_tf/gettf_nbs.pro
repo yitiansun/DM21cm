@@ -3,9 +3,9 @@ PRO gettf_nbs, check=check, fixed_cfdt=fixed_cfdt, part_i=part_i
 
     ;---------- config ----------
     ; abscissa for nBs, xH=xHe, z(actually 1+z)
-    z_s_global = [15.0000000000d] ; actually 1+z
-    x_s_global = [0.0000100000d, 0.5000000000d, 0.9999900000d]
-    nBs_s_global = [0.0001000000d, 0.0001995262d, 0.0003981072d, 0.0007943282d, 0.0015848932d, 0.0031622777d, 0.0063095734d, 0.0125892541d, 0.0251188643d, 0.0501187234d, 0.1000000000d, 0.2900000000d, 0.4800000000d, 0.6700000000d, 0.8600000000d, 1.0500000000d, 1.2400000000d, 1.4300000000d, 1.6200000000d, 1.8100000000d, 2.0000000000d, 3.4444444444d, 4.8888888889d, 6.3333333333d, 7.7777777778d, 9.2222222222d, 10.6666666667d, 12.1111111111d, 13.5555555556d, 15.0000000000d]
+    z_s_global = [5.0000000000d, 6.4577483251d, 8.3405026860d, 10.7721734502d, 13.9127970110d, 17.9690683190d, 23.2079441681d, 29.9742125159d, 38.7131841341d, 50.0000000000d]
+    x_s_global = [0.0000100000d, 0.0001000000d, 0.0010000000d, 0.0100000000d, 0.1000000000d, 0.3000000000d, 0.7000000000d, 0.9000000000d, 0.9990000000d, 0.9999900000d]
+    nBs_s_global = [0.0000000000d, 0.2620000000d, 0.7080000000d, 0.8180000000d, 0.8880000000d, 0.9440000000d, 1.0060000000d, 1.1020000000d, 4.8550000000d, 10.0000000000d]
     
     channel = 'delta'
     outfolder = '/zfs/yitians/dm21cm/DM21cm/data/idl_output/test/'
@@ -33,9 +33,9 @@ PRO gettf_nbs, check=check, fixed_cfdt=fixed_cfdt, part_i=part_i
     eleceng      = melec + SQRT((elecenglow-melec)*(elecenghigh-melec)) ; electron total energies [eV]
     
     ; part & tqdms
-    nBs_s  = [nBs_s_global[2*part_i], nBs_s_global[2*part_i+1]]
+    nBs_s  = nBs_s_global
     xH_s   = x_s_global
-    z_s    = z_s_global
+    z_s    = [z_s_global[part_i]]
     part_total = N_ELEMENTS(xH_s) * N_ELEMENTS(nBs_s) * N_ELEMENTS(injE_s)
     prog   = 0
     

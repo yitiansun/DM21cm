@@ -1,5 +1,6 @@
 """Class for dark matter (DM) related variables."""
 
+import pickle
 import os, sys
 
 if os.environ['USER'] == 'yitians' and 'submit' in os.uname().nodename:
@@ -10,7 +11,7 @@ sys.path.append('..')
 sys.path.append(os.environ['DH_DIR'])
 from darkhistory.spec.pppc import get_pppc_spec
 
-from dm21cm.common import abscs_nBs_test_2 as abscs
+abscs = pickle.load(open('../data/abscissas/abscs_base.p', 'rb'))
 
 class DMParams:
     """Dark matter parameters.

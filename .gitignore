@@ -1,3 +1,4 @@
+build_tf/*.pdf
 transferfunctions/
 data/idl_output*
 data/tfdata/

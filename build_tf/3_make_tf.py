@@ -23,13 +23,14 @@ from   darkhistory.electrons.elec_cooling import get_elec_cooling_tf
 
 #====================
 # 0. Config
-abscs = pickle.load(open('/zfs/yitians/dm21cm/DM21cm/data/abscissas/abscs_test.p', 'rb'))
+run_name = '230408'
+tf_type = 'elec'
 use_tqdm = True
 
-MEDEA_DIR = '/zfs/yitians/dm21cm/DM21cm/data/MEDEA'
-DATA_DIR = '/zfs/yitians/dm21cm/DM21cm/data/tfdata/test'
-#DATA_DIR = '/zfs/yitians/dm21cm/DM21cm/data/tfdata/array/nBs_test_2'
-SAVE_DIR = '/zfs/yitians/dm21cm/DM21cm/data/tfdata/test'
+abscs = pickle.load(open(f'../data/abscissas/abscs_{run_name}.p', 'rb'))
+MEDEA_DIR = '../data/MEDEA'
+DATA_DIR = f'../data/tf/{run_name}'
+SAVE_DIR = f'../data/tf/{run_name}'
 os.makedirs(SAVE_DIR, exist_ok=True)
 
 
@@ -37,15 +38,15 @@ os.makedirs(SAVE_DIR, exist_ok=True)
 # 1. Load
 
 print('Loading tf: ', end=' ', flush=True)
-hep_tfgv = np.load(DATA_DIR+'/hep_tf.npy')
+hep_tfgv = np.load(DATA_DIR+'/hep_tf_rxneo.npy')
 print('hep', end=' ', flush=True)
-lep_tfgv = np.load(DATA_DIR+'/lep_tf.npy')
+lep_tfgv = np.load(DATA_DIR+'/lep_tf_rxneo.npy')
 print('lep', end=' ', flush=True)
-lee_tfgv = np.load(DATA_DIR+'/lee_tf.npy')
+lee_tfgv = np.load(DATA_DIR+'/lee_tf_rxneo.npy')
 print('lee', end=' ', flush=True)
-hed_tfgv = np.load(DATA_DIR+'/hed_tf.npy')
+hed_tfgv = np.load(DATA_DIR+'/hed_tf_rxneo.npy')
 print('hed', end=' ', flush=True)
-cmbloss_gv = np.load(DATA_DIR+'/cmbloss.npy')
+cmbloss_gv = np.load(DATA_DIR+'/cmbloss_rxneo.npy')
 print('cmb', end='.', flush=True)
 
 
@@ -58,8 +59,6 @@ phot_tfgv = np.zeros_like(hep_tfgv)
 phot_depgv = np.zeros(
     hed_tfgv.shape[:-1] + (len(abscs['dep_c']),)
 ) # channels: {H ionization, He ionization, excitation, heat, continuum}
-# phot_tfgv = np.zeros((500,500))
-# phot_depgv = np.zeros((500,5)) # channels: {H ionization, He ionization, excitation, heat, continuum}
 
 MEDEA_interp = make_interpolator(prefix=MEDEA_DIR)
 
@@ -87,6 +86,8 @@ for i_rs, rs in enumerate(abscs['rs']):
 
             #==============================
             # 4. Add lowengphot diagonal
+            if nBs == 0: # lowengphot is 0 when nBs is 0
+                raise NotImplementedError
             for i in range(len(abscs['photE'])):
                 if lep_tfgv[i_rs][i_x][i_nBs][i][i] > 1e-40:
                     break
@@ -159,7 +160,7 @@ for i_rs, rs in enumerate(abscs['rs']):
                 #==============================
                 # 9. Check energy conservation
                 if np.abs(f_tot - 1.) > 1e-2:
-                    print(f'  Warning: energy non-conservation at level greater than 1e-2. Giving all to H_ion.')
+                    print(f'  Warning: energy non-conservation at level greater than 1e-2. Giving all to propagating photon.')
                     print(f'    nBs[{i_nBs}]={nBs:.3e} x[{i_x}]={x:.3e} rs[{i_rs}]={rs:.3e} injE[{i_injE}]={injE:.3e}')
                     print(f'    f_prop={f_prop:.6f} f_dep={f_dep} f_tot={f_tot:.8f}')
                 

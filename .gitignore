@@ -1,6 +1,5 @@
 build_tf/*.pdf
 data/tf/
-data/run_info/
 notebooks/plots/tmp
 
 **/.DS_Store

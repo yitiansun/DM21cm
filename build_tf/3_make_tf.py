@@ -1,4 +1,4 @@
-"""Makes photon transfer functions for 21cmFAST"""
+"""Makes electron and photon transfer functions for 21cmFAST"""
 
 import os, sys
 sys.path.append(os.environ['DH_DIR'])
@@ -55,8 +55,8 @@ print('cmb', end='.', flush=True)
 
 dlnz = abscs['dlnz']
 
-phot_tfgv = np.zeros_like(hep_tfgv)
-phot_depgv = np.zeros(
+tfgv = np.zeros_like(hep_tfgv) # in: elec/phot, out: phot
+depgv = np.zeros(
     hed_tfgv.shape[:-1] + (len(abscs['dep_c']),)
 ) # channels: {H ionization, He ionization, excitation, heat, continuum}
 
@@ -81,17 +81,17 @@ for i_rs, rs in enumerate(abscs['rs']):
         for i_nBs, nBs in enumerate(abscs['nBs']):
             
             for i in range(len(abscs['photE'])):
-                cmb_E = cmbloss_gv[i_rs][i_x][i_nBs][i] * dt
-                hep_tfgv[i_rs][i_x][i_nBs][i] += (-cmb_E/cmb_un_E) * cmb_un.N
+                cmb_E = cmbloss_gv[i_rs, i_x, i_nBs][i] * dt
+                hep_tfgv[i_rs, i_x, i_nBs][i] += (-cmb_E/cmb_un_E) * cmb_un.N
 
             #==============================
             # 4. Add lowengphot diagonal
             if nBs == 0: # lowengphot is 0 when nBs is 0
                 raise NotImplementedError
             for i in range(len(abscs['photE'])):
-                if lep_tfgv[i_rs][i_x][i_nBs][i][i] > 1e-40:
+                if lep_tfgv[i_rs, i_x, i_nBs][i][i] > 1e-40:
                     break
-                lep_tfgv[i_rs][i_x][i_nBs][i][i] = 1
+                lep_tfgv[i_rs, i_x, i_nBs][i][i] = 1
             
             for i_injE, injE in enumerate(abscs['photE']):
 
@@ -169,8 +169,8 @@ for i_rs, rs in enumerate(abscs['rs']):
 
                 #==============================
                 # 10. Populate transfer functions
-                phot_tfgv[i_rs, i_x, i_nBs, i_injE] = phot_spec_N
-                phot_depgv[i_rs, i_x, i_nBs, i_injE] = f_dep
+                tfgv[i_rs, i_x, i_nBs, i_injE] = phot_spec_N
+                depgv[i_rs, i_x, i_nBs, i_injE] = f_dep
             
             if use_tqdm:
                 pbar.update()
@@ -178,5 +178,5 @@ for i_rs, rs in enumerate(abscs['rs']):
 #==============================
 # 11. Save transfer function
 
-np.save(SAVE_DIR+'/phot_tfgv.npy', phot_tfgv)
-np.save(SAVE_DIR+'/phot_depgv.npy', phot_depgv)
+np.save(f'{SAVE_DIR}/{tf_type}_tfgv.npy', tfgv)
+np.save(f'{SAVE_DIR}/{tf_type}_depgv.npy', depgv)

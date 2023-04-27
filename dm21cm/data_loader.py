@@ -24,7 +24,7 @@ def load_data(data_type, prefix=None, reload=False):
     global global_phot_phot_tf, global_elec_phot_tf
     
     if prefix is None:
-        prefix = os.environ['DM21CM_DATA_DIR'] + '/transferfunctions/nBs_test_2'
+        prefix = os.environ['DM21CM_DATA_DIR'] + '/tf/nBs_test_2'
     
     if data_type == 'phot_dep':
         if (global_phot_dep_tf is None) or reload:

@@ -24,29 +24,31 @@ from   darkhistory.electrons.elec_cooling import get_elec_cooling_tf
 #====================
 # 0. Config
 run_name = '230408'
-tf_type = 'elec'
+tf_type = 'elec' # {'phot', 'elec'}
 use_tqdm = True
+print_f = True
 
 abscs = pickle.load(open(f'../data/abscissas/abscs_{run_name}.p', 'rb'))
-MEDEA_DIR = '../data/MEDEA'
-DATA_DIR = f'../data/tf/{run_name}'
-SAVE_DIR = f'../data/tf/{run_name}'
-os.makedirs(SAVE_DIR, exist_ok=True)
+inj_abscs = abscs['photE'] if tf_type == 'phot' else abscs['elecEk'] + phys.me
+MEDEA_dir = '../data/MEDEA'
+data_dir = f'../data/tf/{run_name}/{tf_type}'
+save_dir = f'../data/tf/{run_name}/{tf_type}'
+os.makedirs(save_dir, exist_ok=True)
 
 
 #====================
 # 1. Load
 
 print('Loading tf: ', end=' ', flush=True)
-hep_tfgv = np.load(DATA_DIR+'/hep_tf_rxneo.npy')
+hep_tfgv = np.load(f'{data_dir}/hep_tf_rxneo.npy')
 print('hep', end=' ', flush=True)
-lep_tfgv = np.load(DATA_DIR+'/lep_tf_rxneo.npy')
+lep_tfgv = np.load(f'{data_dir}/lep_tf_rxneo.npy')
 print('lep', end=' ', flush=True)
-lee_tfgv = np.load(DATA_DIR+'/lee_tf_rxneo.npy')
+lee_tfgv = np.load(f'{data_dir}/lee_tf_rxneo.npy')
 print('lee', end=' ', flush=True)
-hed_tfgv = np.load(DATA_DIR+'/hed_tf_rxneo.npy')
+hed_tfgv = np.load(f'{data_dir}/hed_tf_rxneo.npy')
 print('hed', end=' ', flush=True)
-cmbloss_gv = np.load(DATA_DIR+'/cmbloss_rxneo.npy')
+cmbloss_gv = np.load(f'{data_dir}/cmbloss_rxneo.npy')
 print('cmb', end='.', flush=True)
 
 
@@ -60,7 +62,7 @@ depgv = np.zeros(
     hed_tfgv.shape[:-1] + (len(abscs['dep_c']),)
 ) # channels: {H ionization, He ionization, excitation, heat, continuum}
 
-MEDEA_interp = make_interpolator(prefix=MEDEA_DIR)
+MEDEA_interp = make_interpolator(prefix=MEDEA_dir)
 
 
 #====================
@@ -80,7 +82,7 @@ for i_rs, rs in enumerate(abscs['rs']):
     for i_x, x in enumerate(abscs['x']):
         for i_nBs, nBs in enumerate(abscs['nBs']):
             
-            for i in range(len(abscs['photE'])):
+            for i in range(len(inj_abscs)):
                 cmb_E = cmbloss_gv[i_rs, i_x, i_nBs][i] * dt
                 hep_tfgv[i_rs, i_x, i_nBs][i] += (-cmb_E/cmb_un_E) * cmb_un.N
 
@@ -88,12 +90,13 @@ for i_rs, rs in enumerate(abscs['rs']):
             # 4. Add lowengphot diagonal
             if nBs == 0: # lowengphot is 0 when nBs is 0
                 raise NotImplementedError
-            for i in range(len(abscs['photE'])):
-                if lep_tfgv[i_rs, i_x, i_nBs][i][i] > 1e-40:
-                    break
-                lep_tfgv[i_rs, i_x, i_nBs][i][i] = 1
+            if tf_type == 'phot':
+                for i in range(len(inj_abscs)):
+                    if lep_tfgv[i_rs, i_x, i_nBs][i][i] > 1e-40:
+                        break
+                    lep_tfgv[i_rs, i_x, i_nBs][i][i] = 1
             
-            for i_injE, injE in enumerate(abscs['photE']):
+            for i_injE, injE in enumerate(inj_abscs):
 
                 #==============================
                 # 5. Injection
@@ -178,5 +181,5 @@ for i_rs, rs in enumerate(abscs['rs']):
 #==============================
 # 11. Save transfer function
 
-np.save(f'{SAVE_DIR}/{tf_type}_tfgv.npy', tfgv)
-np.save(f'{SAVE_DIR}/{tf_type}_depgv.npy', depgv)
+np.save(f'{save_dir}/{tf_type}_tfgv.npy', tfgv)
+np.save(f'{save_dir}/{tf_type}_depgv.npy', depgv)

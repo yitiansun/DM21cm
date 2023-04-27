@@ -78,3 +78,36 @@ class WindowedData:
             
             # Perform the interpolation and return the result
             return interpolate.interp1d(interp_range, np.stack((lower_data, high_data)), axis = 0)(interp_target)
+
+
+# This is a convenience wrapper
+class SmootherArray:
+    
+    def __init__(self, ):
+        
+        self.redshifts = np.array([])
+        self.smoothed_data = np.array([])
+        
+    def add_data(self, z, smoother):
+
+        # Prepends the new data to have z-increasing ordering
+        self.redshifts = np.append(z, self.redshifts)
+        self.smoothed_data = np.append(smoother, self.smoothed_data)
+        
+    def access_data(self, z, r):
+        
+        # This is finding where to access the smoother
+        upper_index = np.searchsorted(self.redshifts, z)
+        lower_index = upper_index - 1
+        
+        # These are the smoothed boxes
+        upper_data = self.smoothed_data[upper_index].access_data(r)
+        lower_data = self.smoothed_data[lower_index].access_data(r)
+        
+        # This defines the interpolation range
+        interp_range = self.redshifts[lower_index:upper_index+1]
+
+        # Perform the interpolation and return the result
+        return interpolate.interp1d(interp_range, np.stack((lower_data, upper_data)), axis = 0)(z)
+        
+        

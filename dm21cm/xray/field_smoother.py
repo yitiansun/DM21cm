@@ -5,12 +5,13 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 
 class WindowedData:
-    def __init__(self, data_path, N, dx):
-         
+    def __init__(self, data_path, N, L):
+
         self.data_path = data_path
         self.redshifts = np.array([])
         
         # Generate the kmagnitudes and save them
+        dx = N / L
         k = np.fft.fftfreq(N, d = dx)
         kReal = np.fft.rfftfreq(N, d = dx)
         self.kMag = 2*np.pi*np.sqrt(k[:, None, None]**2 + k[None, :, None]**2 + kReal[None, None, :]**2)

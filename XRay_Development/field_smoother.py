@@ -39,6 +39,6 @@ class WindowedData:
 
         # Load the field and define the smoothing functions
         field = self.get_field(field_index)
-        W = np.exp(-(self.kMag*R2)**2/2) - np.exp(-(self.kMag*R1)**2/2)
+        W = np.exp(-(self.kMag*R2)**2/2) - (R1/R2)**3*np.exp(-(self.kMag*R1)**2/2)
         
         return np.fft.irfftn(field * W)

@@ -1,3 +1,4 @@
+import warnings
 import sys, os, h5py
 import numpy as np
 from scipy import signal, ndimage, stats, interpolate
@@ -53,18 +54,23 @@ class WindowedData:
         with h5py.File(self.data_path, 'r') as archive:            
             r_list = np.array(archive['Smoothing_Radius'])
 
+            # Make sure the request r is sensible
+            if r < 0:
+                print('Asked for negative radius. Aborting.')
+                return None
+
             # If we want to recompute, do that but only if the field is present
-            if recompute and self.field != None:
+            elif recompute and self.field != None:
                 return smooth(r)
             
-            # Otherwise, return precomputed data, by log-interpolation, 
-            # handling edge cases.
+            # Otherwise, return precomputed data, by log-interpolation handling edge cases.
             elif r == 0:
                 return np.array(archive['RSmoothing_0'])
             elif r > r_list[-1]:
+                print('Asked for r above largest computed smoothing radius. Returning that')
                 return np.array(archive['RSmoothing_' + str(len(r_list)-1)])
 
-            # These are the indices for the data we want to use in the interpolatino
+            # These are the indices for the data we want to use in the interpolation
             upper_index = np.searchsorted(r_list, r)
             lower_index = upper_index - 1
 
@@ -96,6 +102,14 @@ class SmootherArray:
         
     def access_data(self, z, r):
         
+        # Make sure the requested z are sensible
+        if z < np.amin(self.redshifts):
+            print('Asked for z out of range. Returning the nearest one')
+            z = np.amin(redshifts)
+        if z > np.amax(self.redshifts):
+            print('Asked for z out of range. Returning the nearest one')
+            z = np.amax(redshifts)
+
         # This is finding where to access the smoother
         upper_index = np.searchsorted(self.redshifts, z)
         lower_index = upper_index - 1

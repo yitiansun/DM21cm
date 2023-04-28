@@ -23,15 +23,19 @@ from   darkhistory.electrons.elec_cooling import get_elec_cooling_tf
 
 #====================
 # 0. Config
-run_name = '230408'
-tf_type = 'elec' # {'phot', 'elec'}
+run_name = '230408x'
+tf_type = 'phot' # {'phot', 'elec'}
+include_f_xray = True
+xray_eng_range = (1e3, 1e4) # [eV]
 use_tqdm = True
 print_f = True
 
 abscs = pickle.load(open(f'../data/abscissas/abscs_{run_name}.p', 'rb'))
+if include_f_xray and 'xray' not in abscs['dep_c']:
+    raise ValueError("no xray in abscs['dep_c']")
 inj_abscs = abscs['photE'] if tf_type == 'phot' else abscs['elecEk'] + phys.me
 MEDEA_dir = '../data/MEDEA'
-data_dir = f'../data/tf/{run_name}/{tf_type}'
+data_dir = f'../data/tf/230408/{tf_type}'
 save_dir = f'../data/tf/{run_name}/{tf_type}'
 os.makedirs(save_dir, exist_ok=True)
 
@@ -169,9 +173,17 @@ for i_rs, rs in enumerate(abscs['rs']):
                 
                 #f_dep[0] += 1 - f_tot
                 phot_spec_N[i_injE] += 1 - f_tot
+                
+                #==============================
+                # 10. Deterministic (Xray)
+                if include_f_xray:
+                    i_xray_fm = np.searchsorted(abscs['photE'], xray_eng_range[0])
+                    i_xray_to = np.searchsorted(abscs['photE'], xray_eng_range[1])
+                    f_xray = np.dot(abscs['photE'][i_xray_fm:i_xray_to], phot_spec_N[i_xray_fm:i_xray_to]) / injE
+                    f_dep += (f_xray,)
 
                 #==============================
-                # 10. Populate transfer functions
+                # 11. Populate transfer functions
                 tfgv[i_rs, i_x, i_nBs, i_injE] = phot_spec_N
                 depgv[i_rs, i_x, i_nBs, i_injE] = f_dep
             
@@ -179,7 +191,7 @@ for i_rs, rs in enumerate(abscs['rs']):
                 pbar.update()
             
 #==============================
-# 11. Save transfer function
+# 12. Save transfer function
 
 np.save(f'{save_dir}/{tf_type}_tfgv.npy', tfgv)
 np.save(f'{save_dir}/{tf_type}_depgv.npy', depgv)

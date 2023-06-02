@@ -5,7 +5,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 
 class WindowedData:
-    def __init__(self, data_path, N, dx, flush_k = False):
+    def __init__(self, data_path, N, dx, N_x, flush_k = False):
          
         self.data_path = data_path
         self.redshifts = np.array([])
@@ -17,18 +17,23 @@ class WindowedData:
         
         with h5py.File(self.data_path, 'a') as archive: 
             archive.create_dataset('kMag', data=self.kMag)
+            
+        self.global_Tk = np.zeros((0))
+        self.global_x = np.zeros((0))
+        self.global_tau = np.zeros((0, N_x))
     
-    def set_field(self, field, z):
+    def set_field(self, field, spec, z):
         field_index = len(self.redshifts)
         
         with h5py.File(self.data_path, 'a') as archive:
             archive.create_dataset('Field_' + str(field_index), data = np.fft.rfftn(field))
+            archive.create_dataset('Spec_' + str(field_index), data = spec)
         
         self.redshifts = np.append(self.redshifts, z)
         
     def get_field(self, field_index):
         with h5py.File(self.data_path, 'r') as archive:
-            return np.array(archive['Field_' + str(field_index)], dtype = complex)
+            return np.array(archive['Field_' + str(field_index)], dtype = complex), np.array(archive['Spec_' + str(field_index)], dtype = float)
         
     def smoothed_shell(self, redshift, R1, R2):
         # Get the index of the nearest field in redshift
@@ -38,7 +43,7 @@ class WindowedData:
         R1, R2 = np.sort([R1, R2])
 
         # Load the field and define the smoothing functions
-        field = self.get_field(field_index)
+        field, spec = self.get_field(field_index)
         W = np.exp(-(self.kMag*R2)**2/2) - (R1/R2)**3*np.exp(-(self.kMag*R1)**2/2)
         
-        return np.fft.irfftn(field * W)
+        return np.fft.irfftn(field * W), spec

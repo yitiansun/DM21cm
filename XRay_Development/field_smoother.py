@@ -1,13 +1,12 @@
 import sys, os, h5py
 import numpy as np
 from scipy import signal, ndimage, stats, interpolate
-import matplotlib as mpl
-import matplotlib.pyplot as plt
 
 class WindowedData:
-    def __init__(self, data_path, N, dx, N_x, flush_k = False):
+    def __init__(self, data_path, cosmo, N, dx, N_x):
          
         self.data_path = data_path
+        self.cosmo = cosmo
         self.redshifts = np.array([])
         
         # Generate the kmagnitudes and save them

@@ -4,18 +4,25 @@ from scipy import signal, ndimage, stats, interpolate, integrate
 from astropy import cosmology, constants, units
 
 class WindowedData:
-    def __init__(self, data_path, cosmo, N, dx):
+    def __init__(self, data_path, cosmo, N, dx, cache = True):
         """
         Class initializer. The arguments are:
         'data_path' - the path where the caching hdf5 is stored
         'cosmo'     - an instance of an astropy cosmology
         'N'         - the HII_DIM from 21cmFAST
         'dx'        - the pixel sidelength for 21cmFAST data cubes in Mpccm
+        'cache'     - Boolean controlling if data is cached (True) or kept in memory (False)
         """
 
         self.data_path = data_path
         self.cosmo = cosmo
         self.redshifts = np.array([])
+
+        if not cache:
+            self.boxes = []
+            self.specs = []
+
+        if cache:
 
         # Generate the kmagnitudes and save them
         k = np.fft.fftfreq(N, d = dx)
@@ -26,31 +33,56 @@ class WindowedData:
         self.global_Tk = np.zeros((0))
         self.global_x = np.zeros((0))
 
+    def purge(self, zmax):
+        """
+        This method clears unnecessary data from the in-memory list if caching is not being used.
+        'zmax' - data from redshifts above this are purged
+        """
+        if self.cache:
+            return None
+
+        for i, z in enumerate(self.redshifts):
+            if z > zmax:
+                self.specs[i] = None
+                self.boxes[i] = None
+
     def set_field(self, field, spec, z):
         """
         This method adds the X-ray brightness field and the X-ray spectrum at a specified
         redshift to the cache.
-
         'field' - the comoving volumetric emissivity of photons in each pixel. Units of photonos / Mpccm^3
         'spec' - the X-ray spectrum, can be in whatever units you want, this is just for caching convenience
         'z'    - the redshift associated with the brightness field and spectrum
         """
-
-        field_index = len(self.redshifts)
-
-        with h5py.File(self.data_path, 'a') as archive:
-            archive.create_dataset('Field_' + str(field_index), data = np.fft.rfftn(field))
-            archive.create_dataset('Spec_' + str(field_index), data = spec)
-
         self.redshifts = np.append(self.redshifts, z)
+
+        if self.cache:
+            field_index = len(self.redshifts)
+
+            with h5py.File(self.data_path, 'a') as archive:
+                archive.create_dataset('Field_' + str(field_index), data = np.fft.rfftn(field))
+                archive.create_dataset('Spec_' + str(field_index), data = spec)
+
+        else:
+            self.boxes.append(field)
+            self.specs.append(spec)
+
 
     def _get_field(self, field_index):
         """
         Returns the brightness field and spectrum at the specified cached state. 
         """
 
-        with h5py.File(self.data_path, 'r') as archive:
-            return np.array(archive['Field_' + str(field_index)], dtype = complex), np.array(archive['Spec_' + str(field_index)], dtype = float)
+        if self.cache:
+            with h5py.File(self.data_path, 'r') as archive:
+                field = np.array(archive['Field_' + str(field_index)], dtype = complex)
+                spec = np.array(archive['Spec_' + str(field_index)], dtype = float)
+
+        else:
+            field = self.field[field_index]
+            spec = self.specs[field_index]
+
+        return field, spec
 
     def _get_smoothing_radii(self, z_receiver, z1, z2):
         """

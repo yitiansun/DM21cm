@@ -58,7 +58,7 @@ class WindowedData:
         '''
 
         # Get the index of the donor field
-        field_index = np.argmin(np.abs(self.redshifts - redshift))
+        field_index = np.argmin(np.abs(self.redshifts - z_donor))
 
         # Get the smoothing radii in comoving coordinates and canonically sort them
         R1, R2 = get_smoothing_radii(self, z_receiver, z_donor, z_next_donor)

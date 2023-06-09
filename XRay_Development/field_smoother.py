@@ -90,8 +90,9 @@ class WindowedData:
         w2 = R2**3 / (R2**3 - R1**3)
 
         # Construct the smoothing functions in the frequency domain
-        W1 = 3*(np.sin(self.kMag*R1) - self.kMag*R1 * np.cos(self.kMag*R1)) /(self.kMag*R1)**3
-        W2 = 3*(np.sin(self.kMag*R2) - self.kMag*R2 * np.cos(self.kMag*R2)) /(self.kMag*R2)**3
+        with np.errstate(divide='ignore'):
+            W1 = 3*(np.sin(self.kMag*R1) - self.kMag*R1 * np.cos(self.kMag*R1)) /(self.kMag*R1)**3
+            W2 = 3*(np.sin(self.kMag*R2) - self.kMag*R2 * np.cos(self.kMag*R2)) /(self.kMag*R2)**3
 
         # Fix the nan issue
         W1[0, 0, 0] = 1

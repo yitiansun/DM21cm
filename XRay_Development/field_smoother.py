@@ -4,7 +4,7 @@ from scipy import signal, ndimage, stats, interpolate, integrate
 from astropy import cosmology, constants, units
 
 class WindowedData:
-    def __init__(self, data_path, cosmo, N, dx, cache = True):
+    def __init__(self, data_path, cosmo, N, dx, cache=True, irfftn=np.fft.irfftn):
         """
         Class initializer. The arguments are:
         'data_path' - the path where the caching hdf5 is stored
@@ -12,11 +12,13 @@ class WindowedData:
         'N'         - the HII_DIM from 21cmFAST
         'dx'        - the pixel sidelength for 21cmFAST data cubes in Mpccm
         'cache'     - Boolean controlling if data is cached (True) or kept in memory (False)
+        'irfftn'    - Method for performing the 3-D inverse real valued fft
         """
 
         self.data_path = data_path
         self.cosmo = cosmo
         self.redshifts = np.array([])
+        self.irfftn = irfftn
 
         if not cache:
             self.boxes = []
@@ -143,5 +145,4 @@ class WindowedData:
 
         # Load the field and smooth via FFT
         field, spec = self._get_field(field_index)
-        return shell_volume * solid_angle * np.fft.irfftn(field * W), spec
-
+        return shell_volume * solid_angle * self.irfftn(field * W), spec

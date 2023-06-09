@@ -159,6 +159,9 @@ def dt_between_z(z_high, z_low, **kwargs):
     
     return dt
 
+def conformal_t_between(rs1, rs2):
+    """conformal radius/time [s] between rs1=1+z1 and rs2 """
+    return np.abs(integrate.quad(lambda rsp: 1/hubble(rsp), rs1, rs2)[0])
 
 #========================================
 # Dark Matter

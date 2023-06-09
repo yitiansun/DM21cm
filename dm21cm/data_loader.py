@@ -24,12 +24,12 @@ def load_data(data_type, prefix=None, reload=False):
     global global_phot_phot_tf, global_elec_phot_tf
     
     if prefix is None:
-        prefix = os.environ['DM21CM_DATA_DIR'] + '/tf/nBs_test_2'
+        prefix = os.environ['DM21CM_DATA_DIR'] + '/tf/230408/phot'
     
     if data_type == 'phot_dep':
         if (global_phot_dep_tf is None) or reload:
             global_phot_dep_tf = BatchInterpolator(
-                f'{prefix}/phot_dep_dlnz4.879E-2_aad.p'
+                f'{prefix}/phot_dep_renxo_aad.p'
             )
             logging.info('Loaded photon deposition transfer function.')
         return global_phot_dep_tf
@@ -45,7 +45,7 @@ def load_data(data_type, prefix=None, reload=False):
     elif data_type == 'phot_phot':
         if (global_phot_phot_tf is None) or reload:
             global_phot_phot_tf = BatchInterpolator(
-                f'{prefix}/phot_phot_dlnz4.879E-2_aad.p'
+                f'{prefix}/phot_phot_renxo_aad.p'
             )
             logging.info('Loaded photon photon transfer function.')
         return global_phot_phot_tf

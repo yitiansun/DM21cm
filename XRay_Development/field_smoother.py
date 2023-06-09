@@ -4,15 +4,13 @@ from scipy import signal, ndimage, stats, interpolate, integrate
 from astropy import cosmology, constants, units
 
 class WindowedData:
-    def __init__(self, data_path, cosmo, N, dx, N_x):
-
+    def __init__(self, data_path, cosmo, N, dx):
         """
         Class initializer. The arguments are:
         'data_path' - the path where the caching hdf5 is stored
         'cosmo'     - an instance of an astropy cosmology
         'N'         - the HII_DIM from 21cmFAST
         'dx'        - the pixel sidelength for 21cmFAST data cubes in Mpccm
-        'Nx'        - the number of bins used to resolve the X-ray spectra
         """
 
         self.data_path = data_path

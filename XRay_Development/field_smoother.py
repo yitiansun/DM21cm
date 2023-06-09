@@ -6,6 +6,15 @@ from astropy import cosmology, constants, units
 class WindowedData:
     def __init__(self, data_path, cosmo, N, dx, N_x):
 
+        """
+        Class initializer. The arguments are:
+        'data_path' - the path where the caching hdf5 is stored
+        'cosmo'     - an instance of an astropy cosmology
+        'N'         - the HII_DIM from 21cmFAST
+        'dx'        - the pixel sidelength for 21cmFAST data cubes in Mpccm
+        'Nx'        - the number of bins used to resolve the X-ray spectra
+        """
+
         self.data_path = data_path
         self.cosmo = cosmo
         self.redshifts = np.array([])
@@ -21,7 +30,12 @@ class WindowedData:
 
     def set_field(self, field, spec, z):
         """
-        Adds the provided X-Ray brightness field and spectrum to the hdf5 cache
+        This method adds the X-ray brightness field and the X-ray spectrum at a specified
+        redshift to the cache.
+
+        'field' - the comoving volumetric emissivity of photons in each pixel. Units of photonos / Mpccm^3
+        'spec' - the X-ray spectrum, can be in whatever units you want, this is just for caching convenience
+        'z'    - the redshift associated with the brightness field and spectrum
         """
 
         field_index = len(self.redshifts)
@@ -32,12 +46,20 @@ class WindowedData:
 
         self.redshifts = np.append(self.redshifts, z)
 
-    def get_field(self, field_index):
+    def _get_field(self, field_index):
+        """
+        Returns the brightness field and spectrum at the specified cached state. 
+        """
 
         with h5py.File(self.data_path, 'r') as archive:
             return np.array(archive['Field_' + str(field_index)], dtype = complex), np.array(archive['Spec_' + str(field_index)], dtype = float)
 
-    def get_smoothing_radii(self, z_receiver, z1, z2):
+    def _get_smoothing_radii(self, z_receiver, z1, z2):
+        """
+        Evaluates the shell radii for a receiver at `z_receiver` for emission between redshifts
+        `z1` and `z2`
+        """
+
         z_at_t = lambda t: cosmology.z_at_value(self.cosmo.age, t)
         integrand = lambda t: 1+z_at_t(t*units.Gyr)
 
@@ -52,16 +74,17 @@ class WindowedData:
 
     def get_smoothed_shell(z_receiver, z_donor, z_next_donor):
         '''
-        Smooths the shells for the given specification of the receiver
-        redshift `z_receiver`, from a shell with outer radius defined by
-        `z_donor` and an inner radius defined by `z_next_donor`.
+        Calculate the spatially-dependent intensity of X-rays photons at `z_receiver`
+        for photonss emitted as early as `z_donor` and as late as `z_next_donor`.
+
+        Returns the incident intensity in photons/Mpc^2 and the spectrum (without redshifting)
         '''
 
         # Get the index of the donor field
         field_index = np.argmin(np.abs(self.redshifts - z_donor))
 
         # Get the smoothing radii in comoving coordinates and canonically sort them
-        R1, R2 = get_smoothing_radii(self, z_receiver, z_donor, z_next_donor)
+        R1, R2 = self._get_smoothing_radii(self, z_receiver, z_donor, z_next_donor)
 
         # Volumetric weighting factors for combining the window functions
         R1, R2 = np.sort([R1, R2])
@@ -88,6 +111,6 @@ class WindowedData:
         solid_angle = 1 / 4 / np.pi /Rp.value**2
 
         # Load the field and smooth via FFT
-        field, spec = self.get_field(field_index)
+        field, spec = self._get_field(field_index)
         return shell_volume * solid_angle * np.fft.irfftn(field * W), spec
 

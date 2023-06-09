@@ -85,7 +85,7 @@ class WindowedData:
 
         # Target solid angle
         Rp = self.cosmo.lookback_distance(z_donor) - self.cosmo.lookback_distance(z_receiver)
-        solid_angle = 1 / 4 / np.pi /Rp**2
+        solid_angle = 1 / 4 / np.pi /Rp.value**2
 
         # Load the field and smooth via FFT
         field, spec = self.get_field(field_index)

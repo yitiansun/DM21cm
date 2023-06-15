@@ -107,7 +107,7 @@ class WindowedData:
     def get_smoothed_shell(z_receiver, z_donor, z_next_donor):
         '''
         Calculate the spatially-dependent intensity of X-rays photons at `z_receiver`
-        for photonss emitted as early as `z_donor` and as late as `z_next_donor`.
+        for photons emitted as early as `z_donor` and as late as `z_next_donor`.
 
         Returns the incident intensity in photons/Mpc^2 and the spectrum (without redshifting)
         '''
@@ -135,7 +135,13 @@ class WindowedData:
         # Combine the window functions
         W = w2*W2 - w1*W1
         del W1, W2
-
+        
+        # Load the field and smooth via FFT
+        field, spec = self._get_field(field_index)
+        field = self.irfftn(field * W) # This is an averaging
+        
+        return field, spec
+        # Fix what is below later.
         # Comoving shell volume
         shell_volume = 4*np.pi/ 3 * (R2**3 - R1**3) # volume of the comoving shell
 
@@ -143,6 +149,5 @@ class WindowedData:
         Rp = self.cosmo.lookback_distance(z_donor) - self.cosmo.lookback_distance(z_receiver)
         solid_angle = 1 / 4 / np.pi /Rp.value**2
 
-        # Load the field and smooth via FFT
-        field, spec = self._get_field(field_index)
-        return shell_volume * solid_angle * self.irfftn(field * W), spec
+        
+        return shell_volume * solid_angle * field, spec

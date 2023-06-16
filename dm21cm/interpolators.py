@@ -90,7 +90,7 @@ class BatchInterpolator:
         self.fixed_in_spec = in_spec
         self.fixed_in_spec_data = jnp.einsum('e,renxo->rnxo', in_spec, self.data)
         
-    
+        
     def __call__(self, rs=None, in_spec=None, nBs_s=None, x_s=None,
                  sum_result=False, sum_weight=None, sum_batch_size=10000,
                  out_of_bounds_action='error'):
@@ -170,3 +170,12 @@ class BatchInterpolator:
                     result += jnp.dot(sum_weight_batches[i_batch], interp_result)
                     
             return result
+        
+    
+    def point_interp(self, rs=None, nBs=None, x=None):
+        
+        data = interp1d(self.data, self.abscs['rs'], rs) # enxo
+        data = np.einsum('enxo -> nxeo', data) # nxeo
+        data = interp1d(data, self.abscs['nBs'], nBs) # xeo
+        data = interp1d(data, self.abscs['x'], x) # eo
+        return data

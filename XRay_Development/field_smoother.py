@@ -19,8 +19,9 @@ class WindowedData:
         self.cosmo = cosmo
         self.redshifts = np.array([])
         self.irfftn = irfftn
+        self.cache = cache
 
-        if not cache:
+        if not self.cache:
             self.boxes = []
             self.specs = []
 
@@ -102,7 +103,7 @@ class WindowedData:
 
         return np.abs(R1.value), np.abs(R2.value)
 
-    def get_smoothed_shell(z_receiver, z_donor, z_next_donor):
+    def get_smoothed_shell(self, z_receiver=None, z_donor=None, z_next_donor=None):
         '''
         Calculate the spatially-dependent intensity of X-rays photons at `z_receiver`
         for photons emitted as early as `z_donor` and as late as `z_next_donor`.
@@ -114,7 +115,7 @@ class WindowedData:
         field_index = np.argmin(np.abs(self.redshifts - z_donor))
 
         # Get the smoothing radii in comoving coordinates and canonically sort them
-        R1, R2 = self._get_smoothing_radii(self, z_receiver, z_donor, z_next_donor)
+        R1, R2 = self._get_smoothing_radii(z_receiver, z_donor, z_next_donor)
 
         # Volumetric weighting factors for combining the window functions
         R1, R2 = np.sort([R1, R2])

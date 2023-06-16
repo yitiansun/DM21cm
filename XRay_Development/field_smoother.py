@@ -24,8 +24,6 @@ class WindowedData:
             self.boxes = []
             self.specs = []
 
-        if cache:
-
         # Generate the kmagnitudes and save them
         k = np.fft.fftfreq(N, d = dx)
         kReal = np.fft.rfftfreq(N, d = dx)

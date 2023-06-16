@@ -85,7 +85,7 @@ class WindowedData:
 
         return field, spec
 
-    def _get_smoothing_radii(self, z_receiver, z1, z2):
+    def get_smoothing_radii(self, z_receiver, z1, z2):
         """
         Evaluates the shell radii for a receiver at `z_receiver` for emission between redshifts
         `z1` and `z2`
@@ -115,12 +115,14 @@ class WindowedData:
         field_index = np.argmin(np.abs(self.redshifts - z_donor))
 
         # Get the smoothing radii in comoving coordinates and canonically sort them
-        R1, R2 = self._get_smoothing_radii(z_receiver, z_donor, z_next_donor)
+        R1, R2 = self.get_smoothing_radii(z_receiver, z_donor, z_next_donor)
 
         # Volumetric weighting factors for combining the window functions
         R1, R2 = np.sort([R1, R2])
         w1 = R1**3 / (R2**3 - R1**3)
         w2 = R2**3 / (R2**3 - R1**3)
+        R1 = np.clip(R1, 1e-6, None)
+        R2 = np.clip(R2, 1e-6, None)
 
         # Construct the smoothing functions in the frequency domain
         with np.errstate(divide='ignore'):
@@ -150,3 +152,11 @@ class WindowedData:
 
         
         return shell_volume * solid_angle * field, spec
+    
+    
+    def get_spec(self, z_receiver=None, z_donor=None, z_next_donor=None):
+        
+        field_index = np.argmin(np.abs(self.redshifts - z_donor))
+        field, spec = self._get_field(field_index)
+        
+        return spec

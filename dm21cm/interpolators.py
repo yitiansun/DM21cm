@@ -1,16 +1,15 @@
 """Interpolators for energy depositions and secondary spectra."""
 
-import pickle
+import h5py
 
 import numpy as np
+
 import jax.numpy as jnp
 from jax import jit, vmap
 from functools import partial
 
 
-##############################
-## interpolating functions
-
+#===== interpolating functions =====
 
 def interp1d(f, x, xv):
     """Interpolates f(x) at values in xvs. Does not do bound checks.
@@ -53,33 +52,42 @@ def interp2d(f, x0, x1, xv):
 interp2d_vmap = jit(vmap(interp2d, in_axes=(None, None, None, 0)))
 
 
-##############################
-## bound checking
+#===== utilities =====
+
 def v_is_within(v, absc):
     """v can be value or vector."""
     return jnp.all(v >= jnp.min(absc)) and jnp.all(v <= jnp.max(absc))
 
 
-##############################
-## interpolator classes
+#===== interpolator class =====
 
 class BatchInterpolator:
     """Interpolator for multidimensional data. Currently support
     axes = ('rs', 'Ein', 'nBs', 'x', 'out')
     
-    abscs : abscissas of axes.
-    axes : tuple of name of axes.
-    data : grid data consistent with axes and abscs.
-    
-    Initialize with tuple (abscs, axes, data) or a pickle filename containing
-    this structure.
+    Parameters
+    ----------
+    filename : str
+        HDF5 data file name.
+        
+    Attributes
+    ---------
+    axes : list
+        List of axes.
+    abscs : dict
+        Abscissas of axes.
+    data : array
+        Grid data consistent with axes and abscs.
     """
     
-    def __init__(self, abscs_axes_data):
+    def __init__(self, filename):
         
-        if isinstance(abscs_axes_data, str):
-            abscs_axes_data = pickle.load(open(abscs_axes_data, 'rb'))
-        self.abscs, self.axes, self.data = abscs_axes_data
+        with h5py.File(filename, 'r') as hf:
+            self.axes = hf['axes'][:]
+            self.abscs = {}
+            for k, item in hf['abscs'].items():
+                self.abscs[k] = item[:]
+            self.data = hf['data'][:] # load into memory
         
         self.fixed_in_spec = None
         self.fixed_in_spec_data = None
@@ -173,6 +181,7 @@ class BatchInterpolator:
         
     
     def point_interp(self, rs=None, nBs=None, x=None):
+        """Returns the transfer function at a (rs, nBs, x) point."""
         
         data = interp1d(self.data, self.abscs['rs'], rs) # enxo
         data = np.einsum('enxo -> nxeo', data) # nxeo

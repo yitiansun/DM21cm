@@ -1,7 +1,8 @@
-import os, sys
-import logging
+import os
+import sys
+sys.path.append("..")
 
-sys.path.append('..')
+import logging
 
 from dm21cm.interpolators import BatchInterpolator
 
@@ -31,9 +32,7 @@ def load_data(data_type, prefix=None, reload=False):
     
     if data_type == 'phot_dep':
         if (global_phot_dep_tf is None) or reload:
-            global_phot_dep_tf = BatchInterpolator(
-                f'{prefix}/phot_dep_renxo_aad.p'
-            )
+            global_phot_dep_tf = BatchInterpolator(f'{prefix}/phot_dep.h5')
             logging.info('Loaded photon deposition transfer function.')
         return global_phot_dep_tf
     
@@ -47,17 +46,13 @@ def load_data(data_type, prefix=None, reload=False):
     
     elif data_type == 'phot_prop':
         if (global_phot_prop_tf is None) or reload:
-            global_phot_prop_tf = BatchInterpolator(
-                f'{prefix}/phot_prop_renxo_aad.p'
-            )
+            global_phot_prop_tf = BatchInterpolator(f'{prefix}/phot_prop.h5')
             logging.info('Loaded photon propagation transfer function.')
         return global_phot_prop_tf
     
     elif data_type == 'phot_scat':
         if (global_phot_scat_tf is None) or reload:
-            global_phot_scat_tf = BatchInterpolator(
-                f'{prefix}/phot_scat_renxo_aad.p'
-            )
+            global_phot_scat_tf = BatchInterpolator(f'{prefix}/phot_scat.h5')
             logging.info('Loaded photon scattering transfer function.')
         return global_phot_scat_tf
     

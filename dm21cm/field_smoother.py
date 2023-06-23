@@ -3,6 +3,9 @@ import numpy as np
 from scipy import signal, ndimage, stats, interpolate, integrate
 from astropy import cosmology, constants, units
 
+mean_crossing_length = .6742
+mean_crossing_fraction = .1236
+
 class WindowedData:
     def __init__(self, data_path, cosmo, N, dx, cache=True, irfftn=np.fft.irfftn):
         """
@@ -84,24 +87,47 @@ class WindowedData:
             spec = self.specs[field_index]
 
         return field, spec
+    
+    
+    def rC_Integrand(self, t):
+        z_at_t = lambda t: cosmology.z_at_value(self.cosmo.age, t)
+        return 1+z_at_t(t*units.Gyr)
+    
+    def ShellIntegrand(self, t_prime, t_receiver):
+        
+        # Conformal Shells
+        rC = integrate.quad(self.rC_Integrand, t_prime, t_receiver)[0] *constants.c.to(units.Mpc / units.Gyr)*units.Gyr
+        rC=rC.value
 
+        drC_dt = integrand(t_prime) *constants.c.to(units.Mpc / units.Gyr)*units.Gyr
+        drC_dt = drC_dt.value
+
+        # Proper distances
+        rP = self.cosmo.lookback_distance(z_at_t(t_prime*units.Gyr)) - self.cosmo.lookback_distance(z_receiver)
+        rP = rP.value
+
+        # Integrand
+        return rC**2/rP**2 * drC_dt
+        
+    
     def get_smoothing_radii(self, z_receiver, z1, z2):
         """
         Evaluates the shell radii for a receiver at `z_receiver` for emission between redshifts
         `z1` and `z2`
         """
 
-        z_at_t = lambda t: cosmology.z_at_value(self.cosmo.age, t)
-        integrand = lambda t: 1+z_at_t(t*units.Gyr)
-
         t_receiver = self.cosmo.age(z_receiver).value
         t1 = self.cosmo.age(z1).value
         t2 = self.cosmo.age(z2).value
 
-        R1 = integrate.quad(integrand, t_receiver, t1)[0] *constants.c.to(units.Mpc / units.Gyr)*units.Gyr
-        R2 = integrate.quad(integrand, t_receiver, t2)[0] *constants.c.to(units.Mpc / units.Gyr)*units.Gyr
+        # Comoving separations in Mpc
+        R1 = integrate.quad(self.rC_Integrand, t_receiver, t1)[0] *constants.c.to(units.Mpc / units.Gyr)*units.Gyr
+        R2 = integrate.quad(self.rC_Integrand, t_receiver, t2)[0] *constants.c.to(units.Mpc / units.Gyr)*units.Gyr
+        
+        # Flux conversion factor from (comoving Mpc)^3 /(physical Mpc)^2
+        to_flux_factor = integrate.quad(lambda t: self.ShellIntegrand(t, t_receiver), t2, t1) # Comoving Mpc^3 / Proper Mpc^2
 
-        return np.abs(R1.value), np.abs(R2.value)
+        return np.abs(R1.value), np.abs(R2.value), to_flux_factor
 
     def get_smoothed_shell(self, z_receiver=None, z_donor=None, z_next_donor=None):
         '''
@@ -115,7 +141,7 @@ class WindowedData:
         field_index = np.argmin(np.abs(self.redshifts - z_donor))
 
         # Get the smoothing radii in comoving coordinates and canonically sort them
-        R1, R2 = self.get_smoothing_radii(z_receiver, z_donor, z_next_donor)
+        R1, R2, flux_factor = self.get_smoothing_radii(z_receiver, z_donor, z_next_donor)
 
         # Volumetric weighting factors for combining the window functions
         R1, R2 = np.sort([R1, R2])
@@ -139,20 +165,15 @@ class WindowedData:
         
         # Load the field and smooth via FFT
         field, spec = self._get_field(field_index)
-        field = self.irfftn(field * W) # This is an averaging
+        field = self.irfftn(field * W) # This is the average volumetric emissivity
+        
+        # Convert the averaged emissivity to a flux in units of photon-rate/(proper Mpc^2)
+        field *= flux_factor
         
         return field, spec
-        # Fix what is below later.
-        # Comoving shell volume
-        shell_volume = 4*np.pi/ 3 * (R2**3 - R1**3) # volume of the comoving shell
-
-        # Target solid angle
-        Rp = self.cosmo.lookback_distance(z_donor) - self.cosmo.lookback_distance(z_receiver)
-        solid_angle = 1 / 4 / np.pi /Rp.value**2
-
-        
-        return shell_volume * solid_angle * field, spec
     
+    def to_homogeneous(self, dxp):
+        return mean_crossing_fraction / (dxp)**3 * (dxp*mean_crossing_length / constants.c)
     
     def get_spec(self, z_receiver=None, z_donor=None, z_next_donor=None):
         

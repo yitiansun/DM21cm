@@ -70,6 +70,13 @@ class WindowedData:
         else:
             self.boxes.append(field)
             self.specs.append(spec)
+            
+    def get_spec(self, z_receiver=None, z_donor=None, z_next_donor=None):
+        
+        field_index = np.argmin(np.abs(self.redshifts - z_donor))
+        field, spec = self._get_field(field_index)
+        
+        return spec
 
 
     def _get_field(self, field_index):
@@ -89,25 +96,28 @@ class WindowedData:
         return field, spec
     
     
+    def z_at_t(self, t):
+        return cosmology.z_at_value(self.cosmo.age, t*units.Gyr)
+    
     def rC_Integrand(self, t):
-        z_at_t = lambda t: cosmology.z_at_value(self.cosmo.age, t)
-        return 1+z_at_t(t*units.Gyr)
+        return 1+self.z_at_t(t)
     
     def ShellIntegrand(self, t_prime, t_receiver):
+        z_receiver = self.z_at_t(t_receiver)
         
         # Conformal Shells
         rC = integrate.quad(self.rC_Integrand, t_prime, t_receiver)[0] *constants.c.to(units.Mpc / units.Gyr)*units.Gyr
         rC=rC.value
 
-        drC_dt = integrand(t_prime) *constants.c.to(units.Mpc / units.Gyr)*units.Gyr
+        drC_dt = self.rC_Integrand(t_prime) *constants.c.to(units.Mpc / units.Gyr)*units.Gyr
         drC_dt = drC_dt.value
 
         # Proper distances
-        rP = self.cosmo.lookback_distance(z_at_t(t_prime*units.Gyr)) - self.cosmo.lookback_distance(z_receiver)
+        rP = self.cosmo.lookback_distance(self.z_at_t(t_prime)) - self.cosmo.lookback_distance(z_receiver)
         rP = rP.value
 
         # Integrand
-        return rC**2/rP**2 * drC_dt
+        return mean_crossing_fraction*rC**2/rP**2 * drC_dt
         
     
     def get_smoothing_radii(self, z_receiver, z1, z2):
@@ -129,7 +139,7 @@ class WindowedData:
 
         return np.abs(R1.value), np.abs(R2.value), to_flux_factor
 
-    def get_smoothed_shell(self, z_receiver=None, z_donor=None, z_next_donor=None):
+    def get_smoothed_shell(self, z_receiver, z_donor, z_next_donor, dz_step):
         '''
         Calculate the spatially-dependent intensity of X-rays photons at `z_receiver`
         for photons emitted as early as `z_donor` and as late as `z_next_donor`.
@@ -139,6 +149,8 @@ class WindowedData:
 
         # Get the index of the donor field
         field_index = np.argmin(np.abs(self.redshifts - z_donor))
+        a_receiver=1. / (1+z_receiver)
+
 
         # Get the smoothing radii in comoving coordinates and canonically sort them
         R1, R2, flux_factor = self.get_smoothing_radii(z_receiver, z_donor, z_next_donor)
@@ -155,9 +167,9 @@ class WindowedData:
             W1 = 3*(np.sin(self.kMag*R1) - self.kMag*R1 * np.cos(self.kMag*R1)) /(self.kMag*R1)**3
             W2 = 3*(np.sin(self.kMag*R2) - self.kMag*R2 * np.cos(self.kMag*R2)) /(self.kMag*R2)**3
 
-        # Fix the nan issue
-        W1[0, 0, 0] = 1
-        W2[0, 0, 0] = 1
+            # Fix the nan issue
+            W1[0, 0, 0] = 1
+            W2[0, 0, 0] = 1
 
         # Combine the window functions
         W = w2*W2 - w1*W1
@@ -165,19 +177,21 @@ class WindowedData:
         
         # Load the field and smooth via FFT
         field, spec = self._get_field(field_index)
-        field = self.irfftn(field * W) # This is the average volumetric emissivity
         
-        # Convert the averaged emissivity to a flux in units of photon-rate/(proper Mpc^2)
-        field *= flux_factor
+        # Multiply by flux_factor. `field` is now the flux of photons/proper area through a voxel 
+        field = flux_factor * self.irfftn(field * W) 
+        
+        # Multiply by the proper plane area of the voxel to get the number of photons that enter the voxel
+        field *= (self.dx*a_receiver)**2
+        
+        # Calculate the average time spent in the voxel by a photon. This could be made better
+        crossing_time = ( (self.dx* units.Mpc) * a_receiver  / constants.c ).to('Gyr').value
+        step_time = (cosmo.age(z_receiver - dz_step) - cosmo.age(z_receiver)).to('Gyr').value
+        
+        # Now calculate the average number of photons in the voxel
+        field *= crossing_time / step_time
+        
+        # Now return to photons/comoving volume
+        field /= self.dx**3
         
         return field, spec
-    
-    def to_homogeneous(self, dxp):
-        return mean_crossing_fraction / (dxp)**3 * (dxp*mean_crossing_length / constants.c)
-    
-    def get_spec(self, z_receiver=None, z_donor=None, z_next_donor=None):
-        
-        field_index = np.argmin(np.abs(self.redshifts - z_donor))
-        field, spec = self._get_field(field_index)
-        
-        return spec

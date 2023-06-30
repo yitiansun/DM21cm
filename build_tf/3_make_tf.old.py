@@ -1,17 +1,17 @@
 """Makes electron and photon transfer functions for 21cmFAST"""
 
-import os, sys
-sys.path.append(os.environ['DH_DIR'])
-sys.path.append('..')
-
-import numpy as np
-import pickle
+import os
+import sys
 import time
 from tqdm import tqdm
 
+import numpy as np
+
 from low_energy.lowE_electrons import make_interpolator
 from low_energy.lowE_deposition import compute_fs
+from utils import load_dict
 
+sys.path.append(os.environ['DH_DIR'])
 from config import load_data
 from main import get_elec_cooling_data
 from   darkhistory.spec.spectrum import Spectrum
@@ -23,19 +23,19 @@ from   darkhistory.electrons.elec_cooling import get_elec_cooling_tf
 
 #====================
 # 0. Config
-run_name = '230408x'
+run_name = '230629'
 tf_type = 'phot' # {'phot', 'elec'}
 include_f_xray = True
-xray_eng_range = (1e3, 1e4) # [eV]
+xray_eng_range = (1e2, 1e4) # [eV]
 use_tqdm = True
 print_f = True
 
-abscs = pickle.load(open(f'../data/abscissas/abscs_{run_name}.p', 'rb'))
+abscs = load_dict(f"../data/abscissas/abscs_{run_name}.h5")
 if include_f_xray and 'xray' not in abscs['dep_c']:
     raise ValueError("no xray in abscs['dep_c']")
 inj_abscs = abscs['photE'] if tf_type == 'phot' else abscs['elecEk'] + phys.me
 MEDEA_dir = '../data/MEDEA'
-data_dir = f'../data/tf/230408/{tf_type}'
+data_dir = f'../data/tf/{run_name}/{tf_type}'
 save_dir = f'../data/tf/{run_name}/{tf_type}'
 os.makedirs(save_dir, exist_ok=True)
 

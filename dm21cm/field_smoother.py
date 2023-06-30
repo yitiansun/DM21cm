@@ -3,8 +3,14 @@ import numpy as np
 from scipy import signal, ndimage, stats, interpolate, integrate
 from astropy import cosmology, constants, units
 
-mean_crossing_length = .6742
+# This quantity multiplied by area^2 /distance^2 is the fraction of 
+# photons emitted isotropically from distance `d` will cross through a voxel
+# with face area `A`.
 mean_crossing_fraction = .1236
+
+# This is the mean crossing length of isotropically emitted photons
+# crossing a voxel in units of the voxel sidelength
+mean_crossing_length = .6742
 
 class WindowedData:
     def __init__(self, data_path, cosmo, N, dx, cache=True, irfftn=np.fft.irfftn):
@@ -23,6 +29,7 @@ class WindowedData:
         self.redshifts = np.array([])
         self.irfftn = irfftn
         self.cache = cache
+        self.dx = dx
 
         if not self.cache:
             self.boxes = []
@@ -58,7 +65,6 @@ class WindowedData:
         'spec' - the X-ray spectrum, can be in whatever units you want, this is just for caching convenience
         'z'    - the redshift associated with the brightness field and spectrum
         """
-        self.redshifts = np.append(self.redshifts, z)
 
         if self.cache:
             field_index = len(self.redshifts)
@@ -70,6 +76,9 @@ class WindowedData:
         else:
             self.boxes.append(field)
             self.specs.append(spec)
+            
+        self.redshifts = np.append(self.redshifts, z)
+
             
     def get_spec(self, z_receiver=None, z_donor=None, z_next_donor=None):
         
@@ -136,15 +145,16 @@ class WindowedData:
         
         # Flux conversion factor from (comoving Mpc)^3 /(physical Mpc)^2
         to_flux_factor = integrate.quad(lambda t: self.ShellIntegrand(t, t_receiver), t2, t1) # Comoving Mpc^3 / Proper Mpc^2
-
+        to_flux_factor = np.abs(to_flux_factor)[0]
         return np.abs(R1.value), np.abs(R2.value), to_flux_factor
 
     def get_smoothed_shell(self, z_receiver, z_donor, z_next_donor, dz_step):
         '''
         Calculate the spatially-dependent intensity of X-rays photons at `z_receiver`
         for photons emitted as early as `z_donor` and as late as `z_next_donor`.
-
-        Returns the incident intensity in photons/Mpc^2 and the spectrum (without redshifting)
+        
+        Returns the instantaneous photon density in units of photons / Mpccm^3 for photons emitted
+        between `z_donor` and `z_next_donor` arriving at `z_receiver`. Also returns the spectrum.
         '''
 
         # Get the index of the donor field
@@ -186,7 +196,7 @@ class WindowedData:
         
         # Calculate the average time spent in the voxel by a photon. This could be made better
         crossing_time = ( (self.dx* units.Mpc) * a_receiver  / constants.c ).to('Gyr').value
-        step_time = (cosmo.age(z_receiver - dz_step) - cosmo.age(z_receiver)).to('Gyr').value
+        step_time = (self.cosmo.age(z_receiver - dz_step) - self.cosmo.age(z_receiver)).to('Gyr').value
         
         # Now calculate the average number of photons in the voxel
         field *= crossing_time / step_time

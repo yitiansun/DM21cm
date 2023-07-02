@@ -4,6 +4,7 @@ data/tf/
 data/run_info/**
 notebooks/plots/tmp
 **/.DS_Store
+outputs/tmp
 #------------------------
 
 # Byte-compiled / optimized / DLL files

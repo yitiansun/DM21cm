@@ -1,42 +1,31 @@
 """Class for dark matter (DM) related variables."""
 
-import pickle
-import os, sys
+import os
+import sys
 
-if os.environ['USER'] == 'yitians' and 'submit' in os.uname().nodename:
-    os.environ['DM21CM_DATA_DIR'] = '/data/submit/yitians/dm21cm/DM21cm'
-    os.environ['DH_DIR'] = '/work/submit/yitians/darkhistory/DarkHistory'
+sys.path.append("..")
+from dm21cm.utils import load_dict
 
-sys.path.append('..')
 sys.path.append(os.environ['DH_DIR'])
 from darkhistory.spec.pppc import get_pppc_spec
 
-abscs = pickle.load(open('../data/abscissas/abscs_base.p', 'rb'))
+abscs = load_dict(os.environ['DM21CM_DIR']+'/data/abscissas/abscs_base.h5')
+
 
 class DMParams:
     """Dark matter parameters.
     
-    Parameters
-    ----------
-    mode : {'swave', 'decay'}
-        Type of injection.
-    primary : see darkhistory.pppc.get_pppc_spec
-        Primary injection channel.
-    m_DM : float
-        DM mass in eV.
-    sigmav : float, optional
-        Annihilation cross section in cm\ :sup:`3`\ s\ :sup:`-1`\ .
-    lifetime : float, optional
-        Decay lifetime in s.
+    Args:
+        mode {'swave', 'decay'}: Type of injection.
+        primary (str): Primary injection channel. See darkhistory.pppc.get_pppc_spec
+        m_DM (float): DM mass in eV.
+        sigmav (float): Annihilation cross section in cm\ :sup:`3`\ s\ :sup:`-1`\ .
+        lifetime (float, optional): Decay lifetime in s.
         
-    Attributes
-    ----------
-    inj_phot_spec : Spectrum
-        Injected photon spectrum per injection event.
-    inj_elec_spec : Spectrum
-        Injected electron positron spectrum per injection event.
-    eng_per_inj : float
-        Injected energy per injection event.
+    Attributes:
+        inj_phot_spec (Spectrum): Injected photon spectrum per injection event.
+        inj_elec_spec (Spectrum): Injected electron positron spectrum per injection event.
+        eng_per_inj (float): Injected energy per injection event.
     """
     
     def __init__(self, mode, primary, m_DM, sigmav=None, lifetime=None):
@@ -59,12 +48,11 @@ class DMParams:
         self.inj_phot_spec = get_pppc_spec(
             self.m_DM, abscs['photE'], self.primary, 'phot',
             decay=(self.mode=='decay')
-        ) # injected spectrum per injection event
+        )
         self.inj_elec_spec = get_pppc_spec(
             self.m_DM, abscs['elecEk'], self.primary, 'elec',
             decay=(self.mode=='decay')
-        ) # injected spectrum per injection event
-        
+        )
         self.eng_per_inj = self.m_DM if self.mode=='decay' else 2 * self.m_DM
         
         

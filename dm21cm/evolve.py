@@ -78,7 +78,7 @@ def evolve(run_name, run_mode='xray',
     z_mids = np.sqrt(z_edges[1:] * z_edges[:-1])
     z_dh_stops = z_edges[1]
     
-    abscs = load_dict(f"../data/abscissas/abscs_{dhtf_version}.h5")
+    abscs = load_dict(os.environ['DM21CM_DIR'] + f"/data/abscissas/abscs_{dhtf_version}.h5")
     if not np.isclose(np.log(zplusone_step_factor), abscs['dlnz']):
         raise ValueError('zplusone_step_factor and dhtf_version mismatch')
     photeng = abscs['photE']
@@ -447,9 +447,9 @@ def evolve(run_name, run_mode='xray',
     #===== LOOP END LOOP END =====
     
     arr_records = {k: np.array([r[k] for r in records]) for k in records[0].keys()}
-    np.save(f'../data/run_info/{run_name}_records', arr_records)
+    np.save(f"{os.environ['DM21CM_DIR']}/data/run_info/{run_name}_records", arr_records)
     if save_slices:
-        np.save(f'../data/run_info/{run_name}_slices', saved_slices)
+        np.save(f"{os.environ['DM21CM_DIR']}/data/run_info/{run_name}_slices", saved_slices)
         
     print(f'input used {input_time_tot:.4f} s')
     print(f'p21c used {p21c_time_tot:.4f} s')

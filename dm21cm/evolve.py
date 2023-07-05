@@ -39,7 +39,8 @@ def evolve(run_name, run_mode='xray',
            dhinit_list=['phot', 'T_k', 'x_e'], dhtf_version=...,
            p21c_initial_conditions=...,
            rerun_DH=False, clear_cache=False, force_reload_tf=False,
-           use_tqdm=True, save_slices=True):
+           use_tqdm=True, save_slices=True,
+           debug=False, debug_xe_func=...):
     """Main evolution function.
 
     Args:
@@ -48,21 +49,23 @@ def evolve(run_name, run_mode='xray',
         
         z_start (float)
         z_end (float)
-        zplusone_step_factor (float)
-        dm_params (DMParams)
-        struct_boost_model {'erfc 1e-3', 'erfc 1e-6', 'erfc 1e-9'} : Structure boost model for annihilation.
+        zplusone_step_factor (float) : (1+z) / (1+z_one_step_earlier). Greater than 1.
+        dm_params (DMParams) : Dark matter (DM) parameters.
+        struct_boost_model {'erfc 1e-3', 'erfc 1e-6', 'erfc 1e-9'} : Structure boost model for DM annihilation.
         enable_elec (bool) : Whether to enable electron processes.
-        dhinit_list (list) : List of variables to initialize at start with a DarkHistory run. Can include any of 'phot',
-            'T_k', 'x_e'.
+        dhinit_list (list) : List of variables to initialize at start with a DarkHistory run. Can include any of 'phot', 'T_k', 'x_e'.
         dhtf_version (str) : Version of DarkHistory transfer function to use.
         p21c_initial_conditions (InitialConditions)
         
         rerun_DH (bool) : Whether to rerun DarkHistory to get initial values.
         clear_cache (bool) : Whether to clear cache for 21cmFAST.
         force_reload_tf (bool): Whether to force reload transfer functions. Use when changing dhtf_version.
-        
         use_tqdm (bool)
         save_slices (bool) : Whether to save slices of T_b, T_k, ... of run.
+        debug (bool) : Whether to turn on debug mode.
+        
+    Returns:
+        debug_dict if debug is set. Otherwise None.
     """
     
     #===== Cache =====
@@ -120,8 +123,8 @@ def evolve(run_name, run_mode='xray',
         else:
             logging.info('Running DarkHistory to generate initial conditions.')
 
-            import main
-            dhinit_soln = main.evolve(
+            from darkhistory.main import evolve as dh_evolve
+            dhinit_soln = dh_evolve(
                 DM_process=dm_params.mode, mDM=dm_params.m_DM,
                 sigmav=dm_params.sigmav, primary=dm_params.primary,
                 struct_boost=phys.struct_boost_func(model=struct_boost_model),
@@ -158,6 +161,11 @@ def evolve(run_name, run_mode='xray',
         i_slice = int(box_dim/2)
     if use_tqdm:
         pbar = tqdm(total=len(z_edges)-1, position=0)
+    if debug:
+        debug_dict = {}
+        debug_dict['z'] = []
+        debug_dict['photEtot'] = []
+        debug_dict['f'] = []
         
     for i_z in range(len(z_edges)-1):
 
@@ -175,12 +183,15 @@ def evolve(run_name, run_mode='xray',
         
         if i_z == 0: # At this step we will arrive at z_edges[0], so z_mid is not defined yet.
             spin_temp = None
-            
-        elif run_mode == 'no inj':
-            if i_z == 1:
-                logging.warning('Not injecting anything in this run!')
+            if run_mode in ['bath', 'xray']:
+                record_inj = {
+                    'dE_inj_per_B' : 0.,
+                    'f_heat' : 0.,
+                    'f_ion'  : 0.,
+                    'f_exc'  : 0.,
+                }
 
-        else: # input from second step
+        elif run_mode in ['bath', 'xray']: # input from second step
             z_mid = z_mids[i_z-1] # At this step we will arrive at z_edges[i], passing through z_mids[i-1].
 
             input_heating = p21c.input_heating(redshift=z, init_boxes=p21c_initial_conditions, write=False)
@@ -199,6 +210,12 @@ def evolve(run_name, run_mode='xray',
             delta_box = jnp.asarray(perturbed_field.density)
             B_per_Bavg = 1 + delta_box
             rho_DM_box = (1 + delta_box) * phys.rho_DM * (1+z_mid)**3 # [eV cm^-3]
+            if debug: # DEBUG
+                # x_e_truth = debug_xe_func(z)
+                # spin_temp.x_e_box += x_e_truth - np.mean(spin_temp.x_e_box)
+                # x_H_truth = 1 - debug_xe_func(z)
+                # ionized_box.xH_box += x_H_truth - np.mean(ionized_box.xH_box)
+                pass
             x_e_box = jnp.asarray(1 - ionized_box.xH_box)
             inj_per_Bavg_box = phys.inj_rate(rho_DM_box, dm_params) * dt * struct_boost / n_Bavg # [inj/Bavg]
 
@@ -334,6 +351,17 @@ def evolve(run_name, run_mode='xray',
                 'f_ion'  : np.mean(dep_box[...,0] + dep_box[...,1]) / dE_inj_per_Bavg_unclustered,
                 'f_exc'  : np.mean(dep_box[...,2]) / dE_inj_per_Bavg_unclustered,
             }
+            
+            #===== debug =====
+            if debug:
+                out_phot_N = prop_phot_N + emit_phot_N
+                debug_dict['z'].append(z)
+                debug_dict['photEtot'].append(np.dot(photeng, out_phot_N))
+                debug_dict['f'].append(np.mean(dep_box, axis=(0,1,2))/dE_inj_per_Bavg_unclustered)
+                
+        else: # run_mode = 'no inj'
+            if i_z == 1:
+                logging.warning('Not injecting anything in this run!')
 
         input_time_tot += time.time() - input_timer
 
@@ -375,11 +403,12 @@ def evolve(run_name, run_mode='xray',
             if 'T_k' in dhinit_list:
                 T_k_DH = np.interp(z_now, dhinit_soln['rs'][::-1] - 1, dhinit_soln['Tm'][::-1] / phys.kB) # [K]
                 spin_temp.Tk_box += T_k_DH - np.mean(spin_temp.Tk_box)
-                
 
             if 'x_e' in dhinit_list:
                 x_e_DH = np.interp(z_now, dhinit_soln['rs'][::-1] - 1, dhinit_soln['x'][::-1, 0]) # HI
                 spin_temp.x_e_box += x_e_DH - np.mean(spin_temp.x_e_box)
+                x_H_DH = 1 - x_e_DH
+                ionized_box.xH_box += x_H_DH - np.mean(ionized_box.xH_box)
 
             if 'phot' in dhinit_list:
                 logrs_dh_arr = np.log(dhinit_soln['rs'])[::-1]
@@ -419,17 +448,16 @@ def evolve(run_name, run_mode='xray',
                 phot_bath_spec = out_phot_spec
 
         #===== save results =====
-        if i_z > 0:
-            record = {
-                'z'   : z_edges[i_z+1],
-                'T_s' : np.mean(spin_temp.Ts_box), # [mK]
-                'T_b' : np.mean(brightness_temp.brightness_temp), # [K]
-                'T_k' : np.mean(spin_temp.Tk_box), # [K]
-                'x_e' : np.mean(1 - ionized_box.xH_box), # [1]
-            }
-            if run_mode in ['bath', 'xray']:
-                record.update(record_inj)
-            records.append(record)
+        record = {
+            'z'   : z_edges[i_z+1],
+            'T_s' : np.mean(spin_temp.Ts_box), # [mK]
+            'T_b' : np.mean(brightness_temp.brightness_temp), # [K]
+            'T_k' : np.mean(spin_temp.Tk_box), # [K]
+            'x_e' : np.mean(1 - ionized_box.xH_box), # [1]
+        }
+        if run_mode in ['bath', 'xray']:
+            record.update(record_inj)
+        records.append(record)
 
         if save_slices:
             saved_slices.append({
@@ -453,6 +481,11 @@ def evolve(run_name, run_mode='xray',
         
     print(f'input used {input_time_tot:.4f} s')
     print(f'p21c used {p21c_time_tot:.4f} s')
+    
+    if debug:
+        return debug_dict
+    else:
+        return None
     
     
     

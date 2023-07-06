@@ -25,21 +25,24 @@ PRO gettf_nbs, check=check, fixed_cfdt=fixed_cfdt, part_i=part_i, debug=debug
     ; dlnz and abscissa for nBs, xH=xHe, z(actually 1+z)
     
     IF KEYWORD_SET(debug) THEN BEGIN
-        dlnz = 0.009950330853168092d
-        z_s_global = [5.0000000000d]
-        x_s_global = [0.0000100000d]
-        nBs_s_global = [0.0010000000d]
+        dlnz = 0.04879016d
+        z_s_global = [38.71318413405d]
+        x_s_global = [0.0010000000d]
+        nBs_s_global = [1.0000000000d]
+        injection_mode = 'phot'
+        outfolder = '/zfs/yitians/dm21cm/DM21cm/build_tf/ionhist_outputs_tmp'
     ENDIF ELSE BEGIN
         !EXCEPT = 0 ; turn off underflow error
         dlnz = 0.009950330853168092d
         z_s_global = [5.0000000000d, 6.4577483251d, 8.3405026860d, 10.7721734502d, 13.9127970110d, 17.9690683190d, 23.2079441681d, 29.9742125159d, 38.7131841341d, 50.0000000000d]
         x_s_global = [0.0000100000d, 0.0001000000d, 0.0010000000d, 0.0100000000d, 0.1000000000d, 0.3000000000d, 0.7000000000d, 0.9000000000d, 0.9990000000d, 0.9999900000d]
         nBs_s_global = [0.0010000000d, 0.2620000000d, 0.7080000000d, 0.8180000000d, 0.8880000000d, 0.9440000000d, 1.0060000000d, 1.1020000000d, 4.8550000000d, 10.0000000000d]
+        run_name = '230629'
+        injection_mode = 'phot'
+        outfolder = '/zfs/yitians/dm21cm/DM21cm/data/tf/'+run_name+'/'+injection_mode+'/ionhist_output'
     ENDELSE
     
-    run_name = '230629'
-    injection_mode = 'phot'
-    outfolder = '/zfs/yitians/dm21cm/DM21cm/data/tf/'+run_name+'/'+injection_mode+'/ionhist_output'
+    
     
     ; paralleling & tqdms
     z_s    = [z_s_global[part_i]]

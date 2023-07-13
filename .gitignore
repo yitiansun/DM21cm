@@ -5,6 +5,7 @@ data/run_info/**
 notebooks/plots/tmp
 **/.DS_Store
 outputs/tmp
+cross_check/ionhist_outputs/
 #------------------------
 
 # Byte-compiled / optimized / DLL files

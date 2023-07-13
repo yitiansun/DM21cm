@@ -199,7 +199,8 @@ def evolve(run_name, run_mode='xray',
             input_jalpha = p21c.input_jalpha(redshift=z, init_boxes=p21c_initial_conditions, write=False)
 
             z_prev = z_edges[i_z-1]
-            dt = phys.dt_between_z(z_prev, z) # [s]
+            #dt = phys.dt_between_z(z_prev, z) # [s]
+            dt = abscs['dlnz'] / phys.hubble(1+z_edges[i_z-1]) # for consistent definition in ionhist (IDL part of darkhistory)
             if dm_params.mode == 'swave':
                 struct_boost = phys.struct_boost_func(model=struct_boost_model)(1+z_mid)
             else:
@@ -454,6 +455,7 @@ def evolve(run_name, run_mode='xray',
             'T_b' : np.mean(brightness_temp.brightness_temp), # [K]
             'T_k' : np.mean(spin_temp.Tk_box), # [K]
             'x_e' : np.mean(1 - ionized_box.xH_box), # [1]
+            'E_phot' : phot_bath_spec.toteng(), # [eV/Bavg]
         }
         if run_mode in ['bath', 'xray']:
             record.update(record_inj)

@@ -110,23 +110,6 @@ class WindowedData:
     
     def rC_Integrand(self, t):
         return 1+self.z_at_t(t)
-    
-    def ShellIntegrand(self, t_prime, t_receiver):
-        z_receiver = self.z_at_t(t_receiver)
-        
-        # Conformal Shells
-        rC = integrate.quad(self.rC_Integrand, t_prime, t_receiver)[0] *constants.c.to(units.Mpc / units.Gyr)*units.Gyr
-        rC=rC.value
-
-        drC_dt = self.rC_Integrand(t_prime) *constants.c.to(units.Mpc / units.Gyr)*units.Gyr
-        drC_dt = drC_dt.value
-
-        # Proper distances
-        rP = self.cosmo.lookback_distance(self.z_at_t(t_prime)) - self.cosmo.lookback_distance(z_receiver)
-        rP = rP.value
-
-        # Integrand
-        return mean_crossing_fraction*rC**2/rP**2 * drC_dt
         
     
     def get_smoothing_radii(self, z_receiver, z1, z2):
@@ -141,13 +124,17 @@ class WindowedData:
 
         # Comoving separations in Mpc
         R1 = integrate.quad(self.rC_Integrand, t_receiver, t1)[0] *constants.c.to(units.Mpc / units.Gyr)*units.Gyr
-        R2 = integrate.quad(self.rC_Integrand, t_receiver, t2)[0] *constants.c.to(units.Mpc / units.Gyr)*units.Gyr
-        
-        # Flux conversion factor from (comoving Mpc)^3 /(physical Mpc)^2
-        to_flux_factor = integrate.quad(lambda t: self.ShellIntegrand(t, t_receiver), t2, t1) # Comoving Mpc^3 / Proper Mpc^2
-        to_flux_factor = np.abs(to_flux_factor)[0]
-        return np.abs(R1.value), np.abs(R2.value), to_flux_factor
+        R1 = np.abs(R1.value)
 
+        R2 = integrate.quad(self.rC_Integrand, t_receiver, t2)[0] *constants.c.to(units.Mpc / units.Gyr)*units.Gyr
+        R2 = np.abs(R2.value)
+        
+        # Factor that converts from emissivity average to average density for voxel
+        to_average_density = np.abs(R2-R1) / (constants.c.to(units.Mpc / units.Gyr)).value 
+        
+        # Finished, return the results
+        return np.abs(R1), np.abs(R2), to_average_density
+    
     def get_smoothed_shell(self, z_receiver, z_donor, z_next_donor, dz_step):
         '''
         Calculate the spatially-dependent intensity of X-rays photons at `z_receiver`
@@ -163,7 +150,7 @@ class WindowedData:
 
 
         # Get the smoothing radii in comoving coordinates and canonically sort them
-        R1, R2, flux_factor = self.get_smoothing_radii(z_receiver, z_donor, z_next_donor)
+        R1, R2, to_density = self.get_smoothing_radii(z_receiver, z_donor, z_next_donor)
 
         # Volumetric weighting factors for combining the window functions
         R1, R2 = np.sort([R1, R2])
@@ -188,20 +175,7 @@ class WindowedData:
         # Load the field and smooth via FFT
         field, spec = self._get_field(field_index)
         
-        # Multiply by flux_factor. `field` is now the flux of photons/proper area through a voxel 
-        field = flux_factor * self.irfftn(field * W) 
-        
-        # Multiply by the proper plane area of the voxel to get the number of photons that enter the voxel
-        field *= (self.dx*a_receiver)**2
-        
-        # Calculate the average time spent in the voxel by a photon. This could be made better
-        crossing_time = ( (self.dx* units.Mpc) * a_receiver  / constants.c ).to('Gyr').value
-        step_time = (self.cosmo.age(z_receiver - dz_step) - self.cosmo.age(z_receiver)).to('Gyr').value
-        
-        # Now calculate the average number of photons in the voxel
-        field *= crossing_time / step_time
-        
-        # Now return to photons/comoving volume
-        field /= self.dx**3
+        # Multiply by flux_factor. `field` is now the equivalent universe density of photons.
+        field = to_density * self.irfftn(field * W) 
         
         return field, spec

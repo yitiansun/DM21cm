@@ -28,7 +28,7 @@ def load_data(data_type, prefix=None, reload=False):
     global global_phot_prop_tf, global_phot_scat_tf
     
     if prefix is None:
-        prefix = os.environ['DM21CM_DATA_DIR'] + '/tf/230408x/phot'
+        prefix = os.environ['DM21CM_DATA_DIR'] + '/tf/230629/phot'
     
     if data_type == 'phot_dep':
         if (global_phot_dep_tf is None) or reload:

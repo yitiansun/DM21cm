@@ -36,18 +36,19 @@ def interp2d(f, x0, x1, xv):
     """
     xv0, xv1 = xv
     
-    li0 = jnp.searchsorted(x0, xv0) - 1
+    li0 = jnp.searchsorted(x0, xv0, side='right') - 1
     lx0 = x0[li0]
     rx0 = x0[li0+1]
-    p0 = (xv0-lx0) / (rx0-lx0)
+    wl0 = (rx0-xv0) / (rx0-lx0)
+    wr0 = 1 - wl0
     
-    li1 = jnp.searchsorted(x1, xv1) - 1
+    li1 = jnp.searchsorted(x1, xv1, side='right') - 1
     lx1 = x1[li1]
     rx1 = x1[li1+1]
-    p1 = (xv1-lx1) / (rx1-lx1)
+    wl1 = (rx1-xv1) / (rx1-lx1)
+    wr1 = 1 - wl1
     
-    fll = f[li0,li1]
-    return fll + (f[li0+1,li1]-fll)*p0 + (f[li0,li1+1]-fll)*p1
+    return f[li0,li1]*wl0*wl1 + f[li0+1,li1]*wr0*wl1 + f[li0,li1+1]*wl0*wr1 + f[li0+1,li1+1]*wr0*wr1
 
 interp2d_vmap = jit(vmap(interp2d, in_axes=(None, None, None, 0)))
 

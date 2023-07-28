@@ -3,15 +3,6 @@ import numpy as np
 from scipy import signal, ndimage, stats, interpolate, integrate
 from astropy import cosmology, constants, units
 
-# This quantity multiplied by area^2 /distance^2 is the fraction of 
-# photons emitted isotropically from distance `d` will cross through a voxel
-# with face area `A`.
-mean_crossing_fraction = .1236
-
-# This is the mean crossing length of isotropically emitted photons
-# crossing a voxel in units of the voxel sidelength
-mean_crossing_length = .6742
-
 class WindowedData:
     def __init__(self, data_path, cosmo, N, dx, cache=True, irfftn=np.fft.irfftn):
         """
@@ -30,6 +21,7 @@ class WindowedData:
         self.irfftn = irfftn
         self.cache = cache
         self.dx = dx
+        self.N = N
 
         if not self.cache:
             self.boxes = []
@@ -122,20 +114,17 @@ class WindowedData:
         t1 = self.cosmo.age(z1).value
         t2 = self.cosmo.age(z2).value
 
-        # Comoving separations in Mpc
-        R1 = integrate.quad(self.rC_Integrand, t_receiver, t1)[0] *constants.c.to(units.Mpc / units.Gyr)*units.Gyr
-        R1 = np.abs(R1.value)
-
-        R2 = integrate.quad(self.rC_Integrand, t_receiver, t2)[0] *constants.c.to(units.Mpc / units.Gyr)*units.Gyr
-        R2 = np.abs(R2.value)
+        # Comoving separations
+        R1 = integrate.quad(self.rC_Integrand, t_receiver, t1)[0] * units.Gyr * constants.c
+        R2 = integrate.quad(self.rC_Integrand, t_receiver, t2)[0] * units.Gyr * constants.c
         
-        # Factor that converts from emissivity average to average density for voxel
-        to_average_density = np.abs(R2-R1) / (constants.c.to(units.Mpc / units.Gyr)).value 
+        # Need R1 and R2 in Comoving Mpc for the smoothing operation
+        R1_Mpc = np.abs(R1.to('Mpc').value)
+        R2_Mpc = np.abs(R2.to('Mpc').value)
         
-        # Finished, return the results
-        return np.abs(R1), np.abs(R2), to_average_density
-    
-    def get_smoothed_shell(self, z_receiver, z_donor, z_next_donor, dz_step):
+        return R1_Mpc, R2_Mpc
+     
+    def get_smoothed_shell(self, z_receiver, z_donor, z_next_donor):
         '''
         Calculate the spatially-dependent intensity of X-rays photons at `z_receiver`
         for photons emitted as early as `z_donor` and as late as `z_next_donor`.
@@ -150,7 +139,14 @@ class WindowedData:
 
 
         # Get the smoothing radii in comoving coordinates and canonically sort them
-        R1, R2, to_density = self.get_smoothing_radii(z_receiver, z_donor, z_next_donor)
+        R1, R2 = self.get_smoothing_radii(z_receiver, z_donor, z_next_donor)
+        print(z_receiver, z_donor, z_next_donor, R1, R2)
+
+        # Skip the smoothing if we are smoothing on a very large radius
+        if True: #min(R1,R2) > self.N//2*self.dx:
+            field, spec = self._get_field(field_index)
+            field = np.fft.irfftn(field)
+            return field, spec, True
 
         # Volumetric weighting factors for combining the window functions
         R1, R2 = np.sort([R1, R2])
@@ -176,6 +172,6 @@ class WindowedData:
         field, spec = self._get_field(field_index)
         
         # Multiply by flux_factor. `field` is now the equivalent universe density of photons.
-        field = to_density * self.irfftn(field * W) 
+        field = self.irfftn(field * W) 
         
-        return field, spec
+        return field, spec, False

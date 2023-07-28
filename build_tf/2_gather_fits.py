@@ -12,13 +12,13 @@ from darkhistory.spec.spectools import get_log_bin_width
 
 
 #===== Config =====
-run_name = '230629'
+run_name = '230721'
 tf_type = 'phot' # {'phot', 'elec'}
 
 
 #===== Initialize =====
 abscs = load_dict(f"../data/abscissas/abscs_{run_name}.h5")
-fits_dir = f'../data/tf/{run_name}/{tf_type}/ionhist_output'
+fits_dir = f'../data/tf/{run_name}/{tf_type}/ionhist_outputs'
 save_dir = f'../data/tf/{run_name}/{tf_type}'
 in_absc = abscs['photE'] if tf_type == 'phot' else abscs['elecEk']
 
@@ -42,6 +42,8 @@ pbar = tqdm(total=len(abscs['rs'])*len(abscs['x'])*len(abscs['nBs']))
 for i_rs, rs in enumerate(abscs['rs']):
     for i_x, x in enumerate(abscs['x']):
         for i_nBs, nBs in enumerate(abscs['nBs']):
+            # tmp force nBs = 1
+            nBs = 1.0
             with fits.open(fitsfn(rs, x, nBs, prefix=fits_dir)) as f:
                 hep_tf[i_rs, i_x, i_nBs] = f[1].data['hep_tf'][0] * phot_bin_width
                 lep_tf[i_rs, i_x, i_nBs] = f[1].data['lep_tf'][0] * phot_bin_width

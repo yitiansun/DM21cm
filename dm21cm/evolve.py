@@ -165,7 +165,11 @@ def evolve(run_name, run_mode='xray',
         debug_dict = {}
         debug_dict['z'] = []
         debug_dict['photEtot'] = []
+        debug_dict['heat'] = []
         debug_dict['f'] = []
+        debug_dict['dt'] = []
+        debug_dict['dE_inj_per_Bavg'] = []
+        debug_dict['dE_inj_per_Bavg_unclustered'] = []
         
     for i_z in range(len(z_edges)-1):
 
@@ -192,7 +196,8 @@ def evolve(run_name, run_mode='xray',
                 }
 
         elif run_mode in ['bath', 'xray']: # input from second step
-            z_mid = z_mids[i_z-1] # At this step we will arrive at z_edges[i], passing through z_mids[i-1].
+            #z_mid = z_mids[i_z-1] # At this step we will arrive at z_edges[i], passing through z_mids[i-1].
+            z_mid = z
 
             input_heating = p21c.input_heating(redshift=z, init_boxes=p21c_initial_conditions, write=False)
             input_ionization = p21c.input_ionization(redshift=z, init_boxes=p21c_initial_conditions, write=False)
@@ -200,7 +205,8 @@ def evolve(run_name, run_mode='xray',
 
             z_prev = z_edges[i_z-1]
             #dt = phys.dt_between_z(z_prev, z) # [s]
-            dt = abscs['dlnz'] / phys.hubble(1+z_edges[i_z-1]) # for consistent definition in ionhist (IDL part of darkhistory)
+            #dt = abscs['dlnz'] / phys.hubble(1+z_edges[i_z-1]) # for consistent definition in ionhist (IDL part of darkhistory)
+            dt = abscs['dlnz'] / phys.hubble(1+z)
             if dm_params.mode == 'swave':
                 struct_boost = phys.struct_boost_func(model=struct_boost_model)(1+z_mid)
             else:
@@ -221,7 +227,7 @@ def evolve(run_name, run_mode='xray',
             inj_per_Bavg_box = phys.inj_rate(rho_DM_box, dm_params) * dt * struct_boost / n_Bavg # [inj/Bavg]
 
             tf_kwargs = dict(
-                rs = 1 + z_mid,
+                rs = 1 + z_prev, # base: z_mid
                 nBs_s = (1+delta_box).ravel(),
                 x_s = x_e_box.ravel(),
                 out_of_bounds_action = 'clip',
@@ -358,7 +364,12 @@ def evolve(run_name, run_mode='xray',
                 out_phot_N = prop_phot_N + emit_phot_N
                 debug_dict['z'].append(z)
                 debug_dict['photEtot'].append(np.dot(photeng, out_phot_N))
+                debug_dict['heat'].append(np.mean(dep_box[...,3]))
                 debug_dict['f'].append(np.mean(dep_box, axis=(0,1,2))/dE_inj_per_Bavg_unclustered)
+                # print('rs', 1+z)
+                # print('dE/dBavg_dt', dE_inj_per_Bavg_unclustered/dt)
+                # print('struct_boost', struct_boost)
+                # print('dE/dBavg_dt', dE_inj_per_Bavg/dt)
                 
         else: # run_mode = 'no inj'
             if i_z == 1:
@@ -402,11 +413,12 @@ def evolve(run_name, run_mode='xray',
             z_now = z_edges[1] # matching after z_edges[0]->z_edges[1] step
             
             if 'T_k' in dhinit_list:
-                T_k_DH = np.interp(z_now, dhinit_soln['rs'][::-1] - 1, dhinit_soln['Tm'][::-1] / phys.kB) # [K]
+                T_k_DH = np.interp(1+z_now, dhinit_soln['rs'][::-1], dhinit_soln['Tm'][::-1] / phys.kB) # [K]
                 spin_temp.Tk_box += T_k_DH - np.mean(spin_temp.Tk_box)
+                print(z_now, T_k_DH, np.mean(spin_temp.Tk_box))
 
             if 'x_e' in dhinit_list:
-                x_e_DH = np.interp(z_now, dhinit_soln['rs'][::-1] - 1, dhinit_soln['x'][::-1, 0]) # HI
+                x_e_DH = np.interp(1+z_now, dhinit_soln['rs'][::-1], dhinit_soln['x'][::-1, 0]) # HI
                 spin_temp.x_e_box += x_e_DH - np.mean(spin_temp.x_e_box)
                 x_H_DH = 1 - x_e_DH
                 ionized_box.xH_box += x_H_DH - np.mean(ionized_box.xH_box)
@@ -422,6 +434,7 @@ def evolve(run_name, run_mode='xray',
                 dh_spec = ( dh_spec_left * np.abs(logrs - logrs_right) + \
                             dh_spec_right * np.abs(logrs - logrs_left) ) / np.abs(logrs_right - logrs_left)
                 phot_bath_spec = Spectrum(photeng, dh_spec, rs=1+z_now, spec_type='N')
+                print(1+z_now, phot_bath_spec.toteng())
             else:
                 phot_bath_spec = Spectrum(photeng, np.zeros_like(photeng), rs=1+z_now, spec_type='N') # [N per Bavg]
 
@@ -495,6 +508,14 @@ def evolve(run_name, run_mode='xray',
 
 def get_z_edges(z_start, z_end, zplusone_step_factor):
     """Standard redshift array for evolve."""
+
+    z_list = [z_start]
+    while z_list[-1] > z_end:
+        z_list.append((z_list[-1] + 1) / zplusone_step_factor - 1)
+    return np.array(z_list)
+
+def get_z_edges_old(z_start, z_end, zplusone_step_factor):
+    """Standard redshift array for evolve. (Old)"""
 
     z_arr = [z_end]
     while z_arr[-1] < z_start:

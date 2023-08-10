@@ -137,15 +137,15 @@ class WindowedData:
         field_index = np.argmin(np.abs(self.redshifts - z_donor))
         a_receiver=1. / (1+z_receiver)
 
-
         # Get the smoothing radii in comoving coordinates and canonically sort them
         R1, R2 = self.get_smoothing_radii(z_receiver, z_donor, z_next_donor)
         print(z_receiver, z_donor, z_next_donor, R1, R2)
 
         # Skip the smoothing if we are smoothing on a very large radius
-        if True: #min(R1,R2) > self.N//2*self.dx:
+        if min(R1,R2) > self.N//2*self.dx:
             field, spec = self._get_field(field_index)
             field = np.fft.irfftn(field)
+            field = np.mean(field)*np.ones_like(field)
             return field, spec, True
 
         # Volumetric weighting factors for combining the window functions

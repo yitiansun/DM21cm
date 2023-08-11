@@ -3,29 +3,45 @@ import numpy as np
 from scipy import signal, ndimage, stats, interpolate, integrate
 from astropy import cosmology, constants, units
 
-class WindowedData:
-    def __init__(self, data_path, cosmo, N, dx, cache=True, irfftn=np.fft.irfftn):
+class SpectrumCache:
+    
+    def __init__(self):
+        self.spectrum_list = []
+        self.redshift_list = []
+        
+    def append(self, spec, z):
+        self.spectrum_list.append(spec)
+        self.redshift_list.append(z)
+        
+    def attenuate(self, attenuation_factor):
+        for spec in self.spectrum_list:
+            spec.N *= attenuation_factor
+            
+    def redshift(self, target_z):
+        for spec in self.spectrum_list:
+            spec.redshift(1+target_z)
+            
+    def get_spectrum(self, target_z):
+        spec_index = np.argmin(np.abs(np.array(self.redshift_list) - target_z))
+        return self.spectrum_list[spec_index]
+
+
+class BrightnessCache:
+    def __init__(self, data_path, cosmo, N, dx):
         """
         Class initializer. The arguments are:
         'data_path' - the path where the caching hdf5 is stored
         'cosmo'     - an instance of an astropy cosmology
         'N'         - the HII_DIM from 21cmFAST
         'dx'        - the pixel sidelength for 21cmFAST data cubes in Mpccm
-        'cache'     - Boolean controlling if data is cached (True) or kept in memory (False)
         'irfftn'    - Method for performing the 3-D inverse real valued fft
         """
 
         self.data_path = data_path
         self.cosmo = cosmo
         self.redshifts = np.array([])
-        self.irfftn = irfftn
-        self.cache = cache
         self.dx = dx
         self.N = N
-
-        if not self.cache:
-            self.boxes = []
-            self.specs = []
 
         # Generate the kmagnitudes and save them
         k = np.fft.fftfreq(N, d = dx)
@@ -36,65 +52,28 @@ class WindowedData:
         self.global_Tk = np.zeros((0))
         self.global_x = np.zeros((0))
 
-    def purge(self, zmax):
+    def cache_box(self, box, z):
         """
-        This method clears unnecessary data from the in-memory list if caching is not being used.
-        'zmax' - data from redshifts above this are purged
-        """
-        if self.cache:
-            return None
-
-        for i, z in enumerate(self.redshifts):
-            if z > zmax:
-                self.specs[i] = None
-                self.boxes[i] = None
-
-    def set_field(self, field, spec, z):
-        """
-        This method adds the X-ray brightness field and the X-ray spectrum at a specified
-        redshift to the cache.
-        'field' - the comoving volumetric emissivity of photons in each pixel. Units of photonos / Mpccm^3
-        'spec' - the X-ray spectrum, can be in whatever units you want, this is just for caching convenience
-        'z'    - the redshift associated with the brightness field and spectrum
+        This method adds the X-ray box box at the specified redshift to the cache
+        'box' - the comoving effective density of photons in each pixel. Units of photons / Mpccm^3
+        'z'    - the redshift associated with the brightness box
         """
 
-        if self.cache:
-            field_index = len(self.redshifts)
+        box_index = len(self.redshifts)
 
-            with h5py.File(self.data_path, 'a') as archive:
-                archive.create_dataset('Field_' + str(field_index), data = np.fft.rfftn(field))
-                archive.create_dataset('Spec_' + str(field_index), data = spec)
-
-        else:
-            self.boxes.append(field)
-            self.specs.append(spec)
+        with h5py.File(self.data_path, 'a') as archive:
+            archive.create_dataset('Box_' + str(box_index), data = np.fft.rfftn(box))
             
         self.redshifts = np.append(self.redshifts, z)
 
-            
-    def get_spec(self, z_receiver=None, z_donor=None, z_next_donor=None):
-        
-        field_index = np.argmin(np.abs(self.redshifts - z_donor))
-        field, spec = self._get_field(field_index)
-        
-        return spec
-
-
-    def _get_field(self, field_index):
+    def _get_box(self, box_index):
         """
-        Returns the brightness field and spectrum at the specified cached state. 
+        Returns the brightness box and spectrum at the specified cached state. 
         """
 
-        if self.cache:
-            with h5py.File(self.data_path, 'r') as archive:
-                field = np.array(archive['Field_' + str(field_index)], dtype = complex)
-                spec = np.array(archive['Spec_' + str(field_index)], dtype = float)
-
-        else:
-            field = self.field[field_index]
-            spec = self.specs[field_index]
-
-        return field, spec
+        with h5py.File(self.data_path, 'r') as archive:
+            box = np.array(archive['Box_' + str(box_index)], dtype = complex)
+        return box
     
     
     def z_at_t(self, t):
@@ -133,8 +112,8 @@ class WindowedData:
         between `z_donor` and `z_next_donor` arriving at `z_receiver`. Also returns the spectrum.
         '''
 
-        # Get the index of the donor field
-        field_index = np.argmin(np.abs(self.redshifts - z_donor))
+        # Get the index of the donor box
+        box_index = np.argmin(np.abs(self.redshifts - z_donor))
         a_receiver=1. / (1+z_receiver)
 
         # Get the smoothing radii in comoving coordinates and canonically sort them
@@ -143,10 +122,10 @@ class WindowedData:
 
         # Skip the smoothing if we are smoothing on a very large radius
         if min(R1,R2) > self.N//2*self.dx:
-            field, spec = self._get_field(field_index)
-            field = np.fft.irfftn(field)
-            field = np.mean(field)*np.ones_like(field)
-            return field, spec, True
+            box = self._get_box(box_index)
+            box = np.fft.irfftn(box)
+            box = np.mean(box)*np.ones_like(box)
+            return box, True
 
         # Volumetric weighting factors for combining the window functions
         R1, R2 = np.sort([R1, R2])
@@ -168,10 +147,10 @@ class WindowedData:
         W = w2*W2 - w1*W1
         del W1, W2
         
-        # Load the field and smooth via FFT
-        field, spec = self._get_field(field_index)
+        # Load the box and smooth via FFT
+        box = self._get_box(box_index)
         
-        # Multiply by flux_factor. `field` is now the equivalent universe density of photons.
-        field = self.irfftn(field * W) 
+        # Multiply by flux_factor. `box` is now the equivalent universe density of photons.
+        box = np.fft.irfftn(box * W) 
         
-        return field, spec, False
+        return box, False

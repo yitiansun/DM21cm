@@ -1,9 +1,9 @@
 import os
 import sys
+import h5py
 sys.path.append("..")
 
 import logging
-
 from dm21cm.interpolators import BatchInterpolator
 
 
@@ -15,6 +15,13 @@ global_phot_prop_tf = None
 global_phot_scat_tf = None
 #global_elec_phot_tf = None
 
+
+def load_dict(fn):
+    d = {}
+    with h5py.File(fn, 'r') as hf:
+        for k, v in hf.items():
+            d[k] = v[()]
+    return d
 
 def load_data(data_type, prefix=None, reload=False):
     """Load (global) data.

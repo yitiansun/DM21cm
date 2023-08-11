@@ -1,10 +1,64 @@
 import numpy as np
 import h5py, sys, os, pickle
 
+# Import things we need from this work
 sys.path.append("..")
-from dm21cm.utils import load_dict
-from dm21cm.data_loader import load_data
+import dm21cm.physics as phys
+from dm21cm.data_loader import load_dict, load_data
 
+# Import the PPPC Spectra
+sys.path.append(os.environ['DH_DIR'])
+from darkhistory.spec.pppc import get_pppc_spec
+
+class DMParams:
+    """Dark matter parameters.
+    
+    Args:
+        mode {'swave', 'decay'}: Type of injection.
+        primary (str): Primary injection channel. See darkhistory.pppc.get_pppc_spec
+        m_DM (float): DM mass in eV.
+        sigmav (float): Annihilation cross section in cm\ :sup:`3`\ s\ :sup:`-1`\ .
+        lifetime (float, optional): Decay lifetime in s.
+        
+    Attributes:
+        inj_phot_spec (Spectrum): Injected photon spectrum per injection event.
+        inj_elec_spec (Spectrum): Injected electron positron spectrum per injection event.
+        eng_per_inj (float): Injected energy per injection event.
+    """
+    
+    def __init__(self, mode, primary, m_DM, abscs_path, sigmav=None, lifetime=None):
+        
+        if mode == 'swave':
+            if sigmav is None:
+                raise ValueError('must initialize sigmav.')
+        elif mode == 'decay':
+            if lifetime is None:
+                raise ValueError('must initialize lifetime.')
+        else:
+            raise NotImplementedError(mode)
+        
+        self.mode = mode
+        self.primary = primary
+        self.m_DM = m_DM
+        self.sigmav = sigmav
+        self.lifetime = lifetime
+        abscs = load_dict(abscs_path)
+        
+        self.inj_phot_spec = get_pppc_spec(
+            self.m_DM, abscs['photE'], self.primary, 'phot',
+            decay=(self.mode=='decay')
+        )
+        self.inj_elec_spec = get_pppc_spec(
+            self.m_DM, abscs['elecEk'], self.primary, 'elec',
+            decay=(self.mode=='decay')
+        )
+        self.eng_per_inj = self.m_DM if self.mode=='decay' else 2 * self.m_DM
+        
+        
+    def __repr__(self):
+        
+        return f"DMParams(mode={self.mode}, primary={self.primary}, "\
+    f"m_DM={self.m_DM:.4e}, sigmav={self.sigmav}, lifetime={self.lifetime})"
 
 class DarkHistoryWrapper:
     
@@ -110,3 +164,20 @@ class DarkHistoryWrapper:
         self.emit_phot_N += self.norm*self.phot_scat_tf(in_spec=spec_object.N, sum_result=True,
                                                         sum_weight = weight_box.ravel(), **self.tf_kwargs)
         self.dep_box += weight_box[..., None] * self.phot_dep_tf(in_spec=spec_object.N, sum_result=False, **self.tf_kwargs).reshape(self.dep_box.shape) # [eV / Bavg]
+
+
+
+    def populate_injection_boxes(self, input_heating, input_ionization, input_jalpha, x_e_box, delta_plus_one_box, nBavg):
+    
+        # Populate input heating. [K/Bavg] / [B/Bavg] = [K/B]
+        input_heating.input_heating += np.array(2 / (3*phys.kB*(1+x_e_box)) * self.dep_box[...,3] / delta_plus_one_box)
+    
+        # Populate input ionization. [1/Bavg] / [B/Bavg] = [1/B]
+        input_ionization.input_ionization += np.array((self.dep_box[...,0] + self.dep_box[...,1]) / phys.rydberg / delta_plus_one_box)
+
+        # Populate input lyman alpha
+        n_lya = self.dep_box[...,2] * nBavg / phys.lya_eng # [lya cm^-3]
+        dnu_lya = (phys.rydberg - phys.lya_eng) / (2*np.pi*phys.hbar) # [Hz^-1]
+        J_lya = n_lya * phys.c / (4*np.pi) / dnu_lya # [lya cm^-2 s^-1 sr^-1 Hz^-1]
+        input_jalpha.input_jalpha += np.array(J_lya)
+    

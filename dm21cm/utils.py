@@ -4,18 +4,6 @@ import h5py
 import numpy as np
 import py21cmfast as p21c
 
-
-def load_dict(fn):
-    d = {}
-    with h5py.File(fn, 'r') as hf:
-        for k, v in hf.items():
-            d[k] = v[()]
-    return d
-
-
-def range_wend(a, b, step=1):
-    return range(int(a), int(b+1), step)
-
 def get_z_edges(zmax, min_redshift, z_step_factor):
     redshifts = [min_redshift]
     while redshifts[-1] < zmax:
@@ -65,4 +53,3 @@ def p21_step(z_eval, perturbed_field, spin_temp, ionized_box,
     
     # Now return the spin temperature and ionized box because we will need them later
     return spin_temp, ionized_box, brightness_temp
-    

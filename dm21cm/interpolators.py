@@ -3,86 +3,25 @@
 import h5py
 
 import numpy as np
+from scipy import interpolate
 
-import jax.numpy as jnp
-from jax import jit, vmap
-from functools import partial
-
-
-#===== interpolating functions =====
-
-def interp1d(f, x, xv):
-    """Interpolates f(x) at values in xvs. Does not do bound checks.
-    f : (n>=1 D) array of function value.
-    x : 1D array of input value, corresponding to first dimension of f.
-    xv : x values to interpolate.
-    """
-    li = jnp.searchsorted(x, xv) - 1
-    lx = x[li]
-    rx = x[li+1]
-    p = (xv-lx) / (rx-lx)
-    fl = f[li]
-    return fl + (f[li+1]-fl) * p
-
-interp1d_vmap = jit(vmap(interp1d, in_axes=(None, None, 0)))
-
-
-def interp2d(f, x0, x1, xv):
-    """Interpolates f(x) at values in xvs. Does not do bound checks.
-    f : (n>=2 D) array of function value.
-    x0 : 1D array of input value, corresponding to first dimension of f.
-    x1 : 1D array of input value, corresponding to second dimension of f.
-    xv : [x0, x1] values to interpolate.
-    """
-    xv0, xv1 = xv
-    
-    li0 = jnp.searchsorted(x0, xv0, side='right') - 1
-    lx0 = x0[li0]
-    rx0 = x0[li0+1]
-    wl0 = (rx0-xv0) / (rx0-lx0)
-    wr0 = 1 - wl0
-    
-    li1 = jnp.searchsorted(x1, xv1, side='right') - 1
-    lx1 = x1[li1]
-    rx1 = x1[li1+1]
-    wl1 = (rx1-xv1) / (rx1-lx1)
-    wr1 = 1 - wl1
-    
-    return f[li0,li1]*wl0*wl1 + f[li0+1,li1]*wr0*wl1 + f[li0,li1+1]*wl0*wr1 + f[li0+1,li1+1]*wr0*wr1
-
-interp2d_vmap = jit(vmap(interp2d, in_axes=(None, None, None, 0)))
-
-
-#===== utilities =====
-
-def v_is_within(v, absc):
-    """v can be value or vector."""
-    return jnp.all(v >= jnp.min(absc)) and jnp.all(v <= jnp.max(absc))
-
-
-#===== interpolator class =====
 
 class BatchInterpolator:
-    """Interpolator for multidimensional data. Currently support
-    axes = ('rs', 'Ein', 'nBs', 'x', 'out')
+    """Interpolator for multidimensional data with axes ('rs', 'Ein', 'nBs', 'x', 'out')
     
-    Parameters
-    ----------
-    filename : str
-        HDF5 data file name.
-        
-    Attributes
-    ---------
-    axes : list
-        List of axes.
-    abscs : dict
-        Abscissas of axes.
-    data : array
-        Grid data consistent with axes and abscs.
+    Args:
+        filename (str): HDF5 data file name.
+
+    Attributes:
+        axes (list): List of axes.
+        abscs (dict): Abscissas of axes.
+        data (np.ndarray): Grid data consistent with axes and abscs.
+        fixed_in_spec (np.ndarray): Fixed input spectrum.
+        fixed_in_spec_data (np.ndarray): Data summed over fixed_in_spec.
     """
-    
+
     def __init__(self, filename):
-        
+
         with h5py.File(filename, 'r') as hf:
             self.axes = hf['axes'][:]
             self.abscs = {}
@@ -92,100 +31,92 @@ class BatchInterpolator:
         
         self.fixed_in_spec = None
         self.fixed_in_spec_data = None
-        
-        
+
+
     def set_fixed_in_spec(self, in_spec):
         
         self.fixed_in_spec = in_spec
-        self.fixed_in_spec_data = jnp.einsum('e,renxo->rnxo', in_spec, self.data)
-        
-        
-    def __call__(self, rs=None, in_spec=None, nBs_s=None, x_s=None,
-                 sum_result=False, sum_weight=None, sum_batch_size=10000,
+        self.fixed_in_spec_data = np.einsum('e,renxo->rnxo', in_spec, self.data)
+
+
+    def __call__(self, rs=..., in_spec=..., nBs_s=..., x_s=...,
+                 sum_result=False, sum_weight=None, sum_batch_size=256**3,
                  out_of_bounds_action='error'):
-        """Batch interpolate in (nBs and) x directions.
+        """Batch interpolate in nBs and x directions.
         
         First sum with in_spec (with caching), then interpolate to a rs point,
-        then perform the interpolation on [(nBs_s), x_s]. If sum_result is True,
+        then perform the interpolation on [nBs_s, x_s]. If sum_result is True,
         sum over all interpolated value.
         
-        Parameters:
-            rs : [1]
-            in_spec : [N * ...]
-            nBs_s : [1]
-            x_s : [1]
-            sum_result : if True, return average in the batch dimension.
-            sum_weight : if None, just sum. otherwise dot.
-            sum_batch_size : perform batch interpolation (and averaging) in batches of this size.
-            out_of_bounds_action : {'error', 'clip'}
+        Args:
+            rs (float): redshift [1]
+            in_spec (1D array): input spectrum
+            nBs_s (1D array): nBs values
+            x_s (1D array): x values
+            sum_result (bool): if True, sum over all interpolated value.
+            sum_weight (optional, 1D array): weights for summing.
+            sum_batch_size (int): perform interpolation in batches of this size.
+            out_of_bounds_action {'error', 'clip'}
         
-        Return:
-            interpolated box or average
+        Returns:
+            interpolated box or sum of interpolated box.
         """
         
         if out_of_bounds_action == 'clip':
-            rs  = jnp.clip(rs,  jnp.min(self.abscs['rs']), jnp.max(self.abscs['rs']))
-            x_s = jnp.clip(x_s, jnp.min(self.abscs['x']),  jnp.max(self.abscs['x']))
-            nBs_s = jnp.clip(nBs_s, jnp.min(self.abscs['nBs']), jnp.max(self.abscs['nBs']))
+            rs  = np.clip(rs,  np.min(self.abscs['rs']), np.max(self.abscs['rs']))
+            x_s = np.clip(x_s, np.min(self.abscs['x']),  np.max(self.abscs['x']))
+            nBs_s = np.clip(nBs_s, np.min(self.abscs['nBs']), np.max(self.abscs['nBs']))
+            bounds_error = False
+        elif out_of_bounds_action == 'error':
+            bounds_error = True
         else:
-            if not v_is_within(rs, self.abscs['rs']):
-                raise ValueError('rs out of bounds.')
-            if not v_is_within(x_s, self.abscs['x']):
-                raise ValueError('x_s out of bounds.')
-            if not v_is_within(nBs_s, self.abscs['nBs']):
-                raise ValueError('nBs_s out of bounds.')
+            raise NotImplementedError(out_of_bounds_action)
         
-        ## 1. in_spec sum
-        if jnp.all(in_spec == self.fixed_in_spec):
+        # 1. in_spec sum
+        if np.all(in_spec == self.fixed_in_spec):
             in_spec_data = self.fixed_in_spec_data
         else:
-            in_spec_data = jnp.einsum('e,renxo->rnxo', in_spec, self.data)
+            in_spec_data = np.einsum('e,renxo->rnxo', in_spec, self.data)
         
-        ## 2. rs interpolation
-        data_at_rs = interp1d(in_spec_data, self.abscs['rs'], rs)
-        
+        # 2. rs interpolation
+        data_at_rs = interpolate.interp1d(self.abscs['rs'], in_spec_data, axis=0, copy=False)(rs) # (nBs, x, out)
+
+        # 3. nBs x interpolation/sum
+        interp = interpolate.RegularGridInterpolator(
+            (self.abscs['nBs'], self.abscs['x']),
+            data_at_rs,
+            bounds_error = bounds_error,
+            fill_value = np.nan,
+        )
+        nBs_x_in = np.stack([nBs_s, x_s], axis=-1)
+
         if not sum_result:
-            
-            ## 3. (nBs) x interpolation
-            nBs_x_in = jnp.stack([nBs_s, x_s], axis=-1)
-            return interp2d_vmap(
-                data_at_rs,
-                self.abscs['nBs'],
-                self.abscs['x'],
-                nBs_x_in
-            )
+            return interp(nBs_x_in)
             
         else:
-            ## 3. (nBs) x sum
-            split_n = int(jnp.ceil( len(x_s)/sum_batch_size ))
+            split_n = int(np.ceil( len(x_s)/sum_batch_size ))
             if sum_weight is not None:
-                sum_weight_batches = jnp.array_split(sum_weight, split_n)
+                sum_weight_batches = np.array_split(sum_weight, split_n)
                 
-            result = jnp.zeros( (len(self.abscs['out']),) ) # use numpy?
-            
-            nBs_x_in = jnp.stack([nBs_s, x_s], axis=-1)
-            nBs_x_in_batches = jnp.array_split(nBs_x_in, split_n)
+            nBs_x_in_batches = np.array_split(nBs_x_in, split_n)
+            result = np.zeros( (len(self.abscs['out']),) )
 
             for i_batch, nBs_x_in_batch in enumerate(nBs_x_in_batches):
-                interp_result = interp2d_vmap(
-                    data_at_rs,
-                    self.abscs['nBs'],
-                    self.abscs['x'],
-                    nBs_x_in_batch
-                )
+                interp_result = interp(nBs_x_in_batch)
                 if sum_weight is None:
-                    result += jnp.sum(interp_result, axis=0)
+                    result += np.sum(interp_result, axis=0)
                 else:
-                    result += jnp.dot(sum_weight_batches[i_batch], interp_result)
+                    result += np.dot(sum_weight_batches[i_batch], interp_result)
                     
             return result
         
     
-    def point_interp(self, rs=None, nBs=None, x=None):
+    def point_interp(self, rs=..., nBs=..., x=...):
         """Returns the transfer function at a (rs, nBs, x) point."""
-        
-        data = interp1d(self.data, self.abscs['rs'], rs) # enxo
-        data = np.einsum('enxo -> nxeo', data) # nxeo
-        data = interp1d(data, self.abscs['nBs'], nBs) # xeo
-        data = interp1d(data, self.abscs['x'], x) # eo
-        return data
+
+        interp = interpolate.RegularGridInterpolator(
+            (self.abscs['rs'], self.abscs['nBs'], self.abscs['x']),
+            np.einsum('renxo -> rnxeo', self.data),
+            bounds_error = True,
+        )
+        return interp([rs, nBs, x])

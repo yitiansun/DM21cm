@@ -29,8 +29,8 @@ PRO gettf_nbs, check=check, fixed_cfdt=fixed_cfdt, part_i=part_i, debug=debug
         z_s_global = [38.71318413405d]
         x_s_global = [0.0010000000d]
         nBs_s_global = [1.0000000000d]
-        injection_mode = 'phot'
-        outfolder = '/zfs/yitians/dm21cm/DM21cm/build_tf/ionhist_outputs_tmp'
+        injection_mode = 'elec'
+        outfolder = '$DM21CM_DIR/build_tf/ionhist_outputs_tmp'
     ENDIF ELSE BEGIN
         !EXCEPT = 0 ; turn off underflow error
         dlnz = 0.009950330853168092d
@@ -39,12 +39,13 @@ PRO gettf_nbs, check=check, fixed_cfdt=fixed_cfdt, part_i=part_i, debug=debug
         nBs_s_global = [1.0000000000d]
         run_name = '230721'
         injection_mode = 'phot'
-        outfolder = '/zfs/yitians/dm21cm/DM21cm/data/tf/'+run_name+'/'+injection_mode+'/ionhist_outputs'
+        outfolder = '$DM21CM_DATA_DIR/tf/'+run_name+'/'+injection_mode+'/ionhist_outputs'
     ENDELSE
     
     
     ; paralleling & tqdms
-    z_s    = [z_s_global[part_i*5:part_i*5+4]]
+    ;z_s    = [z_s_global[part_i*5:part_i*5+4]]
+    z_s    = z_s_global
     xH_s   = x_s_global
     nBs_s  = nBs_s_global
     part_total = N_ELEMENTS(z_s) * N_ELEMENTS(xH_s) * N_ELEMENTS(nBs_s) * N_ELEMENTS(injE_s)
@@ -80,9 +81,9 @@ PRO gettf_nbs, check=check, fixed_cfdt=fixed_cfdt, part_i=part_i, debug=debug
     PRINT, '' ; preventing printing tqdms line together with idl outputs
     PRINT, STRING('tqdms init ', part_i, ' ', part_total, format='(A,I0,A,I0)')
     
-    for xH_i   = 0, N_ELEMENTS(xH_s)-1   DO BEGIN
-    for nBs_i  = 0, N_ELEMENTS(nBs_s)-1  DO BEGIN
-    for z_i    = 0, N_ELEMENTS(z_s)-1    DO BEGIN
+    FOR xH_i   = 0, N_ELEMENTS(xH_s)-1   DO BEGIN
+    FOR nBs_i  = 0, N_ELEMENTS(nBs_s)-1  DO BEGIN
+    FOR z_i    = 0, N_ELEMENTS(z_s)-1    DO BEGIN
     
         ;---------- Initialize tfs ----------
         zinit = z_s[z_i] ; actually 1+z
@@ -140,7 +141,6 @@ PRO gettf_nbs, check=check, fixed_cfdt=fixed_cfdt, part_i=part_i, debug=debug
             prog += 1
             IF prog MOD prog_every_n EQ 0 THEN BEGIN
                 str  = STRING('tqdms ', part_i, ' ', prog, format='(A,I0,A,I0)')
-
                 str += STRING(' xH='  , xH    , ': ', xH_i+1  , '/', N_ELEMENTS(xH_s)  , format='(A,E0.3,A,I0,A,I0)')
                 str += STRING(' nBs=' , nBs   , ': ', nBs_i+1 , '/', N_ELEMENTS(nBs_s) , format='(A,E0.3,A,I0,A,I0)')
                 str += STRING(' zini=', zinit , ': ', z_i+1   , '/', N_ELEMENTS(z_s)   , format='(A,E0.3,A,I0,A,I0)')

@@ -1,5 +1,6 @@
 #===== This project =====
 build_tf/*.pdf
+build_tf/ionhist_outputs/
 data/tf/
 data/run_info/**
 notebooks/plots/tmp

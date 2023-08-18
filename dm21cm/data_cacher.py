@@ -105,7 +105,7 @@ class SpectrumCache:
     
     def __init__(self):
         self.spectrum_list = []
-       	self.redshifts = np.array([])
+        self.redshifts = np.array([])
         
     def cache_spectrum(self, spec, z):
         self.spectrum_list.append(spec)

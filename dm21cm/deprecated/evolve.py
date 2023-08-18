@@ -22,7 +22,7 @@ sys.path.append("..")
 from   dm21cm.data_loader import load_data
 from   dm21cm.deprecated.field_smoother import WindowedData
 import dm21cm.physics as phys
-from   dm21cm.utils import load_dict
+from   dm21cm.data_loader import load_dict
 
 logging.getLogger().setLevel(logging.INFO)
 logging.getLogger('21cmFAST').setLevel(logging.CRITICAL+1)
@@ -415,7 +415,7 @@ def evolve(run_name, run_mode='xray',
             if 'T_k' in dhinit_list:
                 T_k_DH = np.interp(1+z_now, dhinit_soln['rs'][::-1], dhinit_soln['Tm'][::-1] / phys.kB) # [K]
                 spin_temp.Tk_box += T_k_DH - np.mean(spin_temp.Tk_box)
-                print(z_now, T_k_DH, np.mean(spin_temp.Tk_box))
+                #print(z_now, T_k_DH, np.mean(spin_temp.Tk_box))
 
             if 'x_e' in dhinit_list:
                 x_e_DH = np.interp(1+z_now, dhinit_soln['rs'][::-1], dhinit_soln['x'][::-1, 0]) # HI
@@ -434,7 +434,7 @@ def evolve(run_name, run_mode='xray',
                 dh_spec = ( dh_spec_left * np.abs(logrs - logrs_right) + \
                             dh_spec_right * np.abs(logrs - logrs_left) ) / np.abs(logrs_right - logrs_left)
                 phot_bath_spec = Spectrum(photeng, dh_spec, rs=1+z_now, spec_type='N')
-                print(1+z_now, phot_bath_spec.toteng())
+                #print(1+z_now, phot_bath_spec.toteng())
             else:
                 phot_bath_spec = Spectrum(photeng, np.zeros_like(photeng), rs=1+z_now, spec_type='N') # [N per Bavg]
 

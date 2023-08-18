@@ -4,7 +4,7 @@ import h5py
 sys.path.append("..")
 
 import logging
-from dm21cm.interpolators import BatchInterpolator
+from dm21cm.deprecated.interpolators_jax import BatchInterpolator
 
 
 # Global data structures

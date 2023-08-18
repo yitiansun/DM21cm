@@ -1,5 +1,12 @@
+"""Physics constants and functions."""
+
+import sys
+
 import numpy as np
 from scipy import integrate
+from scipy import interpolate
+
+from dm21cm.data_loader import load_data
 
 
 #========================================
@@ -166,7 +173,7 @@ def struct_boost_func(model=None):
     else:
 
         struct_data = load_data('struct')[model]
-        log_struct_interp = interp1d(
+        log_struct_interp = interpolate.interp1d(
             np.log(struct_data[:,0]), np.log(struct_data[:,1]),
             bounds_error=False, fill_value=(np.nan, 0.)
         )

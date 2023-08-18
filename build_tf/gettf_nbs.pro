@@ -29,8 +29,8 @@ PRO gettf_nbs, check=check, fixed_cfdt=fixed_cfdt, part_i=part_i, debug=debug
         z_s_global = [38.71318413405d]
         x_s_global = [0.0010000000d]
         nBs_s_global = [1.0000000000d]
-        injection_mode = 'elec'
-        outfolder = '$DM21CM_DIR/build_tf/ionhist_outputs_tmp'
+        injection_mode = 'phot'
+        outfolder = '$DM21CM_DIR/build_tf/ionhist_outputs/debug'
     ENDIF ELSE BEGIN
         !EXCEPT = 0 ; turn off underflow error
         dlnz = 0.009950330853168092d

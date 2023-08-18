@@ -92,8 +92,8 @@ class BatchInterpolator:
         
         self.fixed_in_spec = None
         self.fixed_in_spec_data = None
-        
-        
+    
+    
     def set_fixed_in_spec(self, in_spec):
         
         self.fixed_in_spec = in_spec
@@ -120,7 +120,7 @@ class BatchInterpolator:
             out_of_bounds_action : {'error', 'clip'}
         
         Return:
-            interpolated box or average
+            interpolated box or average of interpolated box.
         """
         
         if out_of_bounds_action == 'clip':

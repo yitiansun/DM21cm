@@ -86,7 +86,7 @@ class BatchInterpolator:
             (self.abscs['nBs'], self.abscs['x']),
             data_at_rs,
             bounds_error = bounds_error,
-            fill_value = np.nan,
+            fill_value = 0.,
         )
         nBs_x_in = np.stack([nBs_s, x_s], axis=-1)
 
@@ -119,4 +119,4 @@ class BatchInterpolator:
             np.einsum('renxo -> rnxeo', self.data),
             bounds_error = True,
         )
-        return interp([rs, nBs, x])
+        return interp([rs, nBs, x])[0]

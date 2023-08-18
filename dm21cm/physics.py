@@ -172,3 +172,30 @@ def struct_boost_func(model=None):
         )
 
         return lambda rs: np.exp(log_struct_interp(np.log(rs)))
+
+
+#========================================
+# Depreciated
+
+def hubble(rs, H0=H0, omega_m=omega_m, omega_rad=omega_rad, omega_lambda=omega_lambda):
+    """ DEPRECATED: Hubble parameter in s\ :sup:`-1`\ .
+    (Copied from darkhistory.physics.hubble)
+    Assumes a flat universe.
+    Parameters
+    ----------
+    rs : float
+        The redshift of interest (rs = 1+z).
+    H0 : float
+        The Hubble parameter today, default value `H0`.
+    omega_m : float, optional
+        Omega matter today, default value `omega_m`.
+    omega_rad : float, optional
+        Omega radiation today, default value `omega_rad`.
+    omega_lambda : float, optional
+        Omega dark energy today, default value `omega_lambda`.
+    Returns
+    -------
+    float
+    """
+
+    return H0*np.sqrt(omega_rad*rs**4 + omega_m*rs**3 + omega_lambda)

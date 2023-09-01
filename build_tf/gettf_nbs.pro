@@ -25,11 +25,11 @@ PRO gettf_nbs, check=check, fixed_cfdt=fixed_cfdt, part_i=part_i, debug=debug
     ; dlnz and abscissa for nBs, xH=xHe, z(actually 1+z)
     
     IF KEYWORD_SET(debug) THEN BEGIN
-        dlnz = 0.04879016d
+        dlnz = 0.001d
         z_s_global = [38.71318413405d]
         x_s_global = [0.0010000000d]
         nBs_s_global = [1.0000000000d]
-        injection_mode = 'phot'
+        injection_mode = 'elec'
         outfolder = '$DM21CM_DIR/build_tf/ionhist_outputs/debug'
     ENDIF ELSE BEGIN
         !EXCEPT = 0 ; turn off underflow error
@@ -112,6 +112,19 @@ PRO gettf_nbs, check=check, fixed_cfdt=fixed_cfdt, part_i=part_i, debug=debug
         hed_tf  = DBLARR(4, n_in_eng)
         cmbloss = DBLARR(n_in_eng)
         lowerbound = 0d
+        dt = 0d
+        hubblerate = 0d
+        lep_tf_deposited = DBLARR(nphoteng, n_in_eng) + epsilon
+        lep_tf_cont = DBLARR(nphoteng, n_in_eng) + epsilon
+
+        hep_tf_0 = DBLARR(nphoteng, n_in_eng) + epsilon ; IDL row column convention
+        lep_tf_0 = DBLARR(nphoteng, n_in_eng) + epsilon
+        lee_tf_0 = DBLARR(neleceng, n_in_eng) + epsilon
+        hed_tf_0  = DBLARR(4, n_in_eng)
+        cmbloss_0 = DBLARR(n_in_eng)
+        lowerbound_0 = 0d
+        dt_0 = 0d
+        hubblerate_0 = 0d
         
         ;---------- Initialize variables for each tf ----------
         UNDEFINE, tot_time
@@ -119,8 +132,9 @@ PRO gettf_nbs, check=check, fixed_cfdt=fixed_cfdt, part_i=part_i, debug=debug
         UNDEFINE, reuse_photon_input_electronprocesses
         
         FOR injE_i = 0, N_ELEMENTS(injE_s)-1 DO BEGIN ; higher injection take a longer time
-        
+            ;injE_i = 200
             injE = injE_s[injE_i]
+            PRINT, injE_i
 
             ;---------- Call ih_transferfunction ----------
             ih_transferfunction, $
@@ -162,6 +176,19 @@ PRO gettf_nbs, check=check, fixed_cfdt=fixed_cfdt, part_i=part_i, debug=debug
             hed_tf[*, E_i] = output.highdeposited_grid[1, *] / 2d
             cmbloss[E_i] = output.cmblosstable[1] / 2d
             lowerbound = output.lowerbound[1]
+            dt = output.dts[1]
+            hubblerate = output.hubblerate[1]
+            lep_tf_deposited[*, E_i] = output.lowengphot_deposited[*, 1] / 2d ; dNdE
+            lep_tf_cont[*, E_i] = output.lowengphot_cont[*, 1] / 2d ; dNdE
+
+            hep_tf_0[*, E_i] = output.photonspectrum[*, 0] / 2d ; dNdE
+            lep_tf_0[*, E_i] = output.lowengphot[*, 0] / 2d ; dNdE
+            lee_tf_0[*, E_i] = output.lowengelec[*, 0] / 2d ; dNdE
+            hed_tf_0[*, E_i] = output.highdeposited_grid[0, *] / 2d
+            cmbloss_0[E_i] = output.cmblosstable[0] / 2d
+            lowerbound_0 = output.lowerbound[0]
+            dt_0 = output.dts[0]
+            hubblerate_0 = output.hubblerate[0]
             
             ;---------- timeinfo ----------
             IF injE_i GE 1 THEN BEGIN
@@ -181,7 +208,19 @@ PRO gettf_nbs, check=check, fixed_cfdt=fixed_cfdt, part_i=part_i, debug=debug
             lee_tf : lee_tf, $
             hed_tf : hed_tf, $
             cmbloss : cmbloss, $
-            lowerbound : lowerbound $
+            lowerbound : lowerbound, $
+            dt : dt, $
+            hubblerate : hubblerate, $
+            lep_tf_deposited : lep_tf_deposited, $
+            lep_tf_cont : lep_tf_cont, $
+            hep_tf_0 : hep_tf_0, $
+            lep_tf_0 : lep_tf_0, $
+            lee_tf_0 : lee_tf_0, $
+            hed_tf_0 : hed_tf_0, $
+            cmbloss_0 : cmbloss_0, $
+            lowerbound_0 : lowerbound_0, $
+            dt_0 : dt_0, $
+            hubblerate_0 : hubblerate_0 $
         }
         outname = STRING('tf_z_', zinit, '_x_', xH, '_nBs_', nBs, $
                          format='(A,E0.3,A,E0.3,A,E0.3)')

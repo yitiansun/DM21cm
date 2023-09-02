@@ -1,4 +1,4 @@
-PRO gettf_nbs, check=check, fixed_cfdt=fixed_cfdt, part_i=part_i, debug=debug
+PRO gettf_nbs, check=check, fixed_cfdt=fixed_cfdt, part_i=part_i, debug=debug, showtimeinfo=showtimeinfo
 ; fixed_cfdt : flag for fixed conformal delta t
     
     ;---------- Abscissas ----------
@@ -29,7 +29,7 @@ PRO gettf_nbs, check=check, fixed_cfdt=fixed_cfdt, part_i=part_i, debug=debug
         z_s_global = [38.71318413405d]
         x_s_global = [0.0010000000d]
         nBs_s_global = [1.0000000000d]
-        injection_mode = 'elec'
+        injection_mode = 'phot'
         outfolder = '$DM21CM_DIR/build_tf/ionhist_outputs/debug'
     ENDIF ELSE BEGIN
         !EXCEPT = 0 ; turn off underflow error
@@ -49,7 +49,7 @@ PRO gettf_nbs, check=check, fixed_cfdt=fixed_cfdt, part_i=part_i, debug=debug
     xH_s   = x_s_global
     nBs_s  = nBs_s_global
     part_total = N_ELEMENTS(z_s) * N_ELEMENTS(xH_s) * N_ELEMENTS(nBs_s) * N_ELEMENTS(injE_s)
-    prog_every_n = 11
+    prog_every_n = 10
     prog   = 0
     
     ;---------- Initialize ----------
@@ -81,9 +81,9 @@ PRO gettf_nbs, check=check, fixed_cfdt=fixed_cfdt, part_i=part_i, debug=debug
     PRINT, '' ; preventing printing tqdms line together with idl outputs
     PRINT, STRING('tqdms init ', part_i, ' ', part_total, format='(A,I0,A,I0)')
     
-    FOR xH_i   = 0, N_ELEMENTS(xH_s)-1   DO BEGIN
-    FOR nBs_i  = 0, N_ELEMENTS(nBs_s)-1  DO BEGIN
-    FOR z_i    = 0, N_ELEMENTS(z_s)-1    DO BEGIN
+    FOR xH_i  = 0, N_ELEMENTS(xH_s)-1   DO BEGIN
+    FOR nBs_i = 0, N_ELEMENTS(nBs_s)-1  DO BEGIN
+    FOR z_i   = 0, N_ELEMENTS(z_s)-1    DO BEGIN
     
         ;---------- Initialize tfs ----------
         zinit = z_s[z_i] ; actually 1+z
@@ -106,25 +106,15 @@ PRO gettf_nbs, check=check, fixed_cfdt=fixed_cfdt, part_i=part_i, debug=debug
         ENDIF
         
         epsilon = 1d-50
-        hep_tf = DBLARR(nphoteng, n_in_eng) + epsilon ; IDL row column convention
-        lep_tf = DBLARR(nphoteng, n_in_eng) + epsilon
-        lee_tf = DBLARR(neleceng, n_in_eng) + epsilon
-        hed_tf  = DBLARR(4, n_in_eng)
-        cmbloss = DBLARR(n_in_eng)
-        lowerbound = 0d
-        dt = 0d
-        hubblerate = 0d
-        lep_tf_deposited = DBLARR(nphoteng, n_in_eng) + epsilon
-        lep_tf_cont = DBLARR(nphoteng, n_in_eng) + epsilon
-
-        hep_tf_0 = DBLARR(nphoteng, n_in_eng) + epsilon ; IDL row column convention
-        lep_tf_0 = DBLARR(nphoteng, n_in_eng) + epsilon
-        lee_tf_0 = DBLARR(neleceng, n_in_eng) + epsilon
-        hed_tf_0  = DBLARR(4, n_in_eng)
-        cmbloss_0 = DBLARR(n_in_eng)
-        lowerbound_0 = 0d
-        dt_0 = 0d
-        hubblerate_0 = 0d
+        numsteps = 2
+        hep_tf = DBLARR(nphoteng, n_in_eng, numsteps) + epsilon ; IDL row column convention: (out, in, step)
+        lep_tf = DBLARR(nphoteng, n_in_eng, numsteps) + epsilon
+        lee_tf = DBLARR(neleceng, n_in_eng, numsteps) + epsilon
+        hed_tf = DBLARR(4,        n_in_eng, numsteps) + epsilon
+        cmbloss = DBLARR(n_in_eng, numsteps)
+        lowerbound = DBLARR(numsteps)
+        dt = DBLARR(numsteps)
+        hubblerate = DBLARR(numsteps)
         
         ;---------- Initialize variables for each tf ----------
         UNDEFINE, tot_time
@@ -132,14 +122,13 @@ PRO gettf_nbs, check=check, fixed_cfdt=fixed_cfdt, part_i=part_i, debug=debug
         UNDEFINE, reuse_photon_input_electronprocesses
         
         FOR injE_i = 0, N_ELEMENTS(injE_s)-1 DO BEGIN ; higher injection take a longer time
-            ;injE_i = 200
+
             injE = injE_s[injE_i]
-            PRINT, injE_i
 
             ;---------- Call ih_transferfunction ----------
             ih_transferfunction, $
             dlnz=dlnz, zinit=zinit, zfinal=zfinal, $
-            numsteps=2, mwimp=injE, channel=channel, $
+            numsteps=numsteps, mwimp=injE, channel=channel, $
             customionization=xH, xHe=xHe, $
             nBscale=nBs, $
             ; outfolder=outfolder, $
@@ -170,25 +159,16 @@ PRO gettf_nbs, check=check, fixed_cfdt=fixed_cfdt, part_i=part_i, debug=debug
                 E_i = injE_i
             ENDIF
             
-            hep_tf[*, E_i] = output.photonspectrum[*, 1] / 2d ; dNdE
-            lep_tf[*, E_i] = output.lowengphot[*, 1] / 2d ; dNdE
-            lee_tf[*, E_i] = output.lowengelec[*, 1] / 2d ; dNdE
-            hed_tf[*, E_i] = output.highdeposited_grid[1, *] / 2d
-            cmbloss[E_i] = output.cmblosstable[1] / 2d
-            lowerbound = output.lowerbound[1]
-            dt = output.dts[1]
-            hubblerate = output.hubblerate[1]
-            lep_tf_deposited[*, E_i] = output.lowengphot_deposited[*, 1] / 2d ; dNdE
-            lep_tf_cont[*, E_i] = output.lowengphot_cont[*, 1] / 2d ; dNdE
-
-            hep_tf_0[*, E_i] = output.photonspectrum[*, 0] / 2d ; dNdE
-            lep_tf_0[*, E_i] = output.lowengphot[*, 0] / 2d ; dNdE
-            lee_tf_0[*, E_i] = output.lowengelec[*, 0] / 2d ; dNdE
-            hed_tf_0[*, E_i] = output.highdeposited_grid[0, *] / 2d
-            cmbloss_0[E_i] = output.cmblosstable[0] / 2d
-            lowerbound_0 = output.lowerbound[0]
-            dt_0 = output.dts[0]
-            hubblerate_0 = output.hubblerate[0]
+            FOR i_step = 0, numsteps-1 DO BEGIN
+                hep_tf[*, E_i, i_step] = output.photonspectrum[*, i_step] / 2d ; dNdE | (out, in, step) <- (out, step) for this 'in'
+                lep_tf[*, E_i, i_step] = output.lowengphot[*, i_step] / 2d     ; dNdE | (out, in, step) <- (out, step) for this 'in'
+                lee_tf[*, E_i, i_step] = output.lowengelec[*, i_step] / 2d     ; dNdE | (out, in, step) <- (out, step) for this 'in'
+                hed_tf[*, E_i, i_step] = output.highdeposited_grid[i_step, *] / 2d ;    (out, in, step) <- (step, out) for this 'in'
+                cmbloss[E_i, i_step] = output.cmblosstable[i_step] / 2d ; (in, step) <- (step,) for this 'in'
+                lowerbound[i_step] = output.lowerbound[i_step]          ; (step,) <- (step,) same for all 'in'
+                dt[i_step] = output.dts[i_step]                         ; (step,) <- (step,) same for all 'in'
+                hubblerate[i_step] = output.hubblerate[i_step]          ; (step,) <- (step,) same for all 'in'
+            ENDFOR
             
             ;---------- timeinfo ----------
             IF injE_i GE 1 THEN BEGIN
@@ -210,26 +190,18 @@ PRO gettf_nbs, check=check, fixed_cfdt=fixed_cfdt, part_i=part_i, debug=debug
             cmbloss : cmbloss, $
             lowerbound : lowerbound, $
             dt : dt, $
-            hubblerate : hubblerate, $
-            lep_tf_deposited : lep_tf_deposited, $
-            lep_tf_cont : lep_tf_cont, $
-            hep_tf_0 : hep_tf_0, $
-            lep_tf_0 : lep_tf_0, $
-            lee_tf_0 : lee_tf_0, $
-            hed_tf_0 : hed_tf_0, $
-            cmbloss_0 : cmbloss_0, $
-            lowerbound_0 : lowerbound_0, $
-            dt_0 : dt_0, $
-            hubblerate_0 : hubblerate_0 $
+            hubblerate : hubblerate $
         }
-        outname = STRING('tf_z_', zinit, '_x_', xH, '_nBs_', nBs, $
-                         format='(A,E0.3,A,E0.3,A,E0.3)')
+        outname = STRING(injection_mode, '_tf_z_', zinit, '_x_', xH, '_nBs_', nBs, $
+                         format='(A,A,E0.3,A,E0.3,A,E0.3)')
         outname = outfolder + '/' + outname + '.fits'
-        mwrfits, save_struct, outname, /create, /silent
+        mwrfits, save_struct, outname, /create, /silent ; when saving to fits, (a, b, c, ...) will load to (..., c, b, a) in numpy
         
-        PRINT, 'timeinfo:'
-        PRINT, REFORM(timeinfo.title.TOARRAY())
-        PRINT, tot_time / FLOAT(N_ELEMENTS(injE_s)-1)
+        IF KEYWORD_SET(showtimeinfo) THEN BEGIN
+            PRINT, 'timeinfo:'
+            PRINT, REFORM(timeinfo.title.TOARRAY())
+            PRINT, tot_time / FLOAT(N_ELEMENTS(injE_s)-1)
+        ENDIF
         
     ENDFOR
     ENDFOR

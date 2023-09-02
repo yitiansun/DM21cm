@@ -44,13 +44,17 @@ PRO gettf_nbs, $
         outfolder = '$DM21CM_DIR/build_tf/ionhist_outputs/debug'
     ENDIF ELSE BEGIN
         !EXCEPT = 0 ; turn off underflow error
-        dlnz = 0.009950330853168d
-        rs_s = [5.0000000000d, 6.4577483251d, 8.3405026860d, 10.7721734502d, 13.9127970110d, 17.9690683190d, 23.2079441681d, 29.9742125159d, 38.7131841341d, 50.0000000000d]
-        xx_s = [0.0000100000d, 0.0001000000d, 0.0010000000d, 0.0100000000d, 0.1000000000d, 0.3000000000d, 0.7000000000d, 0.9000000000d, 0.9990000000d, 0.9999900000d]
-        nB_s = [0.0010000000d, 0.2620000000d, 0.7080000000d, 0.8180000000d, 0.8880000000d, 0.9440000000d, 1.0060000000d, 1.1020000000d, 4.8550000000d, 10.0000000000d]
-        run_name = '230629'
+        run_name = '230408x'
         inj_mode = 'elec'
         outfolder = '$DM21CM_DATA_DIR/tf/'+run_name+'/'+inj_mode+'/ionhist_outputs'
+
+        abscs_file = GETENV('DM21CM_DIR')+'/data/abscissas/abscs_'+run_name+'.h5'
+        file_id = H5F_OPEN(abscs_file)
+        dlnz = H5D_READ(H5D_OPEN(file_id, 'dlnz'))
+        rs_s = H5D_READ(H5D_OPEN(file_id, 'rs'))
+        xx_s = H5D_READ(H5D_OPEN(file_id, 'x'))
+        nB_s = H5D_READ(H5D_OPEN(file_id, 'nBs'))
+        H5F_CLOSE, file_id
     ENDELSE
 
 

@@ -8,7 +8,6 @@ def fitsfn(rs, x, nBs, prefix=''):
 
 
 def load_dict(fn):
-    
     d = {}
     with h5py.File(fn, 'r') as hf:
         for k, v in hf.items():

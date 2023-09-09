@@ -1,6 +1,6 @@
-import sys, os, h5py
+import h5py
 import numpy as np
-from scipy import signal, ndimage, stats, interpolate, integrate
+from scipy import integrate
 from astropy import cosmology, constants, units
 
 
@@ -35,7 +35,7 @@ class Cacher:
 
     def get_smoothing_radii(self, z_receiver, z1, z2):
         """
-	Evaluates the shell radii for a receiver at `z_receiver` for emission between redshifts
+        Evaluates the shell radii for a receiver at `z_receiver` for emission between redshifts
         `z1` and `z2`
         """
 
@@ -67,7 +67,7 @@ class Cacher:
         R2 = np.clip(R2, 1e-6, None)
 
         # Construct the smoothing functions in the frequency domain
-        with np.errstate(divide='ignore'):
+        with np.errstate(divide='ignore'): # This should be temporary
             W1 = 3*(np.sin(self.kMag*R1) - self.kMag*R1 * np.cos(self.kMag*R1)) /(self.kMag*R1)**3
             W2 = 3*(np.sin(self.kMag*R2) - self.kMag*R2 * np.cos(self.kMag*R2)) /(self.kMag*R2)**3
 
@@ -86,7 +86,7 @@ class Cacher:
 
     def get_annulus_data(self, z_receiver, z_donor, z_next_donor):
 
-	# Get the donor box
+	    # Get the donor box
         box_index = np.argmin(np.abs(self.brightness_cache.redshifts - z_donor))
         box = self.brightness_cache.get_box(box_index)
 
@@ -125,21 +125,24 @@ class SpectrumCache:
 
 
 class BrightnessCache:
-    def __init__(self, data_path):
+    """
+    Cache for the X-ray brightness boxes.
 
-        """
-        Class initializer. The arguments are:
-        'data_path' - the path where the caching hdf5 is stored
-        """
+    Args:
+        data_path (str): Path to the HDF5 file.
+    """
+    def __init__(self, data_path):
 
         self.data_path = data_path
         self.redshifts = np.array([])
 
     def cache_box(self, box, z):
         """
-        This method adds the X-ray box box at the specified redshift to the cache
-        'box' - the comoving effective density of photons in each pixel. Units of photons / Mpccm^3
-        'z'    - the redshift associated with the brightness box
+        Adds the X-ray box box at the specified redshift to the cache.
+
+        Args:
+            box (np.ndarray): The X-ray brightness box to cache. (photons / Mpccm^3)
+            z (float): The redshift of the box.
         """
 
         box_index = len(self.redshifts)
@@ -150,12 +153,9 @@ class BrightnessCache:
         self.redshifts = np.append(self.redshifts, z)
 
     def get_box(self, z):
+        """Returns the brightness box and spectrum at the specified cached state."""
 
-        """
-        Returns the brightness box and spectrum at the specified cached state. 
-        """
-
-	# Get the index of the donor box
+	    # Get the index of the donor box
         box_index = np.argmin(np.abs(self.redshifts - z))
 
         with h5py.File(self.data_path, 'r') as archive:

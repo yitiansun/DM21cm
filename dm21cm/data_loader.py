@@ -1,27 +1,27 @@
 import os
 import sys
 import h5py
-sys.path.append("..")
-
 import logging
+
+sys.path.append("..")
 from dm21cm.deprecated.interpolators_jax import BatchInterpolator
 
 
-# Global data structures
 global_phot_dep_tf = None
 global_elec_dep_tf = None
-#global_phot_phot_tf = None
 global_phot_prop_tf = None
 global_phot_scat_tf = None
 global_elec_scat_tf = None
 
 
 def load_dict(fn):
+    """Load a dictionary from an HDF5 file."""
     d = {}
     with h5py.File(fn, 'r') as hf:
         for k, v in hf.items():
             d[k] = v[()]
     return d
+
 
 def load_data(data_type, prefix=None, reload=False):
     """Load (global) data.

@@ -1,69 +1,88 @@
+import os
+import sys
+import pickle
+import logging
 import numpy as np
-import os, sys, pickle
 
-# Import things we need from this work
 sys.path.append("..")
 import dm21cm.physics as phys
-from dm21cm.data_loader import load_dict, load_data
+from dm21cm.data_loader import load_data
 
-# Import the PPPC Spectra
 sys.path.append(os.environ['DH_DIR'])
-from darkhistory.spec import pppc
-
-
-class DMParams:
-    """Dark matter parameters.
-    
-    Args:
-        mode {'swave', 'decay'}: Type of injection.
-        primary (str): Primary injection channel. See darkhistory.pppc.get_pppc_spec
-        m_DM (float): DM mass in eV.
-        abscs (dict): Abscissas.
-        sigmav (float): Annihilation cross section in cm\ :sup:`3`\ s\ :sup:`-1`\ .
-        lifetime (float, optional): Decay lifetime in s.
-        
-    Attributes:
-        inj_phot_spec (Spectrum): Injected photon spectrum per injection event.
-        inj_elec_spec (Spectrum): Injected electron positron spectrum per injection event.
-        eng_per_inj (float): Injected energy per injection event.
-    """
-    
-    def __init__(self, mode, primary, abscs, m_DM, sigmav=None, lifetime=None):
-        
-        if mode == 'swave':
-            if sigmav is None:
-                raise ValueError('must initialize sigmav.')
-        elif mode == 'decay':
-            if lifetime is None:
-                raise ValueError('must initialize lifetime.')
-        else:
-            raise NotImplementedError(mode)
-        
-        self.mode = mode
-        self.primary = primary
-        self.m_DM = m_DM
-        self.sigmav = sigmav
-        self.lifetime = lifetime
-        self.abscs = abscs
-        
-        self.inj_phot_spec = pppc.get_pppc_spec(
-            self.m_DM, self.abscs['photE'], self.primary, 'phot',
-            decay=(self.mode=='decay')
-        )
-        self.inj_elec_spec = pppc.get_pppc_spec(
-            self.m_DM, self.abscs['elecEk'], self.primary, 'elec',
-            decay=(self.mode=='decay')
-        )
-        self.eng_per_inj = self.m_DM if self.mode=='decay' else 2 * self.m_DM
-        
-    def __repr__(self):
-
-        return f"DMParams(mode={self.mode}, primary={self.primary}, " \
-            f"m_DM={self.m_DM:.4e}, sigmav={self.sigmav}, lifetime={self.lifetime})"
+from darkhistory.main import evolve as evolve_DH
+from darkhistory.spec.spectrum import Spectrum
 
 
 class DarkHistoryWrapper:
-    """Wrapper for DarkHistory transfer functions.
+    
+    def __init__(self, dm_params, prefix='.', soln_name='dh_init_soln.p'):
+
+        self.dm_params = dm_params
+        self.soln_fn = prefix + '/' + soln_name
+
+    def clear_soln(self):
+        if os.path.exists(self.soln_fn):
+            logging.info('DarkHistoryWrapper: Removed cached DarkHistory run.')
+            os.remove(self.soln_fn)
+
+    def evolve(self, end_rs, rerun=False, **kwargs):
+
+        if os.path.exists(self.soln_fn) and not rerun:
+            self.soln = pickle.load(open(self.soln_fn, 'rb'))
+            logging.info('DarkHistoryWrapper: Found existing DarkHistory initial conditions.')
+            if 'dm_params' in self.soln and self.dm_params == self.soln['dm_params']:
+                return self.soln
+            else:
+                logging.warning('DarkHistoryWrapper: DMParams mismatch, rerunning.')
+        
+        logging.info('DarkHistoryWrapper: Running DarkHistory to generate initial conditions...')
+        default_kwargs = dict(
+            DM_process=self.dm_params.mode, mDM=self.dm_params.m_DM,
+            primary=self.dm_params.primary,
+            sigmav=self.dm_params.sigmav, lifetime=self.dm_params.lifetime,
+            struct_boost=self.dm_params.struct_boost,
+            start_rs=3000, end_rs=end_rs, coarsen_factor=12, verbose=1,
+            reion_switch=False
+        )
+        default_kwargs.update(kwargs)
+        self.soln = evolve_DH(**default_kwargs)
+        self.soln['dm_params'] = self.dm_params
+        pickle.dump(self.soln, open(self.soln_fn, 'wb'))
+        logging.info('DarkHistoryWrapper: Saved DarkHistory initial conditions.')
+        return self.soln
+
+    def match(self, spin_temp, ionized_box, match_list=['T_k', 'x_e']):
+        if 'T_k' in match_list:
+            T_k_DH = np.interp(
+                1+spin_temp.redshift, self.soln['rs'][::-1], self.soln['Tm'][::-1] / phys.kB
+            ) # [K]
+            spin_temp.Tk_box += T_k_DH - np.mean(spin_temp.Tk_box)
+
+        if 'x_e' in match_list:
+            x_e_DH = np.interp(
+                1+spin_temp.redshift, self.soln['rs'][::-1], self.soln['x'][::-1, 0]
+            ) # HI
+            spin_temp.x_e_box += x_e_DH - np.mean(spin_temp.x_e_box)
+            x_H_DH = 1 - x_e_DH
+            ionized_box.xH_box += x_H_DH - np.mean(ionized_box.xH_box)
+
+    def get_phot_bath(self, rs):
+        """Returns photon bath spectrum [N per Bavg] at redshift rs."""
+        logrs_dh_arr = np.log(self.soln['rs'])[::-1]
+        logrs = np.log(rs)
+        i = np.searchsorted(logrs_dh_arr, logrs)
+        logrs_left, logrs_right = logrs_dh_arr[i-1:i+1]
+
+        dh_eng = self.soln['highengphot'][0].eng
+        dh_spec_N_arr = np.array([s.N for s in self.soln['highengphot']])[::-1]
+        dh_spec_left, dh_spec_right = dh_spec_N_arr[i-1:i+1]
+        dh_spec = ( dh_spec_left * np.abs(logrs - logrs_right) + \
+                    dh_spec_right * np.abs(logrs - logrs_left) ) / np.abs(logrs_right - logrs_left)
+        return Spectrum(dh_eng, dh_spec, rs=rs, spec_type='N')
+
+
+class TransferFunctionWrapper:
+    """Wrapper for transfer functions from DarkHistory.
 
     Args:
         box_dim (int): Size of the box in pixels.
@@ -111,10 +130,6 @@ class DarkHistoryWrapper:
         self.emit_phot_N = np.zeros_like(self.abscs['photE']) # [N / Bavg]
         self.dep_box = np.zeros((self.box_dim, self.box_dim, self.box_dim, len(self.abscs['dep_c']))) # [eV / Bavg]
 
-    def get_state(self):
-        """Returns prop_phot_N, emit_phot_N, and dep_box."""
-
-        return self.prop_phot_N, self.emit_phot_N, self.dep_box
 
     def inject_phot(self, in_spec, inject_type=..., weight_box=...):
         """Inject photons into (prop_phot_N,) emit_phot_N, and dep_box.
@@ -182,7 +197,8 @@ class DarkHistoryWrapper:
             raise ValueError('Must enable electron injection.')
         
         self.inject_phot(dm_params.inj_phot_spec, inject_type='ots', weight_box=inj_per_Bavg_box)
-        self.inject_elec(dm_params.inj_elec_spec, weight_box=inj_per_Bavg_box)
+        if self.enable_elec:
+            self.inject_elec(dm_params.inj_elec_spec, weight_box=inj_per_Bavg_box)
 
 
     def populate_injection_boxes(self, input_heating, input_ionization, input_jalpha):
@@ -208,3 +224,13 @@ class DarkHistoryWrapper:
         # Invalidate parameters
         self.params = None
         self.tf_kwargs = None
+
+    @property
+    def xray_E_box(self):
+        """X-ray energy/brightness box [eV / Bavg]."""
+        return self.dep_box[..., 5]
+
+    def attenuation_arr(self, rs, x, nBs=1):
+        dep_tf_at_point = self.phot_dep_tf.point_interp(rs=rs, x=x, nBs=nBs)
+        dep_toteng = np.sum(dep_tf_at_point[:, :4], axis=1)
+        return 1 - dep_toteng/self.abscs['photE']

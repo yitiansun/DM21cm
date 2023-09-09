@@ -31,25 +31,31 @@ def gen_injection_boxes(next_z, p21c_initial_conditions):
     return input_heating, input_ionization, input_jalpha
 
 def p21_step(z_eval, perturbed_field, spin_temp, ionized_box,
-             input_heating = None, input_ionization = None, input_jalpha = None):
+             input_heating=None, input_ionization=None, input_jalpha=None):
     
     # Calculate the spin temperature, possibly using our inputs
-    spin_temp = p21c.spin_temperature(perturbed_field=perturbed_field,
-                                      previous_spin_temp = spin_temp,
-                                      input_heating_box = input_heating,
-                                      input_ionization_box = input_ionization,
-                                      input_jalpha_box = input_jalpha, )
+    spin_temp = p21c.spin_temperature(
+        perturbed_field = perturbed_field,
+        previous_spin_temp = spin_temp,
+        input_heating_box = input_heating,
+        input_ionization_box = input_ionization,
+        input_jalpha_box = input_jalpha,
+    )
     
     # Calculate the ionized box
-    ionized_box = p21c.ionize_box(perturbed_field = perturbed_field,
-                                  previous_ionize_box=ionized_box,
-                                  spin_temp=spin_temp)
+    ionized_box = p21c.ionize_box(
+        perturbed_field = perturbed_field,
+        previous_ionize_box = ionized_box,
+        spin_temp = spin_temp
+    )
     
     
     # Calculate the brightness temperature
-    brightness_temp = p21c.brightness_temperature(ionized_box=ionized_box,
-                                                  perturbed_field = perturbed_field,
-                                                  spin_temp = spin_temp)
+    brightness_temp = p21c.brightness_temperature(
+        ionized_box = ionized_box,
+        perturbed_field = perturbed_field,
+        spin_temp = spin_temp
+    )
     
     # Now return the spin temperature and ionized box because we will need them later
     return spin_temp, ionized_box, brightness_temp

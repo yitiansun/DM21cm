@@ -140,7 +140,8 @@ class DarkHistoryWrapper:
                 in_spec=in_spec.N, sum_result=True, sum_weight=sum_weight, **self.tf_kwargs
             ) # [N / Bavg]
         elif inject_type == 'xray':
-            pass
+            sum_weight = weight_box.ravel()
+            weight_norm = weight_box[..., None]
         else:
             raise NotImplementedError(inject_type)
         
@@ -180,8 +181,8 @@ class DarkHistoryWrapper:
         if np.any(dm_params.inj_elec_spec.N != 0.) and not self.enable_elec:
             raise ValueError('Must enable electron injection.')
         
-        self.inject_phot_ots(dm_params.inj_phot_spec, injection_type='ots', weight_box=inj_per_Bavg_box)
-        self.inject_elec_ots(dm_params.inj_elec_spec, injection_type='ots', weight_box=inj_per_Bavg_box)
+        self.inject_phot(dm_params.inj_phot_spec, inject_type='ots', weight_box=inj_per_Bavg_box)
+        self.inject_elec(dm_params.inj_elec_spec, weight_box=inj_per_Bavg_box)
 
 
     def populate_injection_boxes(self, input_heating, input_ionization, input_jalpha):

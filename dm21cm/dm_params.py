@@ -1,12 +1,13 @@
 import os
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 sys.path.append("..")
 import dm21cm.physics as phys
 
 sys.path.append(os.environ['DH_DIR'])
 from darkhistory.spec import pppc
+from darkhistory.spec.spectrum import Spectrum
 
 @dataclass
 class DMParams:
@@ -26,13 +27,16 @@ class DMParams:
         inj_elec_spec (Spectrum): Injected electron positron spectrum per injection event.
         eng_per_inj (float): Injected energy per injection event.
     """
-    abscs: dict
+    abscs: dict = field(repr=False, compare=False)
     mode: str
     primary: str
     m_DM: float
     sigmav: float = None
     lifetime: float = None
     struct_boost_model: str = 'erfc 1e-3'
+    inj_phot_spec: Spectrum = field(init=False, repr=False, compare=False, default=None)
+    inj_elec_spec: Spectrum = field(init=False, repr=False, compare=False, default=None)
+    eng_per_inj: float = field(init=False, repr=False, compare=False, default=None)
 
     def __post_init__(self):
 

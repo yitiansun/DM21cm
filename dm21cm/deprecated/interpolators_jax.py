@@ -101,7 +101,7 @@ class BatchInterpolator:
         
         
     def __call__(self, rs=None, in_spec=None, nBs_s=None, x_s=None,
-                 sum_result=False, sum_weight=None, sum_batch_size=10000,
+                 sum_result=False, sum_weight=None, sum_batch_size=1000000,
                  out_of_bounds_action='error'):
         """Batch interpolate in (nBs and) x directions.
         
@@ -124,9 +124,10 @@ class BatchInterpolator:
         """
         
         if out_of_bounds_action == 'clip':
-            rs  = jnp.clip(rs,  jnp.min(self.abscs['rs']), jnp.max(self.abscs['rs']))
-            x_s = jnp.clip(x_s, jnp.min(self.abscs['x']),  jnp.max(self.abscs['x']))
-            nBs_s = jnp.clip(nBs_s, jnp.min(self.abscs['nBs']), jnp.max(self.abscs['nBs']))
+            factor = 1.001
+            rs  = jnp.clip(rs,  jnp.min(self.abscs['rs'])*factor, jnp.max(self.abscs['rs'])/factor)
+            x_s = jnp.clip(x_s, jnp.min(self.abscs['x'])*factor,  jnp.max(self.abscs['x'])/factor)
+            nBs_s = jnp.clip(nBs_s, jnp.min(self.abscs['nBs'])*factor, jnp.max(self.abscs['nBs'])/factor)
         else:
             if not v_is_within(rs, self.abscs['rs']):
                 raise ValueError('rs out of bounds.')

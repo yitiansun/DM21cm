@@ -5,7 +5,7 @@ import logging
 
 sys.path.append("..")
 #from dm21cm.deprecated.interpolators_jax import BatchInterpolator
-from dm21cm.interpolators import BatchInterpolator
+from dm21cm.interpolators_jax import BatchInterpolator
 
 
 global_phot_dep_tf = None

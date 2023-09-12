@@ -63,7 +63,7 @@ class BatchInterpolator:
         """
         
         if out_of_bounds_action == 'clip':
-            factor = 1.001
+            factor = 1.00001
             rs  = np.clip(rs,  np.min(self.abscs['rs'])*factor, np.max(self.abscs['rs'])/factor)
             x_s = np.clip(x_s, np.min(self.abscs['x'])*factor,  np.max(self.abscs['x'])/factor)
             nBs_s = np.clip(nBs_s, np.min(self.abscs['nBs'])*factor, np.max(self.abscs['nBs'])/factor)

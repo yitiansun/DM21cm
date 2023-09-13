@@ -1,56 +1,56 @@
 """Interpolators for energy depositions and secondary spectra."""
 
 import h5py
-
 import numpy as np
-
-import jax.numpy as jnp
-from jax import jit, vmap
 from functools import partial
 
+import jax.numpy as jnp
+from jax import jit, vmap, device_put
 
-#===== interpolating functions =====
 
-def interp1d(f, x, xv):
-    """Interpolates f(x) at values in xvs. Does not do bound checks.
-    f : (n>=1 D) array of function value.
-    x : 1D array of input value, corresponding to first dimension of f.
-    xv : x values to interpolate.
+#===== interpolation =====
+
+@jit
+def interp1d(fp, xp, x):
+    """Interpolates f(x), described by points fp and xp, at values in x.
+
+    Args:
+        fp (array): n(>=1)D array of function values. First dimension will be interpolated.
+        xp (array): 1D array of x values.
+        x (array): x values to interpolate.
+
+    Notes:
+        xp must be sorted. Does not do bound checks.
     """
-    li = jnp.searchsorted(x, xv) - 1
-    lx = x[li]
-    rx = x[li+1]
-    p = (xv-lx) / (rx-lx)
-    fl = f[li]
-    return fl + (f[li+1]-fl) * p
+    il = jnp.searchsorted(xp, x, side='right') - 1
+    wl = (xp[il+1] - x) / (xp[il+1] - xp[il])
+    return fp[il] * wl + fp[il+1] * (1 - wl)
 
-interp1d_vmap = jit(vmap(interp1d, in_axes=(None, None, 0)))
+@jit
+@partial(vmap, in_axes=(None, None, None, 0))
+def interp2d(fp, x0p, x1p, x01):
+    """Interpolates f(x0, x1), described by points fp, x0p, and x1p, at values in x01.
 
+    Args:
+        fp (array): n(>=2)D array of function values. First two dimensions will be interpolated.
+        x0p (array): 1D array of x0 values (first dimension of fp).
+        x1p (array): 1D array of x1 values (second dimension of fp).
+        x01 (array): [x0, x1] values to interpolate.
 
-def interp2d(f, x0, x1, xv):
-    """Interpolates f(x) at values in xvs. Does not do bound checks.
-    f : (n>=2 D) array of function value.
-    x0 : 1D array of input value, corresponding to first dimension of f.
-    x1 : 1D array of input value, corresponding to second dimension of f.
-    xv : [x0, x1] values to interpolate.
+    Notes:
+        x0p and x1p must be sorted. Does not do bound checks.
     """
-    xv0, xv1 = xv
+    x0, x1 = x01
     
-    li0 = jnp.searchsorted(x0, xv0, side='right') - 1
-    lx0 = x0[li0]
-    rx0 = x0[li0+1]
-    wl0 = (rx0-xv0) / (rx0-lx0)
+    i0l = jnp.searchsorted(x0p, x0, side='right') - 1
+    wl0 = (x0p[i0l+1] - x0) / (x0p[i0l+1] - x0p[i0l])
     wr0 = 1 - wl0
     
-    li1 = jnp.searchsorted(x1, xv1, side='right') - 1
-    lx1 = x1[li1]
-    rx1 = x1[li1+1]
-    wl1 = (rx1-xv1) / (rx1-lx1)
+    i1l = jnp.searchsorted(x1p, x1, side='right') - 1
+    wl1 = (x1p[i1l+1] - x1) / (x1p[i1l+1] - x1p[i1l])
     wr1 = 1 - wl1
     
-    return f[li0,li1]*wl0*wl1 + f[li0+1,li1]*wr0*wl1 + f[li0,li1+1]*wl0*wr1 + f[li0+1,li1+1]*wr0*wr1
-
-interp2d_vmap = jit(vmap(interp2d, in_axes=(None, None, None, 0)))
+    return fp[i0l,i1l]*wl0*wl1 + fp[i0l+1,i1l]*wr0*wl1 + fp[i0l,i1l+1]*wl0*wr1 + fp[i0l+1,i1l+1]*wr0*wr1
 
 
 #===== utilities =====
@@ -63,22 +63,15 @@ def v_is_within(v, absc):
 #===== interpolator class =====
 
 class BatchInterpolator:
-    """Interpolator for multidimensional data. Currently support
-    axes = ('rs', 'Ein', 'nBs', 'x', 'out')
-    
-    Parameters
-    ----------
-    filename : str
-        HDF5 data file name.
-        
-    Attributes
-    ---------
-    axes : list
-        List of axes.
-    abscs : dict
-        Abscissas of axes.
-    data : array
-        Grid data consistent with axes and abscs.
+    """Interpolator for multidimensional data. Currently supports axes=('rs', 'Ein', 'nBs', 'x', 'out').
+
+    Args:
+        filename (str): HDF5 data file name.
+
+    Attributes:
+        axes (list): List of axis names.
+        abscs (dict): Abscissas of axes.
+        data (array): Grid data consistent with axes and abscs.
     """
     
     def __init__(self, filename):
@@ -88,8 +81,9 @@ class BatchInterpolator:
             self.abscs = {}
             for k, item in hf['abscs'].items():
                 self.abscs[k] = item[:]
-            self.data = hf['data'][:] # load into memory
+            self.data = jnp.array(hf['data'][:]) # load into memory
         
+        self.data = device_put(self.data)
         self.fixed_in_spec = None
         self.fixed_in_spec_data = None
     
@@ -98,10 +92,11 @@ class BatchInterpolator:
         
         self.fixed_in_spec = in_spec
         self.fixed_in_spec_data = jnp.einsum('e,renxo->rnxo', in_spec, self.data)
+        self.fixed_in_spec_data = device_put(self.fixed_in_spec_data)
         
         
     def __call__(self, rs=None, in_spec=None, nBs_s=None, x_s=None,
-                 sum_result=False, sum_weight=None, sum_batch_size=1000000,
+                 sum_result=False, sum_weight=None, sum_batch_size=256**3,
                  out_of_bounds_action='error'):
         """Batch interpolate in (nBs and) x directions.
         
@@ -124,9 +119,9 @@ class BatchInterpolator:
         """
         
         if out_of_bounds_action == 'clip':
-            factor = 1.001
-            rs  = jnp.clip(rs,  jnp.min(self.abscs['rs'])*factor, jnp.max(self.abscs['rs'])/factor)
-            x_s = jnp.clip(x_s, jnp.min(self.abscs['x'])*factor,  jnp.max(self.abscs['x'])/factor)
+            factor = 1.00001
+            rs    = jnp.clip(rs,    jnp.min(self.abscs['rs'])*factor,  jnp.max(self.abscs['rs'])/factor)
+            x_s   = jnp.clip(x_s,   jnp.min(self.abscs['x'])*factor,   jnp.max(self.abscs['x'])/factor)
             nBs_s = jnp.clip(nBs_s, jnp.min(self.abscs['nBs'])*factor, jnp.max(self.abscs['nBs'])/factor)
         else:
             if not v_is_within(rs, self.abscs['rs']):
@@ -136,23 +131,22 @@ class BatchInterpolator:
             if not v_is_within(nBs_s, self.abscs['nBs']):
                 raise ValueError('nBs_s out of bounds.')
         
-        ## 1. in_spec sum
+        # 1. in_spec sum
         if jnp.all(in_spec == self.fixed_in_spec):
             in_spec_data = self.fixed_in_spec_data
         else:
             in_spec_data = jnp.einsum('e,renxo->rnxo', in_spec, self.data)
         
-        ## 2. rs interpolation
-        data_at_rs = interp1d(in_spec_data, self.abscs['rs'], rs)
+        # 2. rs interpolation
+        data_at_rs = interp1d(in_spec_data, jnp.array(self.abscs['rs']), rs)
         
         if not sum_result:
-            
-            ## 3. (nBs) x interpolation
+            # 3. (nBs) x interpolation
             nBs_x_in = jnp.stack([nBs_s, x_s], axis=-1)
-            return interp2d_vmap(
+            return interp2d(
                 data_at_rs,
-                self.abscs['nBs'],
-                self.abscs['x'],
+                jnp.array(self.abscs['nBs']),
+                jnp.array(self.abscs['x']),
                 nBs_x_in
             )
             
@@ -168,7 +162,7 @@ class BatchInterpolator:
             nBs_x_in_batches = jnp.array_split(nBs_x_in, split_n)
 
             for i_batch, nBs_x_in_batch in enumerate(nBs_x_in_batches):
-                interp_result = interp2d_vmap(
+                interp_result = interp2d(
                     data_at_rs,
                     self.abscs['nBs'],
                     self.abscs['x'],

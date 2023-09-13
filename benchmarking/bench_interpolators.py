@@ -1,4 +1,4 @@
-"""Benchmarking the interpolator speed."""
+"""Benchmarking interpolator speed."""
 
 import os
 import sys

@@ -3,16 +3,15 @@
 import numpy as np
 from scipy import interpolate
 
+from darkhistory.config import dh_load_data
 
-#========================================
-# Units in cgs
 
+#===== Units in cgs =====
 Mpc = 3.08568e24
 """Mpc in cm."""
 
 
-#========================================
-# Fundamental Particles and Constants
+#===== Fundamental Particles and Constants =====
 # (Based on darkhistory.physics)
 
 m_p          = 0.938272081e9
@@ -27,15 +26,13 @@ c            = 299792458e2
 """Speed of light in cm s\ :sup:`-1`\ ."""
 kB           = 8.6173324e-5
 """Boltzmann constant in eV K\ :sup:`-1`\ ."""
-
 rydberg      = 13.60569253
 """Ionization potential of ground state hydrogen in eV."""
 lya_eng      = rydberg*3/4
 """Lyman alpha transition energy in eV."""
 
 
-#========================================
-# Densities and Hubble
+#===== Densities and Hubble =====
 # (Based on darkhistory.physics)
 
 h    = 0.6736
@@ -73,8 +70,7 @@ n_A          = n_H + n_He
 chi          = n_He / n_H
 """Ratio of helium to hydrogen nuclei."""
 
-#========================================
-# Dark Matter
+#===== Dark Matter =====
 
 def inj_rate(rho_DM, dm_params):
     """ Dark matter annihilation/decay event injection rate.
@@ -167,7 +163,7 @@ def struct_boost_func(model=None):
 
     else:
 
-        struct_data = load_data('struct')[model]
+        struct_data = dh_load_data('struct')[model]
         log_struct_interp = interpolate.interp1d(
             np.log(struct_data[:,0]), np.log(struct_data[:,1]),
             bounds_error=False, fill_value=(np.nan, 0.)
@@ -176,8 +172,7 @@ def struct_boost_func(model=None):
         return lambda rs: np.exp(log_struct_interp(np.log(rs)))
 
 
-#========================================
-# Depreciated
+#===== Depreciated =====
 
 def hubble(rs, H0=H0, omega_m=omega_m, omega_rad=omega_rad, omega_lambda=omega_lambda):
     """ DEPRECATED: Hubble parameter in s\ :sup:`-1`\ .

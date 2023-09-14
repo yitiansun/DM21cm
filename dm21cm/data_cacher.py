@@ -65,15 +65,13 @@ class Cacher:
         w2 = R2**3 / (R2**3 - R1**3)
         R1 = np.clip(R1, 1e-6, None)
         R2 = np.clip(R2, 1e-6, None)
+        self.kMag = np.clip(self.kMag, 1e-6, None)
 
         # Construct the smoothing functions in the frequency domain
-        with np.errstate(divide='ignore'): # This should be temporary
-            W1 = 3*(np.sin(self.kMag*R1) - self.kMag*R1 * np.cos(self.kMag*R1)) /(self.kMag*R1)**3
-            W2 = 3*(np.sin(self.kMag*R2) - self.kMag*R2 * np.cos(self.kMag*R2)) /(self.kMag*R2)**3
-
-            # Fix the nan issue
-            W1[0, 0, 0] = 1
-            W2[0, 0, 0] = 1
+        W1 = 3*(np.sin(self.kMag*R1) - self.kMag*R1 * np.cos(self.kMag*R1)) / (self.kMag*R1)**3
+        W2 = 3*(np.sin(self.kMag*R2) - self.kMag*R2 * np.cos(self.kMag*R2)) / (self.kMag*R2)**3
+        W1[0, 0, 0] = 1
+        W2[0, 0, 0] = 1
 
         # Combine the window functions
         W = w2*W2 - w1*W1

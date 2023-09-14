@@ -17,7 +17,7 @@ from darkhistory.spec.spectrum import Spectrum
 sys.path.append("..")
 import dm21cm.physics as phys
 from dm21cm.dm_params import DMParams
-from dm21cm.dh_wrapper import DarkHistoryWrapper, TransferFunctionWrapper
+from DM21cm.dm21cm.dh_wrappers import DarkHistoryWrapper, TransferFunctionWrapper
 from dm21cm.utils import load_dict
 from dm21cm.data_cacher import Cacher as XRayCacher
 
@@ -96,17 +96,13 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
     )
 
     #--- xray ---
-    ex_lo, ex_hi = 1e2, 1e4 # [eV]
-    ix_lo = np.searchsorted(abscs['photE'], ex_lo) # i of first bin greater than ex_lo, excluded
-    ix_hi = np.searchsorted(abscs['photE'], ex_hi) # i of first bin greater than ex_hi, included
-
     xray_fn = f"{p21c.config['direc']}/xray_brightness.h5"
     if os.path.isfile(xray_fn):
         os.remove(xray_fn)
     xray_cacher = XRayCacher(data_path=xray_fn, cosmo=cosmo, N=box_dim, dx=box_len/box_dim)
 
     #--- redshift stepping ---
-    z_edges = get_z_edges(z_start, z_end, 1.01)
+    z_edges = get_z_edges(z_start, z_end, p21c.global_params.ZPRIME_STEP_FACTOR)
 
     #===== initial step =====
     perturbed_field = p21c.perturb_field(redshift=z_edges[0], init_boxes=p21c_initial_conditions)
@@ -194,7 +190,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         xray_cacher.advance_spectrum(attenuation_arr, z_next)
 
         prop_phot_N, emit_phot_N = tf_wrapper.prop_phot_N, tf_wrapper.emit_phot_N
-        emit_bath_N, emit_xray_N = split_xray(emit_phot_N, ix_lo, ix_hi)
+        emit_bath_N, emit_xray_N = split_xray(emit_phot_N, abscs['photE'])
         out_phot_N = prop_phot_N + emit_bath_N # photons not emitted to the xray band are added to the bath (treated as uniform)
         
         # prepare bath spectrum
@@ -246,8 +242,13 @@ def get_z_edges(z_max, z_min, zplusone_step_factor):
     return np.clip(z_s[::-1], None, z_max)
 
 
-def split_xray(phot_N, ix_lo, ix_hi):
+def split_xray(phot_N, phot_eng):
     """Split a photon spectrum (N in bin) into bath and xray band."""
+
+    ex_lo, ex_hi = 1e2, 1e4 # [eV]
+    ix_lo = np.searchsorted(phot_eng, ex_lo) # i of first bin greater than ex_lo, excluded
+    ix_hi = np.searchsorted(phot_eng, ex_hi) # i of first bin greater than ex_hi, included
+
     bath_N = np.array(phot_N).copy()
     xray_N = np.array(phot_N).copy()
     bath_N[ix_lo:ix_hi] *= 0

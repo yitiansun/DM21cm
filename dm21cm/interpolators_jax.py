@@ -67,6 +67,7 @@ class BatchInterpolator:
 
     Args:
         filename (str): HDF5 data file name.
+        on_device (bool, optional): Whether to save data on device (GPU). Default: True.
 
     Attributes:
         axes (list): List of axis names.
@@ -74,7 +75,7 @@ class BatchInterpolator:
         data (array): Grid data consistent with axes and abscs.
     """
     
-    def __init__(self, filename):
+    def __init__(self, filename, on_device=True):
         
         with h5py.File(filename, 'r') as hf:
             self.axes = hf['axes'][:]
@@ -82,8 +83,11 @@ class BatchInterpolator:
             for k, item in hf['abscs'].items():
                 self.abscs[k] = item[:]
             self.data = jnp.array(hf['data'][:]) # load into memory
-        
-        self.data = device_put(self.data)
+
+        self.on_device = on_device
+        if self.on_device:
+            self.data = device_put(self.data)
+            
         self.fixed_in_spec = None
         self.fixed_in_spec_data = None
     
@@ -92,7 +96,8 @@ class BatchInterpolator:
         
         self.fixed_in_spec = in_spec
         self.fixed_in_spec_data = jnp.einsum('e,renxo->rnxo', in_spec, self.data)
-        self.fixed_in_spec_data = device_put(self.fixed_in_spec_data)
+        if self.on_device:
+            self.fixed_in_spec_data = device_put(self.fixed_in_spec_data)
         
         
     def __call__(self, rs=None, in_spec=None, nBs_s=None, x_s=None,

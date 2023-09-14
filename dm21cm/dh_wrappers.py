@@ -87,31 +87,33 @@ class TransferFunctionWrapper:
     Args:
         box_dim (int): Size of the box in pixels.
         abscs (dict): Abscissas.
-        tf_prefix (str, optional, TMP): Prefix for transfer function files.
+        prefix (str, optional, TMP): Prefix for transfer function files.
         enable_elec (bool, optional): Enable electron injection. Default: True.
+        on_device (bool, optional): Whether to save transfer function on device (GPU). Default: True.
     """
     
-    def __init__(self, box_dim, abscs, tf_prefix, enable_elec=True):
+    def __init__(self, box_dim, abscs, prefix, enable_elec=True, on_device=True):
         
         self.box_dim = box_dim
         self.abscs = abscs
-        self.tf_prefix = tf_prefix # temporary
+        self.prefix = prefix # temporary
         self.enable_elec = enable_elec
+        self.on_device = on_device
 
         self.load_tfs()
             
     def load_tfs(self):
         """Initialize transfer functions."""
         
-        self.phot_prop_tf = BatchInterpolator(f'{self.tf_prefix}/phot/phot_prop.h5')
-        self.phot_scat_tf = BatchInterpolator(f'{self.tf_prefix}/phot/phot_scat.h5')
-        self.phot_dep_tf  = BatchInterpolator(f'{self.tf_prefix}/phot/phot_dep.h5')
-        logging.info('TransferFunctionWrapper: Loaded photon transfer functions.')
+        self.phot_prop_tf = BatchInterpolator(f'{self.prefix}/phot/phot_prop.h5', self.on_device)
+        self.phot_scat_tf = BatchInterpolator(f'{self.prefix}/phot/phot_scat.h5', self.on_device)
+        self.phot_dep_tf  = BatchInterpolator(f'{self.prefix}/phot/phot_dep.h5', self.on_device)
+        logging.info('TransferFunctionWrapper: Loaded photon transfer functions.', self.on_device)
     
         if self.enable_elec:
-            self.elec_scat_tf = BatchInterpolator(f'{self.tf_prefix}/elec/elec_scat.h5')
-            self.elec_dep_tf  = BatchInterpolator(f'{self.tf_prefix}/elec/elec_dep.h5')
-            logging.info('TransferFunctionWrapper: Loaded electron transfer functions.')
+            self.elec_scat_tf = BatchInterpolator(f'{self.prefix}/elec/elec_scat.h5', self.on_device)
+            self.elec_dep_tf  = BatchInterpolator(f'{self.prefix}/elec/elec_dep.h5', self.on_device)
+            logging.info('TransferFunctionWrapper: Loaded electron transfer functions.', self.on_device)
             
     def init_step(self, rs=..., delta_plus_one_box=..., x_e_box=...):
         """Initializes parameters and receivers for injection step."""

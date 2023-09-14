@@ -14,20 +14,18 @@ class DMParams:
     """Dark matter parameters.
     
     Args:
-        abscs (dict): Abscissas.
         mode {'swave', 'decay'}: Type of injection.
         primary (str): Primary injection channel. See darkhistory.pppc.get_pppc_spec
         m_DM (float): DM mass in eV.
         sigmav (float, optional): Annihilation cross section in cm\ :sup:`3`\ s\ :sup:`-1`\ .
         lifetime (float, optional): Decay lifetime in s.
-        struct_boost_model (str, optional): Model for structure boost factor.
+        struct_boost_model {'erfc 1e-3', 'erfc 1e-6', 'erfc 1e-9'}: Model for structure boost factor. Default is 'erfc 1e-3'.
         
     Attributes:
         inj_phot_spec (Spectrum): Injected photon spectrum per injection event.
         inj_elec_spec (Spectrum): Injected electron positron spectrum per injection event.
         eng_per_inj (float): Injected energy per injection event.
     """
-    abscs: dict = field(repr=False, compare=False)
     mode: str
     primary: str
     m_DM: float
@@ -39,16 +37,18 @@ class DMParams:
     eng_per_inj: float = field(init=False, repr=False, compare=False, default=None)
 
     def __post_init__(self):
+        self.eng_per_inj = self.m_DM if self.mode=='decay' else 2 * self.m_DM
 
+    def set_inj_specs(self, abscs):
+        """Set injection spectra according to absicissas."""
         self.inj_phot_spec = pppc.get_pppc_spec(
-            self.m_DM, self.abscs['photE'], self.primary, 'phot',
+            self.m_DM, abscs['photE'], self.primary, 'phot',
             decay=(self.mode=='decay')
         )
         self.inj_elec_spec = pppc.get_pppc_spec(
-            self.m_DM, self.abscs['elecEk'], self.primary, 'elec',
+            self.m_DM, abscs['elecEk'], self.primary, 'elec',
             decay=(self.mode=='decay')
         )
-        self.eng_per_inj = self.m_DM if self.mode=='decay' else 2 * self.m_DM
 
     def struct_boost(self, rs):
         """Structure boost factor as a function of redshift."""

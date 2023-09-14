@@ -98,7 +98,7 @@ class TransferFunctionWrapper:
         self.tf_prefix = tf_prefix # temporary
         self.enable_elec = enable_elec
 
-        self.load_tfs(tf_prefix)
+        self.load_tfs(tf_prefix, reload=True)
             
     def load_tfs(self, tf_prefix, reload=False):
         """Initialize transfer functions."""

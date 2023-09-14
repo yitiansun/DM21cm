@@ -203,31 +203,26 @@ class TransferFunctionWrapper:
 
     def populate_injection_boxes(self, input_heating, input_ionization, input_jalpha):
     
-        # Populate input heating. [K/Bavg] / [B/Bavg] = [K/B]
         input_heating.input_heating += np.array(
             2 / (3*phys.kB*(1+self.params['x_e_box'])) * self.dep_box[...,3] / self.params['nBs_box']
-        )
+        ) # [K/Bavg] / [B/Bavg] = [K/B]
     
-        # Populate input ionization. [1/Bavg] / [B/Bavg] = [1/B]
         input_ionization.input_ionization += np.array(
             (self.dep_box[...,0] + self.dep_box[...,1]) / phys.rydberg / self.params['nBs_box']
-        )
+        ) # [1/Bavg] / [B/Bavg] = [1/B]
 
-        # Populate input lyman alpha
         nBavg = phys.n_B * self.params['rs']**3 # [Bavg / cm^3]
         n_lya = self.dep_box[...,2] * nBavg / phys.lya_eng # [lya cm^-3]
         dnu_lya = (phys.rydberg - phys.lya_eng) / (2*np.pi*phys.hbar) # [Hz^-1]
         J_lya = n_lya * phys.c / (4*np.pi) / dnu_lya # [lya cm^-2 s^-1 sr^-1 Hz^-1]
-
         input_jalpha.input_jalpha += np.array(J_lya)
 
-        # Invalidate parameters
-        self.params = None
-        self.tf_kwargs = None
+        self.params = None # invalidate parameters
+        self.tf_kwargs = None # invalidate parameters
 
     @property
-    def xray_E_box(self):
-        """X-ray energy/brightness box [eV / Bavg]."""
+    def xray_eng_box(self):
+        """X-ray energy-per-average-baryon box [eV / Bavg]."""
         return self.dep_box[..., 5]
 
     def attenuation_arr(self, rs, x, nBs=1):

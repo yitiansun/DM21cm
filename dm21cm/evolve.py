@@ -18,8 +18,8 @@ sys.path.append("..")
 import dm21cm.physics as phys
 from dm21cm.dm_params import DMParams
 from dm21cm.dh_wrapper import DarkHistoryWrapper, TransferFunctionWrapper
-from dm21cm.utils import split_xray, get_z_edges, gen_injection_boxes, p21_step, load_dict
-from dm21cm.data_cacher import Cacher
+from dm21cm.utils import load_dict
+from dm21cm.data_cacher import Cacher as XRayCacher
 
 logging.getLogger().setLevel(logging.INFO)
 logging.getLogger('21cmFAST').setLevel(logging.CRITICAL+1)
@@ -103,19 +103,14 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
     xray_fn = f"{p21c.config['direc']}/xray_brightness.h5"
     if os.path.isfile(xray_fn):
         os.remove(xray_fn)
-    xray_cacher = Cacher(data_path=xray_fn, cosmo=cosmo, N=box_dim, dx=box_len/box_dim)
+    xray_cacher = XRayCacher(data_path=xray_fn, cosmo=cosmo, N=box_dim, dx=box_len/box_dim)
 
     #--- redshift stepping ---
     z_edges = get_z_edges(z_start, z_end, 1.01)
-    def get_time_step(i_z):
-        z_current = z_edges[i_z]
-        z_next = z_edges[i_z+1]
-        dt = ( cosmo.age(z_next) - cosmo.age(z_current) ).to('s').value # [s]
-        return z_current, z_next, dt
 
     #===== initial step =====
     perturbed_field = p21c.perturb_field(redshift=z_edges[0], init_boxes=p21c_initial_conditions)
-    spin_temp, ionized_box, brightness_temp = p21_step(z_edges[0], perturbed_field, None, None)
+    spin_temp, ionized_box, brightness_temp = p21c_step(perturbed_field, spin_temp=None, ionized_box=None)
 
     dh_wrapper.evolve(end_rs=(1+z_start)*0.9, rerun=rerun_DH)
     dh_wrapper.match(spin_temp, ionized_box)
@@ -132,7 +127,9 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
 
     for i_z in z_iterator:
 
-        z_current, z_next, dt = get_time_step(i_z)
+        z_current = z_edges[i_z]
+        z_next = z_edges[i_z+1]
+        dt = ( cosmo.age(z_next) - cosmo.age(z_current) ).to('s').value
 
         timer_start = time.time()
         print(f'step {i_z} z: {z_current:.3f}->{z_next:.3f} ', end='', flush=True)
@@ -140,7 +137,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         nBavg = phys.n_B * (1+z_current)**3 # [Bavg / (physical cm)^3]
         delta_plus_one_box = 1 + np.asarray(perturbed_field.density)
         rho_DM_box = delta_plus_one_box * phys.rho_DM * (1+z_current)**3 # [eV/(physical cm)^3]
-        x_e_box = np.asarray(1 - ionized_box.xH_box) # check this
+        x_e_box = np.asarray(1 - ionized_box.xH_box)
         inj_per_Bavg_box = phys.inj_rate(rho_DM_box, dm_params) * dt * dm_params.struct_boost(1+z_current) / nBavg # [inj/Bavg]
         
         tf_wrapper.init_step(
@@ -157,8 +154,8 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
                 z_current, z_edges[i_z_shell], z_edges[i_z_shell+1]
             )
             # If we are smoothing on the scale of the box then dump to the global bath spectrum.
-            # The deposition will happen later, and we will not revisit this shell.
-            if is_box_average:
+            # The deposition will happen with `phot_bath_spec`, and we will not revisit this shell.
+            if is_box_average or debug_uniform_xray:
                 phot_bath_spec.N += xray_brightness_box[0, 0, 0] * xray_spec.N
                 i_xray_loop_start = max(i_z_shell+1, i_xray_loop_start)
                 continue
@@ -182,9 +179,11 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         input_heating, input_ionization, input_jalpha = gen_injection_boxes(z_next, p21c_initial_conditions)
         tf_wrapper.populate_injection_boxes(input_heating, input_ionization, input_jalpha)
         
-        spin_temp, ionized_box, brightness_temp = p21_step(
-            z_next, perturbed_field, spin_temp, ionized_box,
-            input_heating, input_ionization, input_jalpha
+        spin_temp, ionized_box, brightness_temp = p21c_step(
+            perturbed_field, spin_temp, ionized_box,
+            input_heating = input_heating,
+            input_ionization = input_ionization,
+            input_jalpha = input_jalpha
         )
 
         print(f'21cmfast: {time.time()-timer_start:.3f} ', end='', flush=True)
@@ -196,19 +195,17 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
 
         prop_phot_N, emit_phot_N = tf_wrapper.prop_phot_N, tf_wrapper.emit_phot_N
         emit_bath_N, emit_xray_N = split_xray(emit_phot_N, ix_lo, ix_hi)
-        out_phot_N = prop_phot_N + emit_bath_N # photons not emitted to the xray band are added to the bath
+        out_phot_N = prop_phot_N + emit_bath_N # photons not emitted to the xray band are added to the bath (treated as uniform)
         
-        # Prepare the bath spectrum for the next step    
-        out_phot_spec = Spectrum(abscs['photE'], out_phot_N, rs=1+z_current, spec_type='N')
-        out_phot_spec.redshift(1+z_next)
-        phot_bath_spec = out_phot_spec
+        # prepare bath spectrum
+        phot_bath_spec = Spectrum(abscs['photE'], out_phot_N, rs=1+z_current, spec_type='N')
+        phot_bath_spec.redshift(1+z_next)
         
-        # Redshift the x-ray spectrum to the next timestep. Then cache the brightness box and spectrum
+        # redshift the x-ray spectrum to the next timestep. Then cache the energy-per-average-baryon box and spectrum
         xray_spec = Spectrum(abscs['photE'], emit_xray_N, rs=1+z_current, spec_type='N') # [photon / Bavg]
         xray_spec.redshift(1+z_next)
-        
-        xray_e_box = tf_wrapper.xray_E_box / np.dot(abscs['photE'], emit_xray_N) # [1 (relative energy) / Bavg]
-        xray_cacher.set_cache(z_current, xray_e_box, xray_spec)
+        xray_rel_eng_box = tf_wrapper.xray_eng_box / np.dot(abscs['photE'], emit_xray_N) # [1 (relative energy) / Bavg]
+        xray_cacher.set_cache(z_current, xray_rel_eng_box, xray_spec)
         
         #===== save some global quantities =====
         dE_inj_per_Bavg = dm_params.eng_per_inj * np.mean(inj_per_Bavg_box) # [eV per Bavg]
@@ -237,3 +234,62 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         return {}
     else:
         return None
+
+
+#===== utilities for evolve =====
+
+def get_z_edges(z_max, z_min, zplusone_step_factor):
+    z_s = [z_min]
+    while z_s[-1] < z_max:
+        z_s.append((z_s[-1] + 1.0) * zplusone_step_factor - 1.0)
+    
+    return np.clip(z_s[::-1], None, z_max)
+
+
+def split_xray(phot_N, ix_lo, ix_hi):
+    """Split a photon spectrum (N in bin) into bath and xray band."""
+    bath_N = np.array(phot_N).copy()
+    xray_N = np.array(phot_N).copy()
+    bath_N[ix_lo:ix_hi] *= 0
+    xray_N[:ix_lo] *= 0
+    xray_N[ix_hi:] *= 0
+    
+    return bath_N, xray_N
+
+
+def gen_injection_boxes(z_next, p21c_initial_conditions):
+    
+    input_heating = p21c.input_heating(redshift=z_next, init_boxes=p21c_initial_conditions, write=False)
+    input_ionization = p21c.input_ionization(redshift=z_next, init_boxes=p21c_initial_conditions, write=False)
+    input_jalpha = p21c.input_jalpha(redshift=z_next, init_boxes=p21c_initial_conditions, write=False)
+    
+    return input_heating, input_ionization, input_jalpha
+
+
+def p21c_step(perturbed_field, spin_temp, ionized_box,
+             input_heating=None, input_ionization=None, input_jalpha=None):
+    
+    # Calculate the spin temperature, possibly using our inputs
+    spin_temp = p21c.spin_temperature(
+        perturbed_field = perturbed_field,
+        previous_spin_temp = spin_temp,
+        input_heating_box = input_heating,
+        input_ionization_box = input_ionization,
+        input_jalpha_box = input_jalpha,
+    )
+    
+    # Calculate the ionized box
+    ionized_box = p21c.ionize_box(
+        perturbed_field = perturbed_field,
+        previous_ionize_box = ionized_box,
+        spin_temp = spin_temp
+    )
+    
+    # Calculate the brightness temperature
+    brightness_temp = p21c.brightness_temperature(
+        ionized_box = ionized_box,
+        perturbed_field = perturbed_field,
+        spin_temp = spin_temp
+    )
+    
+    return spin_temp, ionized_box, brightness_temp

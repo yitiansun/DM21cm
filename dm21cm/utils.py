@@ -4,6 +4,14 @@ import h5py
 import numpy as np
 import py21cmfast as p21c
 
+def load_dict(fn):
+    """Load a dictionary from an HDF5 file."""
+    d = {}
+    with h5py.File(fn, 'r') as hf:
+        for k, v in hf.items():
+            d[k] = v[()]
+    return d
+
 def get_z_edges(zmax, min_redshift, z_step_factor):
     redshifts = [min_redshift]
     while redshifts[-1] < zmax:
@@ -21,12 +29,11 @@ def split_xray(phot_N, ix_lo, ix_hi):
     
     return bath_N, xray_N
 
-def gen_injection_boxes(next_z, p21c_initial_conditions):
+def gen_injection_boxes(z_next, p21c_initial_conditions):
     
-    # Instantiate the injection arrays
-    input_heating = p21c.input_heating(redshift=next_z, init_boxes=p21c_initial_conditions, write=False)
-    input_ionization = p21c.input_ionization(redshift=next_z, init_boxes=p21c_initial_conditions, write=False)
-    input_jalpha = p21c.input_jalpha(redshift=next_z, init_boxes=p21c_initial_conditions, write=False)
+    input_heating = p21c.input_heating(redshift=z_next, init_boxes=p21c_initial_conditions, write=False)
+    input_ionization = p21c.input_ionization(redshift=z_next, init_boxes=p21c_initial_conditions, write=False)
+    input_jalpha = p21c.input_jalpha(redshift=z_next, init_boxes=p21c_initial_conditions, write=False)
     
     return input_heating, input_ionization, input_jalpha
 
@@ -49,7 +56,6 @@ def p21_step(z_eval, perturbed_field, spin_temp, ionized_box,
         spin_temp = spin_temp
     )
     
-    
     # Calculate the brightness temperature
     brightness_temp = p21c.brightness_temperature(
         ionized_box = ionized_box,
@@ -57,5 +63,4 @@ def p21_step(z_eval, perturbed_field, spin_temp, ionized_box,
         spin_temp = spin_temp
     )
     
-    # Now return the spin temperature and ionized box because we will need them later
     return spin_temp, ionized_box, brightness_temp

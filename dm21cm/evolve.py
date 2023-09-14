@@ -18,9 +18,8 @@ sys.path.append("..")
 import dm21cm.physics as phys
 from dm21cm.dm_params import DMParams
 from dm21cm.dh_wrapper import DarkHistoryWrapper, TransferFunctionWrapper
-from dm21cm.utils import split_xray, get_z_edges, gen_injection_boxes, p21_step
+from dm21cm.utils import split_xray, get_z_edges, gen_injection_boxes, p21_step, load_dict
 from dm21cm.data_cacher import Cacher
-from dm21cm.data_loader import load_dict
 
 logging.getLogger().setLevel(logging.INFO)
 logging.getLogger('21cmFAST').setLevel(logging.CRITICAL+1)

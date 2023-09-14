@@ -1,12 +1,7 @@
 """Physics constants and functions."""
 
-import sys
-
 import numpy as np
-from scipy import integrate
 from scipy import interpolate
-
-from dm21cm.data_loader import load_data
 
 
 #========================================

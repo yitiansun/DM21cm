@@ -16,10 +16,10 @@ from darkhistory.spec.spectrum import Spectrum
 
 sys.path.append("..")
 import dm21cm.physics as phys
-from dm21cm.dm_params import DMParams
-from DM21cm.dm21cm.dh_wrappers import DarkHistoryWrapper, TransferFunctionWrapper
+from dm21cm.dh_wrappers import DarkHistoryWrapper, TransferFunctionWrapper
 from dm21cm.utils import load_dict
 from dm21cm.data_cacher import Cacher as XRayCacher
+from dm21cm.profiler import Profiler
 
 logging.getLogger().setLevel(logging.INFO)
 logging.getLogger('21cmFAST').setLevel(logging.CRITICAL+1)
@@ -31,7 +31,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
            dm_params=..., enable_elec=False, tf_version=...,
            p21c_initial_conditions=...,
            rerun_DH=False, clear_cache=False,
-           use_tqdm=True, debug=False,
+           use_tqdm=True,
            debug_uniform_xray=False,):
     """
     Main evolution function.
@@ -51,11 +51,10 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         force_reload_tf (bool): Whether to force reload transfer functions. Use when changing dhtf_version.
         use_tqdm (bool): Whether to use tqdm progress bars.
 
-        debug (bool) : Whether to turn on debug mode.
         debug_uniform_xray (bool) : Whether to use a uniform xray spectrum.
         
     Returns:
-        debug_dict if debug is set. Otherwise None.
+        dict: Dictionary of results.
     """
 
     logging.info(f'Using 21cmFAST version {p21c.__version__}')
@@ -91,7 +90,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
     tf_wrapper = TransferFunctionWrapper(
         box_dim = box_dim,
         abscs = abscs,
-        tf_prefix = tf_prefix,
+        prefix = tf_prefix,
         enable_elec = enable_elec,
     )
 
@@ -115,6 +114,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
     #===== main loop =====
     i_xray_loop_start = 0 # where we start looking for annuli
     records = []
+    profiler = Profiler()
 
     z_iterator = range(len(z_edges)-1)
     if use_tqdm:
@@ -126,9 +126,6 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         z_current = z_edges[i_z]
         z_next = z_edges[i_z+1]
         dt = ( cosmo.age(z_next) - cosmo.age(z_current) ).to('s').value
-
-        timer_start = time.time()
-        print(f'step {i_z} z: {z_current:.3f}->{z_next:.3f} ', end='', flush=True)
         
         nBavg = phys.n_B * (1+z_current)**3 # [Bavg / (physical cm)^3]
         delta_plus_one_box = 1 + np.asarray(perturbed_field.density)
@@ -144,6 +141,8 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         
         #===== photon injection and energy deposition =====
         #--- xray ---
+        profiler.start()
+
         for i_z_shell in range(i_xray_loop_start, i_z):
 
             xray_brightness_box, xray_spec, is_box_average = xray_cacher.get_annulus_data(
@@ -158,8 +157,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
 
             tf_wrapper.inject_phot(xray_spec, inject_type='xray', weight_box=xray_brightness_box)
 
-        print(f'xray: {time.time()-timer_start:.3f} ', end='', flush=True)
-        timer_start = time.time()
+        profiler.record('xray')
 
         #--- homogeneous bath ---
         tf_wrapper.inject_phot(phot_bath_spec, inject_type='bath')
@@ -167,8 +165,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         #--- dark matter (on-the-spot) ---
         tf_wrapper.inject_from_dm(dm_params, inj_per_Bavg_box)
 
-        print(f'bath+dm: {time.time()-timer_start:.3f} ', end='', flush=True)
-        timer_start = time.time()
+        profiler.record('bath+dm')
         
         #===== 21cmFAST step =====
         perturbed_field = p21c.perturb_field(redshift=z_next, init_boxes=p21c_initial_conditions)    
@@ -182,8 +179,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
             input_jalpha = input_jalpha
         )
 
-        print(f'21cmfast: {time.time()-timer_start:.3f} ', end='', flush=True)
-        timer_start = time.time()
+        profiler.record('21cmFAST')
         
         #===== prepare spectra for next step =====
         attenuation_arr = tf_wrapper.attenuation_arr(rs=1+z_current, x=np.mean(x_e_box))
@@ -221,15 +217,14 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         }
         records.append(record)
 
-        print(f'others: {time.time()-timer_start:.3f}')
+        profiler.record('prep_next')
         
     arr_records = {k: np.array([r[k] for r in records]) for k in records[0].keys()}
     np.save(f"{os.environ['DM21CM_DIR']}/data/run_info/{run_name}_records", arr_records)
 
-    if debug:
-        return {}
-    else:
-        return None
+    return {
+        'profiler' : profiler,
+    }
 
 
 #===== utilities for evolve =====

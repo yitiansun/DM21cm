@@ -108,12 +108,12 @@ class TransferFunctionWrapper:
         self.phot_prop_tf = BatchInterpolator(f'{self.prefix}/phot/phot_prop.h5', self.on_device)
         self.phot_scat_tf = BatchInterpolator(f'{self.prefix}/phot/phot_scat.h5', self.on_device)
         self.phot_dep_tf  = BatchInterpolator(f'{self.prefix}/phot/phot_dep.h5', self.on_device)
-        logging.info('TransferFunctionWrapper: Loaded photon transfer functions.', self.on_device)
+        logging.info('TransferFunctionWrapper: Loaded photon transfer functions.')
     
         if self.enable_elec:
             self.elec_scat_tf = BatchInterpolator(f'{self.prefix}/elec/elec_scat.h5', self.on_device)
             self.elec_dep_tf  = BatchInterpolator(f'{self.prefix}/elec/elec_dep.h5', self.on_device)
-            logging.info('TransferFunctionWrapper: Loaded electron transfer functions.', self.on_device)
+            logging.info('TransferFunctionWrapper: Loaded electron transfer functions.')
             
     def init_step(self, rs=..., delta_plus_one_box=..., x_e_box=...):
         """Initializes parameters and receivers for injection step."""

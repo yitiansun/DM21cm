@@ -28,19 +28,17 @@ logging.getLogger('py21cmfast._utils').setLevel(logging.CRITICAL+1)
 logging.getLogger('py21cmfast.wrapper').setLevel(logging.CRITICAL+1)
 
 
-def evolve(run_name, run_mode='xray',
-           z_start=..., z_end=..., zplusone_step_factor=...,
-           dm_params=..., enable_elec=False,
-           tf_version=...,
+def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
+           dm_params=..., enable_elec=False, tf_version=...,
            p21c_initial_conditions=...,
            rerun_DH=False, clear_cache=False,
-           use_tqdm=True, debug=False,):
+           use_tqdm=True, debug=False,
+           debug_uniform_xray=False,):
     """
     Main evolution function.
 
     Args:
         run_name (str): Name of run. Used for cache directory.
-        run_mode {'no inj', 'bath', 'xray'}: Injection mode. Default is 'xray'.
         z_start (float): Starting redshift.
         z_end (float): Ending redshift.
         zplusone_step_factor (float): (1+z) / (1+z_one_step_earlier). Must be greater than 1.
@@ -53,7 +51,9 @@ def evolve(run_name, run_mode='xray',
         clear_cache (bool): Whether to clear cache for 21cmFAST.
         force_reload_tf (bool): Whether to force reload transfer functions. Use when changing dhtf_version.
         use_tqdm (bool): Whether to use tqdm progress bars.
+
         debug (bool) : Whether to turn on debug mode.
+        debug_uniform_xray (bool) : Whether to use a uniform xray spectrum.
         
     Returns:
         debug_dict if debug is set. Otherwise None.
@@ -63,6 +63,7 @@ def evolve(run_name, run_mode='xray',
 
     #===== cache =====
     p21c.config['direc'] = f"{os.environ['P21C_CACHE_DIR']}/{run_name}"
+    logging.info(f"Cache dir: {p21c.config['direc']}")
     os.makedirs(p21c.config['direc'], exist_ok=True)
     if clear_cache:
         cache_tools.clear_cache()

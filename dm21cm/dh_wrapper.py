@@ -6,7 +6,7 @@ import numpy as np
 
 sys.path.append("..")
 import dm21cm.physics as phys
-from dm21cm.data_loader import load_data
+from dm21cm.interpolators_jax import BatchInterpolator
 
 sys.path.append(os.environ['DH_DIR'])
 from darkhistory.main import evolve as evolve_DH
@@ -98,18 +98,20 @@ class TransferFunctionWrapper:
         self.tf_prefix = tf_prefix # temporary
         self.enable_elec = enable_elec
 
-        self.load_tfs(tf_prefix, reload=True)
+        self.load_tfs()
             
-    def load_tfs(self, tf_prefix, reload=False):
+    def load_tfs(self):
         """Initialize transfer functions."""
         
-        self.phot_prop_tf = load_data('phot_prop', prefix=tf_prefix, reload=reload)
-        self.phot_scat_tf = load_data('phot_scat', prefix=tf_prefix, reload=reload)
-        self.phot_dep_tf  = load_data('phot_dep',  prefix=tf_prefix, reload=reload)
+        self.phot_prop_tf = BatchInterpolator(f'{self.tf_prefix}/phot/phot_prop.h5')
+        self.phot_scat_tf = BatchInterpolator(f'{self.tf_prefix}/phot/phot_scat.h5')
+        self.phot_dep_tf  = BatchInterpolator(f'{self.tf_prefix}/phot/phot_dep.h5')
+        logging.info('TransferFunctionWrapper: Loaded photon transfer functions.')
     
         if self.enable_elec:
-            self.elec_scat_tf = load_data('elec_scat', prefix=tf_prefix, reload=reload)
-            self.elec_dep_tf  = load_data('elec_dep',  prefix=tf_prefix, reload=reload)
+            self.elec_scat_tf = BatchInterpolator(f'{self.tf_prefix}/elec/elec_scat.h5')
+            self.elec_dep_tf  = BatchInterpolator(f'{self.tf_prefix}/elec/elec_dep.h5')
+            logging.info('TransferFunctionWrapper: Loaded electron transfer functions.')
             
     def init_step(self, rs=..., delta_plus_one_box=..., x_e_box=...):
         """Initializes parameters and receivers for injection step."""
@@ -125,11 +127,9 @@ class TransferFunctionWrapper:
             x_s = x_e_box.ravel(),
             out_of_bounds_action = 'clip',
         )
-
         self.prop_phot_N = np.zeros_like(self.abscs['photE']) # [N / Bavg]
         self.emit_phot_N = np.zeros_like(self.abscs['photE']) # [N / Bavg]
         self.dep_box = np.zeros((self.box_dim, self.box_dim, self.box_dim, len(self.abscs['dep_c']))) # [eV / Bavg]
-
 
     def inject_phot(self, in_spec, inject_type=..., weight_box=...):
         """Inject photons into (prop_phot_N,) emit_phot_N, and dep_box.
@@ -139,19 +139,19 @@ class TransferFunctionWrapper:
             inject_type {'bath', 'ots', 'xray'}: Injection type.
             weight_box (ndarray): Injection weight box.
         """
-        norm = 1 / self.box_dim**3
+        unif_norm = 1 / self.box_dim**3
 
         # Apply phot_prop_tf
         if inject_type == 'bath':
             sum_weight = None
             weight_norm = 1
-            self.prop_phot_N += norm * self.phot_prop_tf(
+            self.prop_phot_N += unif_norm * self.phot_prop_tf(
                 in_spec=in_spec.N, sum_result=True, **self.tf_kwargs
             ) # [N / Bavg]
         elif inject_type == 'ots':
             sum_weight = weight_box.ravel()
             weight_norm = weight_box[..., None]
-            self.emit_phot_N += norm * self.phot_prop_tf(
+            self.emit_phot_N += unif_norm * self.phot_prop_tf(
                 in_spec=in_spec.N, sum_result=True, sum_weight=sum_weight, **self.tf_kwargs
             ) # [N / Bavg]
         elif inject_type == 'xray':
@@ -161,7 +161,7 @@ class TransferFunctionWrapper:
             raise NotImplementedError(inject_type)
         
         # Apply phot_scat_tf
-        self.emit_phot_N += norm * self.phot_scat_tf(
+        self.emit_phot_N += unif_norm * self.phot_scat_tf(
             in_spec=in_spec.N, sum_result=True, sum_weight=sum_weight, **self.tf_kwargs
         ) # [N / Bavg]
 
@@ -177,9 +177,9 @@ class TransferFunctionWrapper:
             in_spec (Spectrum): Input electron spectrum.
             weight_box (ndarray): Injection weight box.
         """
-        norm = 1 / self.box_dim**3
+        unif_norm = 1 / self.box_dim**3
 
-        self.emit_phot_N += norm * self.elec_scat_tf(
+        self.emit_phot_N += unif_norm * self.elec_scat_tf(
             in_spec=in_spec.N, sum_result=True, sum_weight=weight_box.ravel(), **self.tf_kwargs
         ) # [N / Bavg]
         self.dep_box += weight_box[..., None] * self.elec_dep_tf(

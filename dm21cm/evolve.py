@@ -112,6 +112,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
     phot_bath_spec = dh_wrapper.get_phot_bath(rs=1+z_edges[0])
 
     #===== main loop =====
+    #--- trackers ---
     i_xray_loop_start = 0 # where we start looking for annuli
     records = []
     profiler = Profiler()

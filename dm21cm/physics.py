@@ -1,9 +1,12 @@
 """Physics constants and functions."""
 
+import os
+import sys
 import numpy as np
 from scipy import interpolate
 
-from darkhistory.config import dh_load_data
+sys.path.append(os.environ['DH_DIR'])
+from darkhistory.config import load_data as dh_load_data
 
 
 #===== Units in cgs =====

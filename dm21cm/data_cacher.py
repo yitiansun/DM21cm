@@ -1,10 +1,30 @@
+"""Xray data cacher classes."""
+
 import h5py
 import numpy as np
 from scipy import integrate
 from astropy import cosmology, constants, units
 
+USE_JAX_FFT = True
+if USE_JAX_FFT:
+    from jax.numpy import fft
+else:
+    from numpy import fft
+
 
 class Cacher:
+    """Data cacher for xray.
+
+    Args:
+        data_path (str): Path to the HDF5 cache file.
+        cosmo (astropy.cosmology): Cosmology.
+        N (int): Number of grid points.
+        dx (float): Grid spacing.
+
+    Notes:
+        Brightness = energy per averaged baryon.
+    """
+
     def __init__(self, data_path, cosmo, N, dx):
 
         self.cosmo = cosmo
@@ -12,8 +32,8 @@ class Cacher:
         self.dx = dx
 
         # Generate the kmagnitudes and save them
-        k = np.fft.fftfreq(N, d = dx)
-        kReal = np.fft.rfftfreq(N, d = dx)
+        k = fft.fftfreq(N, d = dx)
+        kReal = fft.rfftfreq(N, d = dx)
         self.kMag = 2*np.pi*np.sqrt(k[:, None, None]**2 + k[None, :, None]**2 + kReal[None, None, :]**2)
     
         self.spectrum_cache = SpectrumCache()
@@ -56,7 +76,7 @@ class Cacher:
     def smooth_box(self, box, R1, R2):
 
         if min(R1, R2) > self.N // 2 * self.dx:
-            box = np.fft.irfftn(box)
+            box = fft.irfftn(box)
             return np.mean(box) * np.ones_like(box), True
 
         # Volumetric weighting factors for combining the window functions
@@ -78,7 +98,7 @@ class Cacher:
         del W1, W2
 
         # Multiply by flux_factor. `box` is now the equivalent universe density of photons.
-        box = np.fft.irfftn(box * W)
+        box = fft.irfftn(box * W)
 
         return box, False
 
@@ -127,34 +147,38 @@ class BrightnessCache:
     Cache for the X-ray brightness boxes.
 
     Args:
-        data_path (str): Path to the HDF5 file.
+        data_path (str): Path to the HDF5 cache file.
+
+    Notes:
+        Brightness = energy per averaged baryon.
     """
+
     def __init__(self, data_path):
 
         self.data_path = data_path
         self.redshifts = np.array([])
 
-    def cache_box(self, box, z):
+    def cache_box(self, box, redshift):
         """
         Adds the X-ray box box at the specified redshift to the cache.
 
         Args:
             box (np.ndarray): The X-ray brightness box to cache. (photons / Mpccm^3)
-            z (float): The redshift of the box.
+            redshift (float): The redshift of the box.
         """
 
         box_index = len(self.redshifts)
 
         with h5py.File(self.data_path, 'a') as archive:
-            archive.create_dataset('Box_' + str(box_index), data = np.fft.rfftn(box))
+            archive.create_dataset('Box_' + str(box_index), data = fft.rfftn(box))
             
-        self.redshifts = np.append(self.redshifts, z)
+        self.redshifts = np.append(self.redshifts, redshift)
 
-    def get_box(self, z):
+    def get_box(self, redshift):
         """Returns the brightness box and spectrum at the specified cached state."""
 
 	    # Get the index of the donor box
-        box_index = np.argmin(np.abs(self.redshifts - z))
+        box_index = np.argmin(np.abs(self.redshifts - redshift))
 
         with h5py.File(self.data_path, 'r') as archive:
             box = np.array(archive['Box_' + str(box_index)], dtype = complex)

@@ -3,7 +3,10 @@
 import os
 import sys
 import numpy as np
+from astropy.cosmology import Planck18 as cosmo
+from astropy import constants as const
 from scipy import interpolate
+from scipy import integrate
 
 sys.path.append(os.environ['DH_DIR'])
 from darkhistory.config import load_data as dh_load_data
@@ -38,22 +41,21 @@ lya_eng      = rydberg*3/4
 #===== Densities and Hubble =====
 # (Based on darkhistory.physics)
 
-h    = 0.6736
+h    = cosmo.h
 """ h parameter."""
-H0   = 100*h*3.241e-20
+H0   = cosmo.H0.to('1/s').value
 """ Hubble parameter today in s\ :sup:`-1`\ ."""
-
-omega_m      = 0.3153
+omega_m      = cosmo.Om0
 """ Omega of all matter today."""
-omega_rad    = 8e-5
+omega_rad    = cosmo.Ogamma0
 """ Omega of radiation today."""
-omega_lambda = 0.6847
+omega_lambda = cosmo.Ode0
 """ Omega of dark energy today."""
-omega_baryon = 0.02237/(h**2)
+omega_baryon = cosmo.Ob0
 """ Omega of baryons today."""
-omega_DM     = 0.1200/(h**2)
+omega_DM     = cosmo.Odm0
 """ Omega of dark matter today."""
-rho_crit     = 1.05371e4*(h**2)
+rho_crit     = (cosmo.critical_density0 * (const.c)**2).to('eV/cm^3').value
 """ Critical density of the universe in eV cm\ :sup:`-3`\ ."""
 rho_DM       = rho_crit*omega_DM
 """ DM density in eV cm\ :sup:`-3`\ ."""
@@ -72,6 +74,75 @@ n_A          = n_H + n_He
 """ Hydrogen and helium number density in cm\ :sup:`-3`\ .""" 
 chi          = n_He / n_H
 """Ratio of helium to hydrogen nuclei."""
+
+
+#===== Cosmology =====
+
+def hubble(rs, H0=H0, omega_m=omega_m, omega_rad=omega_rad, omega_lambda=omega_lambda):
+    """Hubble parameter in s\ :sup:`-1`\ . (Copied from darkhistory.physics.hubble)
+
+    Args:
+        rs (float): The redshift of interest (rs = 1+z).
+        H0 (float, optional): The Hubble parameter today, default value `H0`.
+        omega_m (float, optional): Omega matter today, default value `omega_m`.
+        omega_rad (float, optional): Omega radiation today, default value `omega_rad`.
+        omega_lambda (float, optional): Omega dark energy today, default value `omega_lambda`.
+
+    Returns:
+        float: Hubble parameter in s\ :sup:`-1`\ .
+
+    Notes:
+        Assumes a flat universe.
+    """
+
+    return H0*np.sqrt(omega_rad*rs**4 + omega_m*rs**3 + omega_lambda)
+
+def dtdz(rs, H0=H0, omega_m=omega_m, omega_rad=omega_rad, omega_lambda=omega_lambda):
+    """dt/dz [s] (Based on darkhistory.physics.inj_rate)
+
+    Args:
+        rs (float): The redshift of interest (rs = 1+z).
+        H0 (float, optional): The Hubble parameter today, default value `H0`.
+        omega_m (float, optional): Omega matter today, default value `omega_m`.
+        omega_rad (float, optional): Omega radiation today, default value `omega_rad`.
+        omega_lambda (float, optional): Omega dark energy today, default value `omega_lambda`.
+
+    Returns:
+        float: dt/dz [s]
+    """
+
+    return -1./(rs*hubble(rs, H0, omega_m, omega_rad, omega_lambda))
+
+def dt_between_z(z_high, z_low):
+    """Calculate delta t [s] between z_high and z_low.
+
+    Args:
+        z_high (float): Higher redshift.
+        z_low (float): Lower redshift.
+
+    Returns:
+        float: Delta t [s].
+    """
+    norm = dtdz(1+z_high)
+    integrand = lambda z: dtdz(1+z) / norm
+    val, err = np.array(integrate.quad(integrand, z_high, z_low)) * norm
+    return val
+
+def conformal_dt_between_z(z_high, z_low):
+    """Calculate conformal delta t [conformal s] between z_high and z_low.
+    
+    Args:
+        z_high (float): Higher redshift.
+        z_low (float): Lower redshift.
+
+    Returns:
+        float: Delta conformal t [conformal s].
+    """
+    norm = (1+z_high) * dtdz(1+z_high)
+    integrand = lambda z: (1+z) * dtdz(1+z) / norm
+    val, err = np.array(integrate.quad(integrand, z_high, z_low)) * norm
+    return val
+
 
 #===== Dark Matter =====
 

@@ -6,6 +6,7 @@ PRO gettf_nbs, $
     i_xx_ed=i_xx_ed, $        ; End index (exclusive)
     i_nB_st=i_nB_st, $        ; Start index for nBscale (1=mean density)
     i_nB_ed=i_nB_ed, $        ; End index (exclusive)
+    inj_mode=inj_mode, $      ; Injection mode: 'phot' or 'elec'
     fixed_cfdt=fixed_cfdt, $  ; Flag for using fixed conformal delta t
     debug=debug, $            ; Flag for debug mode
     showtimeinfo=showtimeinfo ; Flag for showing time info
@@ -44,10 +45,8 @@ PRO gettf_nbs, $
         outfolder = '$DM21CM_DIR/build_tf/ionhist_outputs/debug'
     ENDIF ELSE BEGIN
         !EXCEPT = 0 ; turn off underflow error
-        run_name = '230408x'
-        inj_mode = 'elec'
+        run_name = 'zf003'
         outfolder = '$DM21CM_DATA_DIR/tf/'+run_name+'/'+inj_mode+'/ionhist_outputs'
-
         abscs_file = GETENV('DM21CM_DIR')+'/data/abscissas/abscs_'+run_name+'.h5'
         file_id = H5F_OPEN(abscs_file)
         dlnz = H5D_READ(H5D_OPEN(file_id, 'dlnz'))

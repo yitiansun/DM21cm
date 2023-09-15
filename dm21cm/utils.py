@@ -2,10 +2,17 @@
 
 import h5py
 
-def load_dict(fn):
+
+def load_h5_dict(fn):
     """Load a dictionary from an HDF5 file."""
     d = {}
     with h5py.File(fn, 'r') as hf:
         for k, v in hf.items():
             d[k] = v[()]
     return d
+
+def save_h5_dict(fn, d):
+    """Save a dictionary to an HDF5 file."""
+    with h5py.File(fn, 'w') as hf:
+        for key, item in d.items():
+            hf.create_dataset(key, data=item)

@@ -1,9 +1,12 @@
 """Xray data cacher classes."""
 
+import sys
 import h5py
 import numpy as np
-from scipy import integrate
-from astropy import cosmology, constants, units
+
+sys.path.append("..")
+import dm21cm.physics as phys
+
 
 USE_JAX_FFT = True
 if USE_JAX_FFT:
@@ -47,29 +50,13 @@ class Cacher:
         self.spectrum_cache.attenuate(attenuation_factor)
         self.spectrum_cache.redshift(z) 
 
-    def z_at_t(self, t):
-        return cosmology.z_at_value(self.cosmo.age, t*units.Gyr)
-
-    def rC_Integrand(self, t):
-        return 1+self.z_at_t(t)
-
     def get_smoothing_radii(self, z_receiver, z1, z2):
         """
         Evaluates the shell radii for a receiver at `z_receiver` for emission between redshifts
         `z1` and `z2`
         """
-
-        t_receiver = self.cosmo.age(z_receiver).value
-        t1 = self.cosmo.age(z1).value
-        t2 = self.cosmo.age(z2).value
-
-        # Comoving separations
-        R1 = integrate.quad(self.rC_Integrand, t_receiver, t1)[0] * units.Gyr * constants.c
-        R2 = integrate.quad(self.rC_Integrand, t_receiver, t2)[0] * units.Gyr * constants.c
-
-        # Need R1 and R2 in Comoving Mpc for the smoothing operation
-        R1_Mpc = np.abs(R1.to('Mpc').value)
-        R2_Mpc = np.abs(R2.to('Mpc').value)
+        R1_Mpc = np.abs(phys.conformal_dt_between_z(z_receiver, z1)) * phys.c / phys.Mpc
+        R2_Mpc = np.abs(phys.conformal_dt_between_z(z_receiver, z2)) * phys.c / phys.Mpc
 
         return R1_Mpc, R2_Mpc
 

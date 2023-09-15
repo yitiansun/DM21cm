@@ -2,7 +2,6 @@
 
 import os
 import sys
-import time
 import logging
 
 import numpy as np
@@ -17,7 +16,7 @@ from darkhistory.spec.spectrum import Spectrum
 sys.path.append("..")
 import dm21cm.physics as phys
 from dm21cm.dh_wrappers import DarkHistoryWrapper, TransferFunctionWrapper
-from dm21cm.utils import load_dict
+from dm21cm.utils import load_h5_dict
 from dm21cm.data_cacher import Cacher as XRayCacher
 from dm21cm.profiler import Profiler
 
@@ -72,7 +71,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
     p21c.global_params.ZPRIME_STEP_FACTOR = zplusone_step_factor
     p21c.global_params.CLUMPING_FACTOR = 1.
 
-    abscs = load_dict(f'../data/abscissas/abscs_{tf_version}.h5')
+    abscs = load_h5_dict(f'../data/abscissas/abscs_{tf_version}.h5')
     if not np.isclose(np.log(zplusone_step_factor), abscs['dlnz']):
         raise ValueError('zplusone_step_factor and dhtf_version mismatch')
     dm_params.set_inj_specs(abscs)

@@ -190,8 +190,13 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         profiler.record('21cmFAST')
         
         #===== prepare spectra for next step =====
-        attenuation_arr = tf_wrapper.attenuation_arr(rs=1+z_current, x=np.mean(x_e_box))
+        attenuation_arr = np.array(tf_wrapper.attenuation_arr(rs=1+z_current, x=np.mean(x_e_box)))
+
+        profiler.record('attenuate')
+
         xray_cacher.advance_spectrum(attenuation_arr, z_next)
+
+        profiler.record('xray redshift')
 
         prop_phot_N, emit_phot_N = tf_wrapper.prop_phot_N, tf_wrapper.emit_phot_N
         emit_bath_N, emit_xray_N = split_xray(emit_phot_N, abscs['photE'])

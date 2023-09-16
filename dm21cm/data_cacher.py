@@ -110,22 +110,22 @@ class SpectrumCache:
     
     def __init__(self):
         self.spectrum_list = []
-        self.redshifts = np.array([])
+        self.z_s = np.array([])
         
     def cache_spectrum(self, spec, z):
         self.spectrum_list.append(spec)
-        self.redshifts = np.append(self.redshifts, z)
+        self.z_s = np.append(self.z_s, z)
         
     def attenuate(self, attenuation_factor):
         for spec in self.spectrum_list:
             spec.N *= attenuation_factor
             
-    def redshift(self, target_z):
+    def redshift(self, z_target):
         for spec in self.spectrum_list:
-            spec.redshift(1+target_z)
+            spec.redshift(1+z_target)
             
-    def get_spectrum(self, target_z):
-        spec_index = np.argmin(np.abs(self.redshifts - target_z))
+    def get_spectrum(self, z_target):
+        spec_index = np.argmin(np.abs(self.z_s - z_target))
         return self.spectrum_list[spec_index]
 
 

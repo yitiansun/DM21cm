@@ -46,8 +46,8 @@ PRO gettf_nbs, $
         outfolder = '$DM21CM_DIR/build_tf/ionhist_outputs/debug'
     ENDIF ELSE BEGIN
         !EXCEPT = 0 ; turn off underflow error
-        outfolder = '$DM21CM_DATA_DIR/tf/'+run_name+'/'+inj_mode+'/ionhist_outputs'
-        abscs_file = '$DM21CM_DIR/data/abscissas/abscs_'+run_name+'.h5'
+        outfolder = GETENV('DM21CM_DATA_DIR')+'/tf/'+run_name+'/'+inj_mode+'/ionhist_outputs'
+        abscs_file = GETENV('DM21CM_DIR')+'/data/abscissas/abscs_'+run_name+'.h5'
         file_id = H5F_OPEN(abscs_file)
         dlnz = H5D_READ(H5D_OPEN(file_id, 'dlnz'))
         rs_s = H5D_READ(H5D_OPEN(file_id, 'rs'))
@@ -83,7 +83,7 @@ PRO gettf_nbs, $
 
     prog_total = (i_rs_ed - i_rs_st) * (i_xx_ed - i_xx_st) * (i_nB_ed - i_nB_st) * (i_iE_ed - i_iE_st)
     prog_show_every_n = 10
-    prog = 0
+    prog = LONG(0)
 
     PRINT, '--------------------'
     PRINT, 'Injection mode : ', inj_mode

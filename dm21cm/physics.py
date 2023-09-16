@@ -147,20 +147,14 @@ def conformal_dt_between_z(z_high, z_low):
 #===== Dark Matter =====
 
 def inj_rate(rho_DM, dm_params):
-    """ Dark matter annihilation/decay event injection rate.
-    (Based on darkhistory.physics.inj_rate)
+    """Dark matter annihilation/decay event injection rate. (Based on darkhistory.physics.inj_rate)
 
-    Parameters
-    ----------
-    rho_DM : float or ndarray
-        DM number energy density (at redshift) in [eV cm^-3].
-    dm_params : DMParams
-        Dark matter parameter class.
+    Args:
+        rho_DM (float or ndarray): DM number energy density (at redshift) in [eV cm^-3].
+        dm_params (DMParams): Dark matter parameter class.
 
-    Returns
-    -------
-    float or ndarray
-        The injection event rate density dN_inj/dV_dt in [inj cm^-3 s^-1].
+    Returns:
+        float or ndarray: The injection event rate density dN_inj/dV_dt in [inj cm^-3 s^-1].
     """
     if dm_params.mode == 'swave':
         return (rho_DM/dm_params.m_DM)**2 * dm_params.sigmav / 2
@@ -173,20 +167,14 @@ def inj_rate(rho_DM, dm_params):
 
 
 def inj_eng_rate_box(rho_DM_box, dm_params):
-    """ Dark matter annihilation/decay energy injection rate box.
-    (Based on darkhistory.physics.inj_rate)
+    """Dark matter annihilation/decay energy injection rate box. (Based on darkhistory.physics.inj_rate)
 
-    Parameters
-    ----------
-    rho_DM_box : ndarray (3D)
-        DM density box at redshift in eV cm\ :sup:`-3`\ .
-    dm_params : DMParams
-        Dark matter parameter class.
+    Args:
+        rho_DM_box (ndarray): DM density box (3D) at redshift in [eV cm^-3].
+        dm_params (DMParams): Dark matter parameter object.
 
-    Returns
-    -------
-    ndarray
-        The dE/dV_dt injection rate box in eV cm\ :sup:`-3`\ s\ :sup:`-1`\ .
+    Returns:
+        ndarray: The dE/dV_dt injection rate box in [eV cm^-3 s^-1].
     """
     if dm_params.mode == 'swave':
         return rho_DM_box**2 * dm_params.sigmav / dm_params.m_DM
@@ -198,30 +186,21 @@ def inj_eng_rate_box(rho_DM_box, dm_params):
         raise NotImplementedError(dm_params.mode)
         
         
-def struct_boost_func(model=None):
-    """Structure formation boost factor 1+B(z).
-    (Copied from darkhistory.physics.struct_boost_func)
+def struct_boost_func(model=...):
+    """Structure formation boost factor 1+B(z). (Copied from darkhistory.physics.struct_boost_func)
 
-    Parameters
-    ----------
-    model : {'einasto_subs', 'einasto_no_subs', 'NFW_subs', 'NFW_no_subs',
-             'erfc 1e-3', 'erfc 1e-6', 'erfc 1e-9'}
-        Model to use.
+    Args:
+        model (str): Model to use. One of {'einasto_subs', 'einasto_no_subs',
+            'NFW_subs', 'NFW_no_subs', 'erfc 1e-3', 'erfc 1e-6', 'erfc 1e-9'}.
+    
+    Returns:
+        function: Boost factor function.
 
-    Returns
-    -------
-    float or ndarray
-        Boost factor. 
-
-    Notes
-    -----
-    Refer to 1408.1109 for erfc models, 1604.02457 for all other model
-    descriptions and parameters.
-
+    Notes:
+        Refer to 1408.1109 for erfc models, 1604.02457 for all other model descriptions and parameters.
     """
 
     if model.startswith('erfc'):
-
         from scipy.special import erfc
 
         if model == 'erfc 1e-3':
@@ -236,7 +215,6 @@ def struct_boost_func(model=None):
         return lambda rs: 1 + b_h / rs**delta * erfc( rs/(1+z_h) )
 
     else:
-
         struct_data = dh_load_data('struct')[model]
         log_struct_interp = interpolate.interp1d(
             np.log(struct_data[:,0]), np.log(struct_data[:,1]),
@@ -244,29 +222,3 @@ def struct_boost_func(model=None):
         )
 
         return lambda rs: np.exp(log_struct_interp(np.log(rs)))
-
-
-#===== Depreciated =====
-
-def hubble(rs, H0=H0, omega_m=omega_m, omega_rad=omega_rad, omega_lambda=omega_lambda):
-    """ DEPRECATED: Hubble parameter in s\ :sup:`-1`\ .
-    (Copied from darkhistory.physics.hubble)
-    Assumes a flat universe.
-    Parameters
-    ----------
-    rs : float
-        The redshift of interest (rs = 1+z).
-    H0 : float
-        The Hubble parameter today, default value `H0`.
-    omega_m : float, optional
-        Omega matter today, default value `omega_m`.
-    omega_rad : float, optional
-        Omega radiation today, default value `omega_rad`.
-    omega_lambda : float, optional
-        Omega dark energy today, default value `omega_lambda`.
-    Returns
-    -------
-    float
-    """
-
-    return H0*np.sqrt(omega_rad*rs**4 + omega_m*rs**3 + omega_lambda)

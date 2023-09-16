@@ -50,4 +50,4 @@ class Profiler:
 
         ax.legend()
         ax.set(xlabel='Iteration', ylabel='Time [s]')
-        return ax
+        return fig, ax

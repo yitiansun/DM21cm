@@ -1,5 +1,6 @@
 PRO gettf_nbs, $
     check=check, $            ; Dry run to check the input parameters
+    run_name=run_name, $      ; Name of the run
     i_rs_st=i_rs_st, $        ; Start index for rs=1+z
     i_rs_ed=i_rs_ed, $        ; End index (exclusive)
     i_xx_st=i_xx_st, $        ; Start index for xH=xHe
@@ -45,9 +46,8 @@ PRO gettf_nbs, $
         outfolder = '$DM21CM_DIR/build_tf/ionhist_outputs/debug'
     ENDIF ELSE BEGIN
         !EXCEPT = 0 ; turn off underflow error
-        run_name = 'zf003'
         outfolder = '$DM21CM_DATA_DIR/tf/'+run_name+'/'+inj_mode+'/ionhist_outputs'
-        abscs_file = GETENV('DM21CM_DIR')+'/data/abscissas/abscs_'+run_name+'.h5'
+        abscs_file = '$DM21CM_DIR/data/abscissas/abscs_'+run_name+'.h5'
         file_id = H5F_OPEN(abscs_file)
         dlnz = H5D_READ(H5D_OPEN(file_id, 'dlnz'))
         rs_s = H5D_READ(H5D_OPEN(file_id, 'rs'))

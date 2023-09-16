@@ -30,8 +30,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
            dm_params=..., enable_elec=False, tf_version=...,
            p21c_initial_conditions=...,
            rerun_DH=False, clear_cache=False,
-           use_tqdm=True,
-           debug_uniform_xray=False,):
+           use_tqdm=True, debug_flag=[],):
     """
     Main evolution function.
 
@@ -49,8 +48,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         clear_cache (bool): Whether to clear cache for 21cmFAST.
         force_reload_tf (bool): Whether to force reload transfer functions. Use when changing dhtf_version.
         use_tqdm (bool): Whether to use tqdm progress bars.
-
-        debug_uniform_xray (bool) : Whether to use a uniform xray spectrum.
+        debug_flag (list): List of debug flags. Can contain 'uniform_xray'.
         
     Returns:
         dict: Dictionary of results.
@@ -123,6 +121,9 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
 
     for i_z in z_iterator:
 
+        if not use_tqdm:
+            print(i_z)
+
         z_current = z_edges[i_z]
         z_next = z_edges[i_z+1]
         dt = ( cosmo.age(z_next) - cosmo.age(z_current) ).to('s').value
@@ -150,7 +151,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
             )
             # If we are smoothing on the scale of the box then dump to the global bath spectrum.
             # The deposition will happen with `phot_bath_spec`, and we will not revisit this shell.
-            if is_box_average or debug_uniform_xray:
+            if is_box_average or 'uniform_xray' in debug_flag:
                 phot_bath_spec.N += xray_brightness_box[0, 0, 0] * xray_spec.N
                 i_xray_loop_start = max(i_z_shell+1, i_xray_loop_start)
                 continue
@@ -168,6 +169,13 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         profiler.record('bath+dm')
         
         #===== 21cmFAST step =====
+        if i_z > 0:
+            if np.any(np.isnan(input_heating.input_heating)):
+                raise ValueError('input_heating.input_heating has NaNs')
+            if np.any(np.isnan(input_ionization.input_ionization)):
+                raise ValueError('input_ionization.input_ionization has NaNs')
+            if np.any(np.isnan(input_jalpha.input_jalpha)):
+                raise ValueError('input_jalpha.input_jalpha has NaNs')
         perturbed_field = p21c.perturb_field(redshift=z_next, init_boxes=p21c_initial_conditions)    
         input_heating, input_ionization, input_jalpha = gen_injection_boxes(z_next, p21c_initial_conditions)
         tf_wrapper.populate_injection_boxes(input_heating, input_ionization, input_jalpha)

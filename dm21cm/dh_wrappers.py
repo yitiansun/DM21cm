@@ -13,6 +13,9 @@ from darkhistory.main import evolve as evolve_DH
 from darkhistory.spec.spectrum import Spectrum
 
 
+EPSILON = 1e-6
+
+
 class DarkHistoryWrapper:
     
     def __init__(self, dm_params, prefix='.', soln_name='dh_init_soln.p'):
@@ -100,6 +103,7 @@ class TransferFunctionWrapper:
         self.enable_elec = enable_elec
         self.on_device = on_device
 
+        self.nBs_lowerbound = (1 + EPSILON) * np.min(self.abscs['nBs']) # [Bavg]
         self.load_tfs()
             
     def load_tfs(self):
@@ -118,6 +122,7 @@ class TransferFunctionWrapper:
     def init_step(self, rs=..., delta_plus_one_box=..., x_e_box=...):
         """Initializes parameters and receivers for injection step."""
 
+        delta_plus_one_box = np.clip(delta_plus_one_box, self.nBs_lowerbound, None)
         self.params = dict(
             rs = rs,
             nBs_box = delta_plus_one_box,
@@ -204,7 +209,7 @@ class TransferFunctionWrapper:
 
 
     def populate_injection_boxes(self, input_heating, input_ionization, input_jalpha):
-    
+        
         input_heating.input_heating += np.array(
             2 / (3*phys.kB*(1+self.params['x_e_box'])) * self.dep_box[...,3] / self.params['nBs_box']
         ) # [K/Bavg] / [B/Bavg] = [K/B]
@@ -227,7 +232,7 @@ class TransferFunctionWrapper:
         """X-ray energy-per-average-baryon box [eV / Bavg]."""
         return self.dep_box[..., 5]
 
-    def attenuation_arr(self, rs, x, nBs=1):
-        dep_tf_at_point = self.phot_dep_tf.point_interp(rs=rs, x=x, nBs=nBs)
+    def attenuation_arr(self, rs, x, nBs=1.):
+        dep_tf_at_point = self.phot_dep_tf.point_interp(rs=rs, x=x, nBs=nBs, out_of_bounds_action='clip')
         dep_toteng = np.sum(dep_tf_at_point[:, :4], axis=1)
         return 1 - dep_toteng/self.abscs['photE']

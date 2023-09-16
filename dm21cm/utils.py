@@ -1,4 +1,4 @@
-"""Some utilities for the whole project"""
+"""Some utilities for the whole project."""
 
 import h5py
 

@@ -7,6 +7,7 @@ from functools import partial
 import jax.numpy as jnp
 from jax import jit, vmap, device_put
 
+EPSILON = 1e-6
 
 #===== interpolation =====
 
@@ -55,9 +56,13 @@ def interp2d(fp, x0p, x1p, x01):
 
 #===== utilities =====
 
-def v_is_within(v, absc):
-    """v can be value or vector."""
-    return jnp.all(v >= jnp.min(absc)) and jnp.all(v <= jnp.max(absc))
+def bound_action(v, absc, out_of_bounds_action):
+    if out_of_bounds_action == 'clip':
+        return jnp.clip(v, jnp.min(absc)*(1+EPSILON), jnp.max(absc)/(1+EPSILON))
+    else:
+        if not (jnp.all(v >= jnp.min(absc)) and jnp.all(v <= jnp.max(absc))):
+            raise ValueError('value out of bounds.')
+        return v
 
 
 #===== interpolator class =====
@@ -122,19 +127,10 @@ class BatchInterpolator:
         Return:
             interpolated box or average of interpolated box.
         """
-        
-        if out_of_bounds_action == 'clip':
-            factor = 1.00001
-            rs    = jnp.clip(rs,    jnp.min(self.abscs['rs'])*factor,  jnp.max(self.abscs['rs'])/factor)
-            x_s   = jnp.clip(x_s,   jnp.min(self.abscs['x'])*factor,   jnp.max(self.abscs['x'])/factor)
-            nBs_s = jnp.clip(nBs_s, jnp.min(self.abscs['nBs'])*factor, jnp.max(self.abscs['nBs'])/factor)
-        else:
-            if not v_is_within(rs, self.abscs['rs']):
-                raise ValueError('rs out of bounds.')
-            if not v_is_within(x_s, self.abscs['x']):
-                raise ValueError('x_s out of bounds.')
-            if not v_is_within(nBs_s, self.abscs['nBs']):
-                raise ValueError('nBs_s out of bounds.')
+
+        rs = bound_action(rs, self.abscs['rs'], out_of_bounds_action)
+        x_s = bound_action(x_s, self.abscs['x'], out_of_bounds_action)
+        nBs_s = bound_action(nBs_s, self.abscs['nBs'], out_of_bounds_action)
         
         # 1. in_spec sum
         if jnp.all(in_spec == self.fixed_in_spec):
@@ -181,8 +177,12 @@ class BatchInterpolator:
             return result
         
     
-    def point_interp(self, rs=None, nBs=None, x=None):
+    def point_interp(self, rs=None, nBs=None, x=None, out_of_bounds_action='error'):
         """Returns the transfer function at a (rs, nBs, x) point."""
+
+        rs = bound_action(rs, self.abscs['rs'], out_of_bounds_action)
+        nBs = bound_action(nBs, self.abscs['nBs'], out_of_bounds_action)
+        x = bound_action(x, self.abscs['x'], out_of_bounds_action)
         
         data = interp1d(self.data, self.abscs['rs'], rs) # enxo
         data = np.einsum('enxo -> nxeo', data) # nxeo

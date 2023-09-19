@@ -209,7 +209,11 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         # redshift the x-ray spectrum to the next timestep. Then cache the energy-per-average-baryon box and spectrum
         xray_spec = Spectrum(abscs['photE'], emit_xray_N, rs=1+z_current, spec_type='N') # [photon / Bavg]
         xray_spec.redshift(1+z_next)
-        xray_rel_eng_box = tf_wrapper.xray_eng_box / np.dot(abscs['photE'], emit_xray_N) # [1 (relative energy) / Bavg]
+        xray_tot_eng = np.dot(abscs['photE'], emit_xray_N)
+        if xray_tot_eng == 0.:
+            xray_rel_eng_box = np.zeros_like(tf_wrapper.xray_eng_box)
+        else:
+            xray_rel_eng_box = tf_wrapper.xray_eng_box / xray_tot_eng # [1 (relative energy) / Bavg]
         xray_cacher.set_cache(z_current, xray_rel_eng_box, xray_spec)
         
         #===== save some global quantities =====

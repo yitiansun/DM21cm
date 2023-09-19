@@ -65,7 +65,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
 
     #===== initialize =====
     #--- physics parameters ---
-    p21c.global_params.Z_HEAT_MAX = z_start
+    p21c.global_params.Z_HEAT_MAX = z_start + 1e-10
     p21c.global_params.ZPRIME_STEP_FACTOR = zplusone_step_factor
     p21c.global_params.CLUMPING_FACTOR = 1.
 
@@ -282,6 +282,12 @@ def gen_injection_boxes(z_next, p21c_initial_conditions):
 def p21c_step(perturbed_field, spin_temp, ionized_box,
              input_heating=None, input_ionization=None, input_jalpha=None):
     
+    if spin_temp is not None and ionized_box is not None:
+        print('before:')
+        print('spin_temp.Tk_box', np.mean(spin_temp.Tk_box))
+        print('spin_temp.x_e_box', np.mean(spin_temp.x_e_box))
+        print('ionized_box.xH_box', np.mean(ionized_box.xH_box))
+
     # Calculate the spin temperature, possibly using our inputs
     spin_temp = p21c.spin_temperature(
         perturbed_field = perturbed_field,
@@ -304,5 +310,11 @@ def p21c_step(perturbed_field, spin_temp, ionized_box,
         perturbed_field = perturbed_field,
         spin_temp = spin_temp
     )
+
+    if spin_temp is not None and ionized_box is not None:
+        print('after:')
+        print('spin_temp.Tk_box', np.mean(spin_temp.Tk_box))
+        print('spin_temp.x_e_box', np.mean(spin_temp.x_e_box))
+        print('ionized_box.xH_box', np.mean(ionized_box.xH_box))
     
     return spin_temp, ionized_box, brightness_temp

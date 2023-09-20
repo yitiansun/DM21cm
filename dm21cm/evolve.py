@@ -219,7 +219,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         if 'xraycheck' in debug_flags:
             xraycheck_rel_eng_box = ...
             xraycheck_spec = ...
-            xraycheck_cacher.set_cache(z_current, xraycheck_rel_eng_box, xraycheck_spec)
+            xraycheck_cacher.cache(z_current, xraycheck_rel_eng_box, xraycheck_spec)
         else: # regular routine
             attenuation_arr = np.array(tf_wrapper.attenuation_arr(rs=1+z_current, x=np.mean(x_e_box))) # convert from jax array
             xray_cacher.advance_spectrum(attenuation_arr, z_next)
@@ -231,7 +231,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
                 xray_rel_eng_box = np.zeros_like(tf_wrapper.xray_eng_box)
             else:
                 xray_rel_eng_box = tf_wrapper.xray_eng_box / xray_tot_eng # [1 (relative energy) / Bavg]
-            xray_cacher.set_cache(z_current, xray_rel_eng_box, xray_spec)
+            xray_cacher.cache(z_current, xray_rel_eng_box, xray_spec)
         
         #===== calculate and save some global quantities =====
         dE_inj_per_Bavg = dm_params.eng_per_inj * np.mean(inj_per_Bavg_box) # [eV per Bavg]

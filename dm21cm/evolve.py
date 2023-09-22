@@ -5,7 +5,9 @@ import sys
 import logging
 
 import numpy as np
+from scipy import interpolate
 from astropy.cosmology import Planck18
+import astropy.units as u
 
 import py21cmfast as p21c
 from py21cmfast import cache_tools
@@ -83,7 +85,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
     #--- DarkHistory and transfer functions ---
     dh_wrapper = DarkHistoryWrapper(
         dm_params,
-        prefix=p21c.config[f'direc'],
+        prefix = p21c.config[f'direc'],
     )
     tf_prefix = f"{os.environ['DM21CM_DATA_DIR']}/tf/{tf_version}"
     tf_wrapper = TransferFunctionWrapper(
@@ -100,7 +102,29 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
     xray_cacher = Cacher(data_path=xray_fn, cosmo=cosmo, N=box_dim, dx=box_len/box_dim)
     if 'xraycheck' in debug_flags:
         xraycheck_fn = f"{p21c.config['direc']}/xraycheck_brightness.h5"
-        xraycheck_cacher = Cacher(data_path=xraycheck_fn, cosmo=cosmo, N=box_dim, dx=box_len/box_dim)
+        delta_cacher = Cacher(data_path=xraycheck_fn, cosmo=cosmo, N=box_dim, dx=box_len/box_dim, xraycheck=True)
+        delta_cacher.clear_cache()
+
+    #--- xraycheck ---
+    if 'xraycheck' in debug_flags:
+        res_dict = np.load('../data/xraycheck/Interpolators.npz', allow_pickle=True)
+        z_range, delta_range, r_range = res_dict['SFRD_Params']
+        print('z_range', np.min(z_range), np.max(z_range))
+        print('delta_range', np.min(delta_range), np.max(delta_range))
+        print('r_range', np.min(r_range), np.max(r_range))
+
+        cond_sfrd_table = res_dict['Cond_SFRD_Table']
+        st_sfrd_table =  res_dict['ST_SFRD_Table']
+
+        # Takes the redshift as `z`
+        # The overdensity parameter smoothed on scale `R`
+        # The smoothing scale `R` in units of Mpc
+        # Returns the conditional PS star formation rate density in [M_Sun / Mpc^3 / s]
+        Cond_SFRD_Interpolator = interpolate.RegularGridInterpolator((z_range, delta_range, r_range), cond_sfrd_table)
+
+        # Takes the redshift as `z`
+        # Returns the mean ST star formation rate density star formation rate density in [M_Sun / Mpc^3 / s]
+        ST_SFRD_Interpolator = interpolate.interp1d(z_range, st_sfrd_table)
 
     #--- redshift stepping ---
     z_edges = get_z_edges(z_start, z_end, p21c.global_params.ZPRIME_STEP_FACTOR)
@@ -151,15 +175,18 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         #--- xray ---
         profiler.start()
         if 'xraycheck' in debug_flags:
+            
             for i_z_shell in range(i_xraycheck_loop_start, i_z):
 
-                xraycheck_brightness_box, xraycheck_spec, xraycheck_is_box_average = xraycheck_cacher.get_annulus_data(
+                delta, L_X_spec, xraycheck_is_box_average, z_donor, R2 = delta_cacher.get_annulus_data(
                     z_current, z_edges[i_z_shell], z_edges[i_z_shell+1]
                 )
-                if xraycheck_is_box_average:
-                    tf_wrapper.inject_phot(xraycheck_spec, inject_type='bath')
-                else:
-                    tf_wrapper.inject_phot(xraycheck_spec, inject_type='xray', weight_box=xraycheck_brightness_box)
+                delta = np.clip(delta, -1.0+1e-6, 1.5-1e-6)
+                emissivity = Cond_SFRD_Interpolator((z_donor, delta, R2))
+                emissivity /= (np.mean(emissivity) / ST_SFRD_Interpolator(z_donor))
+                emissivity *= (1 + delta) / (phys.n_B * u.cm**-3).to('Mpc**-3').value
+                # xraycheck_is_box_average not used
+                tf_wrapper.inject_phot(L_X_spec, inject_type='xray', weight_box=emissivity)
 
             profiler.record('xraycheck')
 
@@ -217,10 +244,18 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
 
         #--- xray ---
         if 'xraycheck' in debug_flags:
-            xraycheck_rel_eng_box = ...
-            xraycheck_spec = ...
-            xraycheck_cacher.cache(z_current, xraycheck_rel_eng_box, xraycheck_spec)
-        else: # regular routine
+            attenuation_arr = np.array(tf_wrapper.attenuation_arr(rs=1+z_current, x=np.mean(x_e_box))) # convert from jax array
+            delta_cacher.advance_spectrum(attenuation_arr, z_next)
+            # delta_cacher has not spectrum in it
+
+            L_X_spec_prefac = 1e40 / np.log(4) * u.erg * u.s**-1 * u.M_sun**-1 * u.yr # integrated luminosity
+            # L_X (E * dN/dE) \propto E^-1
+            L_X_dNdE = L_X_spec_prefac.value * (abscs['photE'] / 1000) ** -2
+            L_X_spec = Spectrum(abscs['photE'], L_X_dNdE, spec_type='dNdE', rs=1+z_current) # [cts / keV / Msun]
+            L_X_spec.redshift(1+z_next)
+            delta_cacher.cache(z_current, perturbed_field.density, L_X_spec)
+        
+        else:
             attenuation_arr = np.array(tf_wrapper.attenuation_arr(rs=1+z_current, x=np.mean(x_e_box))) # convert from jax array
             xray_cacher.advance_spectrum(attenuation_arr, z_next)
 

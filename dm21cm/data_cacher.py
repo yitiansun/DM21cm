@@ -31,12 +31,13 @@ class Cacher:
         Brightness = energy per averaged baryon.
     """
 
-    def __init__(self, data_path, cosmo, N, dx):
+    def __init__(self, data_path, cosmo, N, dx, xraycheck=False):
 
         self.data_path = data_path
         self.cosmo = cosmo
         self.N = N
         self.dx = dx
+        self.xraycheck = xraycheck
 
         # Generate the k magnitudes and save them
         k = fft.fftfreq(N, d = dx)
@@ -75,6 +76,8 @@ class Cacher:
         Returns:
             (array, bool): The smoothed box, whether the whole box is averaged.
         """
+        if self.xraycheck:
+            R1 = 1e-10
         if min(R1, R2) > self.N // 2 * self.dx:
             box = fft.irfftn(box)
             is_box_averaged = True
@@ -91,8 +94,12 @@ class Cacher:
         # Construct the smoothing functions in the frequency domain
         W1 = 3*(jnp.sin(self.kMag*R1) - self.kMag*R1 * jnp.cos(self.kMag*R1)) / (self.kMag*R1)**3
         W2 = 3*(jnp.sin(self.kMag*R2) - self.kMag*R2 * jnp.cos(self.kMag*R2)) / (self.kMag*R2)**3
-        W1[0, 0, 0] = 1
-        W2[0, 0, 0] = 1
+        if USE_JAX_FFT:
+            W1.at[0, 0, 0].set(1.)
+            W2.at[0, 0, 0].set(1.)
+        else:
+            W1[0, 0, 0] = 1.
+            W2[0, 0, 0] = 1.
 
         # Combine the window functions
         W = w2*W2 - w1*W1
@@ -117,7 +124,11 @@ class Cacher:
 
         # Get the spectrum
         spectrum = self.spectrum_cache.get_spectrum(z_donor)
-        return smoothed_box, spectrum, is_box_averaged
+        if self.xraycheck:
+            is_box_averaged = max(R1, R2) > 400. #[cfMpc]
+            return smoothed_box, spectrum, is_box_averaged, z_donor, min(512.-1e-6, max(R1, R2))
+        else:
+            return smoothed_box, spectrum, is_box_averaged
 
 
 class SpectrumCache:
@@ -161,11 +172,13 @@ class BrightnessCache:
     def __init__(self, data_path):
         self.data_path = data_path
         self.z_s = np.array([])
+        self.box_mean_s = np.array([])
 
     def clear_cache(self):
         if os.path.exists(self.data_path):
             os.remove(self.data_path)
         self.z_s = np.array([])
+        self.box_mean_s = np.array([])
 
     def cache_box(self, box, z):
         """Adds the X-ray box box at the specified redshift to the cache.
@@ -181,6 +194,7 @@ class BrightnessCache:
             archive.create_dataset('Box_' + str(box_index), data = fft.rfftn(box))
             
         self.z_s = np.append(self.z_s, z)
+        self.box_mean_s = np.append(self.box_mean_s, jnp.mean(box))
 
     def get_box(self, z):
         """Returns the brightness box and spectrum at the specified cached state."""

@@ -36,6 +36,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
            rerun_DH=False, clear_cache=False,
            use_tqdm=True, debug_flags=[],
            debug_xray_multiplier=1.,
+           debug_astro_params=None,
            ):
     """
     Main evolution function.
@@ -58,6 +59,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
             'uniform-xray' : Force xray to inject uniformly.
             'xraycheck' : Xray check mode.
             'xraycheck-nobath' : Xray check mode, but no bath (larger box injection).
+        debug_astro_params (AstroParams): AstroParams in p21c.
         
     Returns:
         dict: Dictionary of results.
@@ -143,7 +145,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
 
     #===== initial step =====
     perturbed_field = p21c.perturb_field(redshift=z_edges[0], init_boxes=p21c_initial_conditions)
-    spin_temp, ionized_box, brightness_temp = p21c_step(perturbed_field=perturbed_field, spin_temp=None, ionized_box=None)
+    spin_temp, ionized_box, brightness_temp = p21c_step(perturbed_field=perturbed_field, spin_temp=None, ionized_box=None, astro_params=debug_astro_params)
 
     dh_wrapper.evolve(end_rs=(1+z_start)*0.9, rerun=rerun_DH)
     dh_wrapper.match(spin_temp, ionized_box)
@@ -166,7 +168,6 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         print_str = ''
 
     for i_z in z_iterator:
-
         print_str += f'i_z={i_z}/{len(z_edges)-1} z={z_edges[i_z]:.2f}'
 
         z_current = z_edges[i_z]
@@ -190,36 +191,35 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         profiler.start()
         if 'xraycheck' in debug_flags:
 
-            if not 'xraycheck-nobath' in debug_flags:
-
-                xraycheck_bath_N = np.zeros((500,))
-                print_str += f' i_xray_bath=0-{i_xraycheck_loop_start}'
+            if not ('xraycheck-nobath' in debug_flags):
+                xraycheck_bath_dNdE = np.zeros((500,))
+                emissivity_bracket_unif = 0.
                 for i_z_shell in range(i_xraycheck_loop_start): # uniform injection
                     z_shell = z_edges[i_z_shell]
-                    shell_N = delta_cacher.spectrum_cache.get_spectrum(z_shell).N # [eV / M_Sun]
+                    shell_dNdE = delta_cacher.spectrum_cache.get_spectrum(z_shell).dNdE
 
                     delta_unif = 0. # just a number
                     emissivity_bracket_unif = Cond_SFRD_Interpolator((z_donor, delta_unif, 512.-EPSILON)) # [M_Sun / Mpc^3 / s]
                     if np.mean(emissivity_bracket_unif) > 0:
                         emissivity_bracket_unif *= (ST_SFRD_Interpolator(z_donor) / np.mean(emissivity_bracket_unif)) # [M_Sun / Mpc^3 / s]
-                    
+                    z_shell = z_edges[i_z_shell]
                     emissivity_bracket_unif *= (1 + delta_unif) / (phys.n_B * u.cm**-3).to('Mpc**-3').value * dt # [M_Sun / Bavg]
-                    emissivity_bracket_unif *= L_X_numerical_factor * debug_xray_multiplier # [M_Sun / Bavg]
-                    shell_N *= emissivity_bracket_unif
-                    xraycheck_bath_N += shell_N # put in bath, inject together
+                    emissivity_bracket_unif *= L_X_numerical_factor * debug_xray_multiplier
+                    shell_dNdE *= emissivity_bracket_unif
+                    xraycheck_bath_dNdE += shell_dNdE # put in bath
 
-                xc_bath_spec = Spectrum(abscs['photE'], xraycheck_bath_N, spec_type='N', rs=1+z_current)
-                tf_wrapper.inject_phot(xc_bath_spec, inject_type='xray', weight_box=jnp.ones_like(delta_plus_one_box)) # inject bath
+                L_X_bath_spec = Spectrum(abscs['photE'], xraycheck_bath_dNdE, spec_type='dNdE', rs=1+z_current) # [counts / (keV Msun)]
+                weight = jnp.ones_like(delta_plus_one_box)
+                tf_wrapper.inject_phot(L_X_bath_spec, inject_type='xray', weight_box=weight) # inject bath
 
-                print_str += f' xc_bath_spec.toteng()={xc_bath_spec.toteng()}'
-
-            profiler.record('xraycheck bath')
-
-            print_str += f' i_xray={i_xraycheck_loop_start}-{i_z}'
+                print_str += f' i_xray_bath=0-{i_xraycheck_loop_start}'
+                print_str += f' L_X_bath eng={np.mean(emissivity_bracket_unif)*L_X_bath_spec.toteng()}'
+                profiler.record('xraycheck bath')
             
+            emissivity_bracket = 0.
             for i_z_shell in range(i_xraycheck_loop_start, i_z):
 
-                delta, xc_spec, xraycheck_is_box_average, z_donor, R2 = delta_cacher.get_annulus_data(
+                delta, L_X_spec, xraycheck_is_box_average, z_donor, R2 = delta_cacher.get_annulus_data(
                     z_current, z_edges[i_z_shell], z_edges[i_z_shell+1]
                 )
                 delta = np.clip(delta, -1.0+EPSILON, 1.5-EPSILON)
@@ -233,11 +233,13 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
                 if xraycheck_is_box_average:
                     i_xraycheck_loop_start = max(i_z_shell+1, i_xraycheck_loop_start)
                 if ST_SFRD_Interpolator(z_donor) > 0.:
-                    tf_wrapper.inject_phot(xc_spec, inject_type='xray', weight_box=jnp.asarray(emissivity_bracket))
+                    tf_wrapper.inject_phot(L_X_spec, inject_type='xray', weight_box=jnp.asarray(emissivity_bracket))
 
-                if i_z_shell == i_z-1: # last shell
-                    print_str += f' last shell xc_spec.toteng()={np.mean(emissivity_bracket)*xc_spec.toteng()}'
-
+            
+            print_str += f' shells:{i_xraycheck_loop_start}-{i_z}'
+            if i_z > 0:
+                avg_eng = np.mean(emissivity_bracket)*L_X_spec.toteng()
+                print_str += f' shell xray:{avg_eng:.3e} eV/Bavg'
             profiler.record('xraycheck')
 
         else: # regular routine
@@ -249,7 +251,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
                 # If we are smoothing on the scale of the box then dump to the global bath spectrum.
                 # The deposition will happen with `phot_bath_spec`, and we will not revisit this shell.
                 if is_box_average or 'uniform_xray' in debug_flags:
-                    phot_bath_spec.N += xray_brightness_box[0, 0, 0] * xray_spec.N
+                    phot_bath_spec.N += xray_brightness_box[0, 0, 0] * xray_spec.N # TMP: fix the [0,0,0]
                     i_xray_loop_start = max(i_z_shell+1, i_xray_loop_start)
                 else:
                     tf_wrapper.inject_phot(xray_spec, inject_type='xray', weight_box=xray_brightness_box)
@@ -280,7 +282,8 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
             perturbed_field, spin_temp, ionized_box,
             input_heating = input_heating,
             input_ionization = input_ionization,
-            input_jalpha = input_jalpha
+            input_jalpha = input_jalpha,
+            astro_params=debug_astro_params
         )
 
         profiler.record('21cmFAST')
@@ -297,10 +300,10 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
             attenuation_arr = np.array(tf_wrapper.attenuation_arr(rs=1+z_current, x=np.mean(x_e_box))) # convert from jax array
             delta_cacher.advance_spectrum(attenuation_arr, z_next)
 
-            L_X_spec_prefac = 1e40 / np.log(4) * u.erg * u.s**-1 * u.M_sun**-1 * u.yr * u.keV**-1 # integrated luminosity
+            L_X_spec_prefac = 1e40 / np.log(4) * u.erg * u.s**-1 * u.M_sun**-1 * u.yr * u.keV**-1 # value in [erg yr / s Msun keV]
             L_X_spec_prefac /= L_X_numerical_factor
             # L_X (E * dN/dE) \propto E^-1
-            L_X_dNdE = L_X_spec_prefac.to('1/Msun').value * (abscs['photE'] / 1000.) ** -2 / 1000. # convert to 1/eV
+            L_X_dNdE = L_X_spec_prefac.to('1/Msun').value * (abscs['photE'] / 1000.) ** -2 / 1000. # [1/Msun] * []
             L_X_dNdE[:xray_i_lo] *= 0.
             L_X_dNdE[xray_i_hi:] *= 0.
             L_X_spec = Spectrum(abscs['photE'], L_X_dNdE, spec_type='dNdE', rs=1+z_current) # [counts / (keV Msun)]
@@ -389,12 +392,9 @@ def gen_injection_boxes(z_next, p21c_initial_conditions):
     
     return input_heating, input_ionization, input_jalpha
 
-global_astro_params = p21c.AstroParams(
-    L_X = 0. # L_X = 10**0.
-)
 
 def p21c_step(perturbed_field, spin_temp, ionized_box,
-             input_heating=None, input_ionization=None, input_jalpha=None):
+             input_heating=None, input_ionization=None, input_jalpha=None, astro_params=None):
     
     # Calculate the spin temperature, possibly using our inputs
     spin_temp = p21c.spin_temperature(
@@ -403,7 +403,8 @@ def p21c_step(perturbed_field, spin_temp, ionized_box,
         input_heating_box = input_heating,
         input_ionization_box = input_ionization,
         input_jalpha_box = input_jalpha,
-        astro_params=global_astro_params,
+        astro_params = astro_params,
+        #flag_options = global_flag_options,
     )
     
     # Calculate the ionized box
@@ -411,14 +412,15 @@ def p21c_step(perturbed_field, spin_temp, ionized_box,
         perturbed_field = perturbed_field,
         previous_ionize_box = ionized_box,
         spin_temp = spin_temp,
-        astro_params=global_astro_params,
+        astro_params = astro_params,
+        #flag_options = global_flag_options,
     )
     
     # Calculate the brightness temperature
     brightness_temp = p21c.brightness_temperature(
         ionized_box = ionized_box,
         perturbed_field = perturbed_field,
-        spin_temp = spin_temp
+        spin_temp = spin_temp,
     )
     
     return spin_temp, ionized_box, brightness_temp

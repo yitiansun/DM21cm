@@ -125,7 +125,7 @@ class Cacher:
         # Get the spectrum
         spectrum = self.spectrum_cache.get_spectrum(z_donor)
         if self.xraycheck:
-            is_box_averaged = max(R1, R2) > 400. #[cfMpc]
+            is_box_averaged = max(R1, R2) > 500. #[cfMpc]
             return smoothed_box, spectrum, is_box_averaged, z_donor, min(512.-1e-6, max(R1, R2))
         else:
             return smoothed_box, spectrum, is_box_averaged
@@ -148,10 +148,12 @@ class SpectrumCache:
         
     def attenuate(self, attenuation_arr):
         for spec in self.spectrum_list:
+            spec.switch_spec_type('N')
             spec.N *= attenuation_arr
             
     def redshift(self, z_target):
         for spec in self.spectrum_list:
+            spec.switch_spec_type('N')
             spec.redshift(1+z_target)
             
     def get_spectrum(self, z_target):

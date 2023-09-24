@@ -37,6 +37,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
            use_tqdm=True, debug_flags=[],
            debug_xray_multiplier=1.,
            debug_astro_params=None,
+           debug_copy_dh_init=None,
            ):
     """
     Main evolution function.
@@ -59,6 +60,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
             'uniform-xray' : Force xray to inject uniformly.
             'xraycheck' : Xray check mode.
             'xraycheck-nobath' : Xray check mode, but no bath (larger box injection).
+            'use-xe' : Use x_e instead of 1-x_H for tf.
         debug_astro_params (AstroParams): AstroParams in p21c.
         
     Returns:
@@ -114,7 +116,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         delta_cacher = Cacher(data_path=f"{p21c.config['direc']}/xraycheck_brightness.h5", cosmo=cosmo, N=box_dim, dx=box_len/box_dim, xraycheck=True)
         delta_cacher.clear_cache()
 
-        L_X_numerical_factor = 1e80 # make float happy
+        L_X_numerical_factor = 1e60 # make float happy
         xray_eng_lo = 0.5 * 1000 # [eV]
         xray_eng_hi = 10.0 * 1000 # [eV]
         xray_i_lo = np.searchsorted(abscs['photE'], xray_eng_lo)
@@ -147,6 +149,14 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
     perturbed_field = p21c.perturb_field(redshift=z_edges[0], init_boxes=p21c_initial_conditions)
     spin_temp, ionized_box, brightness_temp = p21c_step(perturbed_field=perturbed_field, spin_temp=None, ionized_box=None, astro_params=debug_astro_params)
 
+    if debug_copy_dh_init is not None:
+        import shutil
+        dh_init_source = f"{p21c.config['direc']}/../{debug_copy_dh_init}/dh_init_soln.p"
+        if os.path.exists(dh_init_source):
+            shutil.copy(dh_init_source, f"{p21c.config['direc']}/dh_init_soln.p")
+            logging.info(f'Copied dh_init_soln.p from {debug_copy_dh_init}')
+        else:
+            logging.warning(f'Could not find dh_init_soln.p at {dh_init_source}')
     dh_wrapper.evolve(end_rs=(1+z_start)*0.9, rerun=rerun_DH)
     dh_wrapper.match(spin_temp, ionized_box)
     phot_bath_spec = dh_wrapper.get_phot_bath(rs=1+z_edges[0])
@@ -177,7 +187,10 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         nBavg = phys.n_B * (1+z_current)**3 # [Bavg / (physical cm)^3]
         delta_plus_one_box = 1 + np.asarray(perturbed_field.density)
         rho_DM_box = delta_plus_one_box * phys.rho_DM * (1+z_current)**3 # [eV/(physical cm)^3]
-        x_e_box = np.asarray(1 - ionized_box.xH_box)
+        if 'use-xe' in debug_flags:
+            x_e_box = np.asarray(spin_temp.x_e_box)
+        else:
+            x_e_box = np.asarray(1 - ionized_box.xH_box)
         inj_per_Bavg_box = phys.inj_rate(rho_DM_box, dm_params) * dt * dm_params.struct_boost(1+z_current) / nBavg # [inj/Bavg]
         
         tf_wrapper.init_step(
@@ -192,28 +205,27 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         if 'xraycheck' in debug_flags:
 
             if not ('xraycheck-nobath' in debug_flags):
-                xraycheck_bath_dNdE = np.zeros((500,))
+                xraycheck_bath_N = np.zeros((500,)) # [ph / Bavg]
                 emissivity_bracket_unif = 0.
                 for i_z_shell in range(i_xraycheck_loop_start): # uniform injection
                     z_shell = z_edges[i_z_shell]
-                    shell_dNdE = delta_cacher.spectrum_cache.get_spectrum(z_shell).dNdE
+                    shell_N = delta_cacher.spectrum_cache.get_spectrum(z_shell).N # [ph / Msun]
 
                     delta_unif = 0. # just a number
-                    emissivity_bracket_unif = Cond_SFRD_Interpolator((z_donor, delta_unif, 512.-EPSILON)) # [M_Sun / Mpc^3 / s]
+                    emissivity_bracket_unif = Cond_SFRD_Interpolator((z_donor, delta_unif, 512.-EPSILON)) # [M_Sun / Mpc^3 s]
                     if np.mean(emissivity_bracket_unif) > 0:
-                        emissivity_bracket_unif *= (ST_SFRD_Interpolator(z_donor) / np.mean(emissivity_bracket_unif)) # [M_Sun / Mpc^3 / s]
-                    z_shell = z_edges[i_z_shell]
-                    emissivity_bracket_unif *= (1 + delta_unif) / (phys.n_B * u.cm**-3).to('Mpc**-3').value * dt # [M_Sun / Bavg]
-                    emissivity_bracket_unif *= L_X_numerical_factor * debug_xray_multiplier
-                    shell_dNdE *= emissivity_bracket_unif
-                    xraycheck_bath_dNdE += shell_dNdE # put in bath
+                        emissivity_bracket_unif *= (ST_SFRD_Interpolator(z_donor) / np.mean(emissivity_bracket_unif)) # [Msun / Mpc^3 s]
+                    emissivity_bracket_unif *= (1 + delta_unif) / (phys.n_B * u.cm**-3).to('Mpc**-3').value * dt # [Msun / Mpc^3 s] * [Bavg / Mpc^3]^-1 * [s] = [Msun / Bavg]
+                    emissivity_bracket_unif *= L_X_numerical_factor * debug_xray_multiplier # [Msun / Bavg]
+                    shell_N *= emissivity_bracket_unif # [ph / Bavg]
+                    xraycheck_bath_N += shell_N # put in bath
 
-                L_X_bath_spec = Spectrum(abscs['photE'], xraycheck_bath_dNdE, spec_type='dNdE', rs=1+z_current) # [counts / (keV Msun)]
+                L_X_bath_spec = Spectrum(abscs['photE'], xraycheck_bath_N, spec_type='N', rs=1+z_current) # [counts / (keV Msun)]
                 weight = jnp.ones_like(delta_plus_one_box)
                 tf_wrapper.inject_phot(L_X_bath_spec, inject_type='xray', weight_box=weight) # inject bath
 
                 print_str += f' i_xray_bath=0-{i_xraycheck_loop_start}'
-                print_str += f' L_X_bath eng={np.mean(emissivity_bracket_unif)*L_X_bath_spec.toteng()}'
+                print_str += f' L_X_bath eng={L_X_bath_spec.toteng():.3e} eV/Bavg'
                 profiler.record('xraycheck bath')
             
             emissivity_bracket = 0.
@@ -234,7 +246,6 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
                     i_xraycheck_loop_start = max(i_z_shell+1, i_xraycheck_loop_start)
                 if ST_SFRD_Interpolator(z_donor) > 0.:
                     tf_wrapper.inject_phot(L_X_spec, inject_type='xray', weight_box=jnp.asarray(emissivity_bracket))
-
             
             print_str += f' shells:{i_xraycheck_loop_start}-{i_z}'
             if i_z > 0:
@@ -298,16 +309,19 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         #--- xray ---
         if 'xraycheck' in debug_flags:
             attenuation_arr = np.array(tf_wrapper.attenuation_arr(rs=1+z_current, x=np.mean(x_e_box))) # convert from jax array
+            attenuation_arr = np.ones_like(attenuation_arr) # TMP: turn off attenuation
             delta_cacher.advance_spectrum(attenuation_arr, z_next)
+
+            print_str += f" atten. mean={np.mean(attenuation_arr):.4f}"
 
             L_X_spec_prefac = 1e40 / np.log(4) * u.erg * u.s**-1 * u.M_sun**-1 * u.yr * u.keV**-1 # value in [erg yr / s Msun keV]
             L_X_spec_prefac /= L_X_numerical_factor
             # L_X (E * dN/dE) \propto E^-1
-            L_X_dNdE = L_X_spec_prefac.to('1/Msun').value * (abscs['photE'] / 1000.) ** -2 / 1000. # [1/Msun] * []
+            L_X_dNdE = L_X_spec_prefac.to('1/Msun').value * (abscs['photE']/1000.)**-1 / abscs['photE'] # [1/Msun] * [1/eV] = [1/Msun eV]
             L_X_dNdE[:xray_i_lo] *= 0.
             L_X_dNdE[xray_i_hi:] *= 0.
-            L_X_spec = Spectrum(abscs['photE'], L_X_dNdE, spec_type='dNdE', rs=1+z_current) # [counts / (keV Msun)]
-            L_X_spec.switch_spec_type('N')
+            L_X_spec = Spectrum(abscs['photE'], L_X_dNdE, spec_type='dNdE', rs=1+z_current) # [1 / Msun eV]
+            L_X_spec.switch_spec_type('N') # [1 / Msun]
             L_X_spec.redshift(1+z_next)
             delta_cacher.cache(z_current, perturbed_field.density, L_X_spec)
         
@@ -315,7 +329,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
             attenuation_arr = np.array(tf_wrapper.attenuation_arr(rs=1+z_current, x=np.mean(x_e_box))) # convert from jax array
             xray_cacher.advance_spectrum(attenuation_arr, z_next)
 
-            xray_spec = Spectrum(abscs['photE'], emit_xray_N, rs=1+z_current, spec_type='N') # [photon / Bavg]
+            xray_spec = Spectrum(abscs['photE'], emit_xray_N, rs=1+z_current, spec_type='N') # [ph / Bavg]
             xray_spec.redshift(1+z_next)
             xray_tot_eng = np.dot(abscs['photE'], emit_xray_N)
             if xray_tot_eng == 0.:
@@ -340,6 +354,8 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
             'f_ion'  : np.mean(tf_wrapper.dep_box[...,0] + tf_wrapper.dep_box[...,1]) / dE_inj_per_Bavg_unclustered,
             'f_exc'  : np.mean(tf_wrapper.dep_box[...,2]) / dE_inj_per_Bavg_unclustered,
             'f_heat' : np.mean(tf_wrapper.dep_box[...,3]) / dE_inj_per_Bavg_unclustered,
+            'x_e_slice' : np.array(spin_temp.x_e_box[10]),
+            'x_H_slice' : np.array(ionized_box.xH_box[10]),
         }
         records.append(record)
 

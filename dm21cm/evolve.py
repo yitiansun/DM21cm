@@ -59,8 +59,8 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         debug_flags (list): List of debug flags. Can contain:
             'uniform-xray' : Force xray to inject uniformly.
             'xraycheck' : Xray check mode.
-            'xraycheck-nobath' : Xray check mode, but no bath (larger box injection).
-            'use-xe' : Use x_e instead of 1-x_H for tf.
+            'xc-bath' : Xray check: include bath (larger box injection) as well.
+            Use x_e instead of 1-x_H for tf is now the baseline.
         debug_astro_params (AstroParams): AstroParams in p21c.
         
     Returns:
@@ -75,6 +75,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
     os.makedirs(p21c.config['direc'], exist_ok=True)
     if clear_cache:
         cache_tools.clear_cache()
+    
     gc.collect()
 
     #===== initialize =====
@@ -121,13 +122,9 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         xray_eng_hi = 10.0 * 1000 # [eV]
         xray_i_lo = np.searchsorted(abscs['photE'], xray_eng_lo)
         xray_i_hi = np.searchsorted(abscs['photE'], xray_eng_hi)
-        print('xray eng range', xray_i_lo, xray_i_hi)
 
         res_dict = np.load('../data/xraycheck/Interpolators.npz', allow_pickle=True)
         z_range, delta_range, r_range = res_dict['SFRD_Params']
-        print('z_range', np.min(z_range), np.max(z_range))
-        print('delta_range', np.min(delta_range), np.max(delta_range))
-        print('r_range', np.min(r_range), np.max(r_range))
 
         cond_sfrd_table = res_dict['Cond_SFRD_Table']
         st_sfrd_table =  res_dict['ST_SFRD_Table']
@@ -187,9 +184,10 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         nBavg = phys.n_B * (1+z_current)**3 # [Bavg / (physical cm)^3]
         delta_plus_one_box = 1 + np.asarray(perturbed_field.density)
         rho_DM_box = delta_plus_one_box * phys.rho_DM * (1+z_current)**3 # [eV/(physical cm)^3]
-        if 'use-xe' in debug_flags:
+        if 'xraycheck' in debug_flags:
             x_e_box = np.asarray(spin_temp.x_e_box)
         else:
+            raise NotImplementedError('Figure out what to use for x_e')
             x_e_box = np.asarray(1 - ionized_box.xH_box)
         inj_per_Bavg_box = phys.inj_rate(rho_DM_box, dm_params) * dt * dm_params.struct_boost(1+z_current) / nBavg # [inj/Bavg]
         
@@ -204,7 +202,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         profiler.start()
         if 'xraycheck' in debug_flags:
 
-            if not ('xraycheck-nobath' in debug_flags):
+            if 'xc-bath' in debug_flags:
                 xraycheck_bath_N = np.zeros((500,)) # [ph / Bavg]
                 emissivity_bracket_unif = 0.
                 for i_z_shell in range(i_xraycheck_loop_start): # uniform injection
@@ -308,8 +306,10 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
 
         #--- xray ---
         if 'xraycheck' in debug_flags:
-            attenuation_arr = np.array(tf_wrapper.attenuation_arr(rs=1+z_current, x=np.mean(x_e_box))) # convert from jax array
-            attenuation_arr = np.ones_like(attenuation_arr) # TMP: turn off attenuation
+            x_e_for_attenuation = 1 - np.mean(ionized_box.xH_box)
+            attenuation_arr = np.array(tf_wrapper.attenuation_arr(rs=1+z_current, x=x_e_for_attenuation)) # convert from jax array
+            #attenuation_arr = 1 - (1 - attenuation_arr) / 2 # TMP: half attenuation
+            #attenuation_arr = np.ones_like(attenuation_arr) # TMP: turn off attenuation
             delta_cacher.advance_spectrum(attenuation_arr, z_next)
 
             print_str += f" atten. mean={np.mean(attenuation_arr):.4f}"

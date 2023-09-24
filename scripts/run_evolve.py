@@ -18,7 +18,7 @@ if __name__ == '__main__':
     # print(f"Running m={args.m}...")
 
     return_dict = evolve(
-        run_name = f'xc_ours_nobath_usexe_noatten',
+        run_name = f'xc_ours',
         z_start = 45.,
         z_end = 5.,
         zplusone_step_factor = 1.01,
@@ -52,7 +52,7 @@ if __name__ == '__main__':
         rerun_DH = False,
         clear_cache = True,
         use_tqdm = False,
-        debug_flags = ['xraycheck', 'use-xe', 'xraycheck-nobath'],
+        debug_flags = ['xraycheck'],
         debug_xray_multiplier = 1.,
         debug_astro_params = p21c.AstroParams(
             L_X = 0. # log10 value

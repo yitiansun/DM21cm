@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=evolve100
+#SBATCH --job-name=evolve
 #SBATCH --partition=gpu
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
@@ -16,4 +16,4 @@ source /n/home07/yitians/setup_dm21cm.sh
 
 cd /n/home07/yitians/dm21cm/DM21cm/scripts
 
-python run_evolve.py -m 100
+python run_evolve.py

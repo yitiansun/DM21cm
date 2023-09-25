@@ -429,7 +429,6 @@ def gen_injection_boxes(z_next, p21c_initial_conditions):
 def p21c_step(perturbed_field, spin_temp, ionized_box,
              input_heating=None, input_ionization=None, input_jalpha=None, astro_params=None):
     
-    # Calculate the spin temperature, possibly using our inputs
     spin_temp = p21c.spin_temperature(
         perturbed_field = perturbed_field,
         previous_spin_temp = spin_temp,
@@ -437,19 +436,15 @@ def p21c_step(perturbed_field, spin_temp, ionized_box,
         input_ionization_box = input_ionization,
         input_jalpha_box = input_jalpha,
         astro_params = astro_params,
-        #flag_options = global_flag_options,
     )
     
-    # Calculate the ionized box
     ionized_box = p21c.ionize_box(
         perturbed_field = perturbed_field,
         previous_ionize_box = ionized_box,
         spin_temp = spin_temp,
         astro_params = astro_params,
-        #flag_options = global_flag_options,
     )
     
-    # Calculate the brightness temperature
     brightness_temp = p21c.brightness_temperature(
         ionized_box = ionized_box,
         perturbed_field = perturbed_field,

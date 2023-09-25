@@ -23,6 +23,7 @@ from dm21cm.dh_wrappers import DarkHistoryWrapper, TransferFunctionWrapper
 from dm21cm.utils import load_h5_dict
 from dm21cm.data_cacher import Cacher
 from dm21cm.profiler import Profiler
+from dm21cm.spectrum import AttenuatedSpectrum
 
 logging.getLogger().setLevel(logging.INFO)
 logging.getLogger('21cmFAST').setLevel(logging.CRITICAL+1)
@@ -61,6 +62,8 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
             'xraycheck' : Xray check mode.
             'xc-bath' : Xray check: include bath (larger box injection) as well.
             Use x_e instead of 1-x_H for tf is now the baseline.
+            'xc-approxattenuation' : Xray check: approximate attenuation.
+            'xc-dontredshift' : Xray check: don't redshift xrays.
         debug_astro_params (AstroParams): AstroParams in p21c.
         
     Returns:
@@ -203,6 +206,8 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         if 'xraycheck' in debug_flags:
 
             if 'xc-bath' in debug_flags:
+                if 'xc-approxattenuation' in debug_flags:
+                    raise NotImplementedError('xc-approxattenuation and xc-bath are incompatible')
                 xraycheck_bath_N = np.zeros((500,)) # [ph / Bavg]
                 emissivity_bracket_unif = 0.
                 for i_z_shell in range(i_xraycheck_loop_start): # uniform injection
@@ -242,12 +247,19 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
                 emissivity_bracket *= L_X_numerical_factor * debug_xray_multiplier
                 if xraycheck_is_box_average:
                     i_xraycheck_loop_start = max(i_z_shell+1, i_xraycheck_loop_start)
+
+                if 'xc-approxattenuation' in debug_flags:
+                    L_X_spec_inj = L_X_spec.approx_attenuated_spectrum
+                    print_str += f'\n    approx attenuation: {L_X_spec.approx_attentuation_arr_repr[xray_i_lo:xray_i_hi]}'
+                else:
+                    L_X_spec_inj = L_X_spec
+                
                 if ST_SFRD_Interpolator(z_donor) > 0.:
-                    tf_wrapper.inject_phot(L_X_spec, inject_type='xray', weight_box=jnp.asarray(emissivity_bracket))
+                    tf_wrapper.inject_phot(L_X_spec_inj, inject_type='xray', weight_box=jnp.asarray(emissivity_bracket))
             
             print_str += f' shells:{i_xraycheck_loop_start}-{i_z}'
             if i_z > 0:
-                avg_eng = np.mean(emissivity_bracket)*L_X_spec.toteng()
+                avg_eng = np.mean(emissivity_bracket)*L_X_spec_inj.toteng()
                 print_str += f' shell xray:{avg_eng:.3e} eV/Bavg'
             profiler.record('xraycheck')
 
@@ -310,7 +322,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
             attenuation_arr = np.array(tf_wrapper.attenuation_arr(rs=1+z_current, x=x_e_for_attenuation)) # convert from jax array
             #attenuation_arr = 1 - (1 - attenuation_arr) / 2 # TMP: half attenuation
             #attenuation_arr = np.ones_like(attenuation_arr) # TMP: turn off attenuation
-            delta_cacher.advance_spectrum(attenuation_arr, z_next)
+            delta_cacher.advance_spectrum(attenuation_arr, z_next, dontredshift=('xc-dontredshift' in debug_flags)) # can handle AttenuatedSpectrum
 
             print_str += f" atten. mean={np.mean(attenuation_arr):.4f}"
 
@@ -322,7 +334,12 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
             L_X_dNdE[xray_i_hi:] *= 0.
             L_X_spec = Spectrum(abscs['photE'], L_X_dNdE, spec_type='dNdE', rs=1+z_current) # [1 / Msun eV]
             L_X_spec.switch_spec_type('N') # [1 / Msun]
-            L_X_spec.redshift(1+z_next)
+            if not 'xc-dontredshift' in debug_flags:
+                L_X_spec.redshift(1+z_next)
+            else:
+                L_X_spec.rs = 1+z_next
+            if 'xc-approxattenuation' in debug_flags:
+                L_X_spec = AttenuatedSpectrum(L_X_spec)
             delta_cacher.cache(z_current, perturbed_field.density, L_X_spec)
         
         else:

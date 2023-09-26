@@ -59,9 +59,9 @@ class Cacher:
         self.spectrum_cache.clear_cache()
         self.brightness_cache.clear_cache()
 
-    def advance_spectrum(self, attenuation_factor, z, dontredshift=False):
+    def advance_spectrum(self, attenuation_factor, z, noredshift=False):
         self.spectrum_cache.attenuate(attenuation_factor)
-        if not dontredshift:
+        if not noredshift:
             self.spectrum_cache.redshift(z)
         else:
             for spec in self.spectrum_cache.spectrum_list:

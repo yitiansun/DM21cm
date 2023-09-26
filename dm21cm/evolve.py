@@ -35,7 +35,8 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
            dm_params=..., enable_elec=False, tf_version=...,
            p21c_initial_conditions=...,
            rerun_DH=False, clear_cache=False,
-           use_tqdm=True, debug_flags=[],
+           use_tqdm=True,
+           debug_flags=[],
            debug_xray_multiplier=1.,
            debug_astro_params=None,
            debug_copy_dh_init=None,
@@ -59,11 +60,13 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         use_tqdm (bool): Whether to use tqdm progress bars.
         debug_flags (list): List of debug flags. Can contain:
             'uniform-xray' : Force xray to inject uniformly.
-            'xraycheck' : Xray check mode.
-            'xc-bath' : Xray check: include bath (larger box injection) as well.
-            Use x_e instead of 1-x_H for tf is now the baseline.
-            'xc-approxattenuation' : Xray check: approximate attenuation.
-            'xc-dontredshift' : Xray check: don't redshift xrays.
+            xraychecks: (Use x_e instead of 1-x_H for tf is now the baseline.)
+            'xraycheck' : Xray check mode. And only one of the following:
+                'xc-bath' : Xray check: include bath (larger box injection) as well.
+                'xc-01attenuation' : Xray check: approximate attenuation.
+                'xc-noredshift' : Xray check: don't redshift xrays.
+                'xc-noatten' : Xray check: no attenuation.
+                'xc-halfatten' : Xray check: half attenuation.
         debug_astro_params (AstroParams): AstroParams in p21c.
         
     Returns:
@@ -126,7 +129,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         xray_i_lo = np.searchsorted(abscs['photE'], xray_eng_lo)
         xray_i_hi = np.searchsorted(abscs['photE'], xray_eng_hi)
 
-        res_dict = np.load('../data/xraycheck/Interpolators.npz', allow_pickle=True)
+        res_dict = np.load('../data/xraycheck/Interpolators_0.npz', allow_pickle=True)
         z_range, delta_range, r_range = res_dict['SFRD_Params']
 
         cond_sfrd_table = res_dict['Cond_SFRD_Table']
@@ -190,7 +193,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         if 'xraycheck' in debug_flags:
             x_e_box = np.asarray(spin_temp.x_e_box)
         else:
-            raise NotImplementedError('Figure out what to use for x_e')
+            logging.warning('\nusing xe = 1 - mean(ionized_box.xH_box) for deposition\n')
             x_e_box = np.asarray(1 - ionized_box.xH_box)
         inj_per_Bavg_box = phys.inj_rate(rho_DM_box, dm_params) * dt * dm_params.struct_boost(1+z_current) / nBavg # [inj/Bavg]
         
@@ -204,10 +207,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         #--- xray ---
         profiler.start()
         if 'xraycheck' in debug_flags:
-
             if 'xc-bath' in debug_flags:
-                if 'xc-approxattenuation' in debug_flags:
-                    raise NotImplementedError('xc-approxattenuation and xc-bath are incompatible')
                 xraycheck_bath_N = np.zeros((500,)) # [ph / Bavg]
                 emissivity_bracket_unif = 0.
                 for i_z_shell in range(i_xraycheck_loop_start): # uniform injection
@@ -248,7 +248,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
                 if xraycheck_is_box_average:
                     i_xraycheck_loop_start = max(i_z_shell+1, i_xraycheck_loop_start)
 
-                if 'xc-approxattenuation' in debug_flags:
+                if 'xc-01attenuation' in debug_flags:
                     L_X_spec_inj = L_X_spec.approx_attenuated_spectrum
                     print_str += f'\n    approx attenuation: {L_X_spec.approx_attentuation_arr_repr[xray_i_lo:xray_i_hi]}'
                 else:
@@ -320,9 +320,11 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         if 'xraycheck' in debug_flags:
             x_e_for_attenuation = 1 - np.mean(ionized_box.xH_box)
             attenuation_arr = np.array(tf_wrapper.attenuation_arr(rs=1+z_current, x=x_e_for_attenuation)) # convert from jax array
-            #attenuation_arr = 1 - (1 - attenuation_arr) / 2 # TMP: half attenuation
-            #attenuation_arr = np.ones_like(attenuation_arr) # TMP: turn off attenuation
-            delta_cacher.advance_spectrum(attenuation_arr, z_next, dontredshift=('xc-dontredshift' in debug_flags)) # can handle AttenuatedSpectrum
+            if 'xc-halfatten' in debug_flags: # TMP: half attenuation
+                attenuation_arr = 1 - (1 - attenuation_arr) / 2
+            if 'xc-noatten' in debug_flags: # TMP: turn off attenuation
+                attenuation_arr = np.ones_like(attenuation_arr)
+            delta_cacher.advance_spectrum(attenuation_arr, z_next, noredshift=('xc-noredshift' in debug_flags)) # can handle AttenuatedSpectrum
 
             print_str += f" atten. mean={np.mean(attenuation_arr):.4f}"
 
@@ -334,11 +336,13 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
             L_X_dNdE[xray_i_hi:] *= 0.
             L_X_spec = Spectrum(abscs['photE'], L_X_dNdE, spec_type='dNdE', rs=1+z_current) # [1 / Msun eV]
             L_X_spec.switch_spec_type('N') # [1 / Msun]
-            if not 'xc-dontredshift' in debug_flags:
-                L_X_spec.redshift(1+z_next)
-            else:
+
+            if 'xc-noredshift' in debug_flags:
                 L_X_spec.rs = 1+z_next
-            if 'xc-approxattenuation' in debug_flags:
+            else:
+                L_X_spec.redshift(1+z_next)
+
+            if 'xc-01attenuation' in debug_flags:
                 L_X_spec = AttenuatedSpectrum(L_X_spec)
             delta_cacher.cache(z_current, perturbed_field.density, L_X_spec)
         
@@ -379,12 +383,14 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         profiler.record('prep_next')
 
         if not use_tqdm:
-            print(print_str)
+            print(print_str, flush=True)
             print_str = ''
         
     #===== end of loop, save results =====
     arr_records = {k: np.array([r[k] for r in records]) for k in records[0].keys()}
     np.save(f"{os.environ['DM21CM_DIR']}/data/run_info/{run_name}_records", arr_records)
+
+    profiler.print_summary()
 
     return {
         'profiler' : profiler,

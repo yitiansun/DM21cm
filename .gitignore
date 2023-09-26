@@ -6,6 +6,7 @@ data/run_info/**
 notebooks/plots/tmp
 **/.DS_Store
 outputs/tmp
+outputs/slurm
 cross_check/ionhist_outputs/
 **/slurm_outputs/
 

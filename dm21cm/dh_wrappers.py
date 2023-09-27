@@ -54,6 +54,16 @@ class DarkHistoryWrapper:
         logging.info('DarkHistoryWrapper: Saved DarkHistory initial conditions.')
         return self.soln
 
+    def get_init_cond(self, rs):
+        """Returns initial conditions T_k [K], x_e [1] at redshift z."""
+        T_k_DH = np.interp(
+            rs, self.soln['rs'][::-1], self.soln['Tm'][::-1] / phys.kB
+        ) # [K]
+        x_e_DH = np.interp(
+            rs, self.soln['rs'][::-1], self.soln['x'][::-1, 0]
+        ) # HII
+        return T_k_DH, x_e_DH
+
     def match(self, spin_temp, ionized_box, match_list=['T_k', 'x_e']):
         if 'T_k' in match_list:
             T_k_DH = np.interp(

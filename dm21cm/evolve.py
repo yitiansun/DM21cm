@@ -34,12 +34,14 @@ logging.getLogger('py21cmfast.wrapper').setLevel(logging.CRITICAL+1)
 def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
            dm_params=..., enable_elec=False, tf_version=...,
            p21c_initial_conditions=...,
+           use_DH_init=True,
            rerun_DH=False, clear_cache=False,
            use_tqdm=True,
            debug_flags=[],
            debug_xray_multiplier=1.,
            debug_astro_params=None,
            debug_copy_dh_init=None,
+           save_dir=None,
            ):
     """
     Main evolution function.
@@ -53,6 +55,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         enable_elec (bool): Whether to enable electron injection.
         tf_version (str): Version of DarkHistory transfer function to use.
         p21c_initial_conditions (InitialConditions): Initial conditions from py21cmfast.
+        use_DH_init (bool): Whether to use DarkHistory initial conditions.
         
         rerun_DH (bool): Whether to rerun DarkHistory to get initial values.
         clear_cache (bool): Whether to clear cache for 21cmFAST.
@@ -68,6 +71,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
                 'xc-noatten' : Xray check: no attenuation.
                 'xc-halfatten' : Xray check: half attenuation.
         debug_astro_params (AstroParams): AstroParams in p21c.
+        debug_dont_use_dh_init (bool): Whether to not use DarkHistory initial conditions.
         
     Returns:
         dict: Dictionary of results.
@@ -101,10 +105,6 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
     cosmo = Planck18
 
     #--- DarkHistory and transfer functions ---
-    dh_wrapper = DarkHistoryWrapper(
-        dm_params,
-        prefix = p21c.config[f'direc'],
-    )
     tf_prefix = f"{os.environ['DM21CM_DATA_DIR']}/tf/{tf_version}"
     tf_wrapper = TransferFunctionWrapper(
         box_dim = box_dim,
@@ -129,7 +129,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         xray_i_lo = np.searchsorted(abscs['photE'], xray_eng_lo)
         xray_i_hi = np.searchsorted(abscs['photE'], xray_eng_hi)
 
-        res_dict = np.load('../data/xraycheck/Interpolators_0.npz', allow_pickle=True)
+        res_dict = np.load('../data/xraycheck/Interpolators_0926_2.npz', allow_pickle=True)
         z_range, delta_range, r_range = res_dict['SFRD_Params']
 
         cond_sfrd_table = res_dict['Cond_SFRD_Table']
@@ -149,20 +149,36 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
     z_edges = get_z_edges(z_start, z_end, p21c.global_params.ZPRIME_STEP_FACTOR)
 
     #===== initial step =====
+    if use_DH_init:
+        dh_wrapper = DarkHistoryWrapper(
+            dm_params,
+            prefix = p21c.config[f'direc'],
+        )
+        # if debug_copy_dh_init is not None:
+        #     import shutil
+        #     dh_init_source = f"{p21c.config['direc']}/../{debug_copy_dh_init}/dh_init_soln.p"
+        #     if os.path.exists(dh_init_source):
+        #         shutil.copy(dh_init_source, f"{p21c.config['direc']}/dh_init_soln.p")
+        #         logging.info(f'Copied dh_init_soln.p from {debug_copy_dh_init}')
+        #     else:
+        #         logging.warning(f'Could not find dh_init_soln.p at {dh_init_source}')
+        dh_wrapper.evolve(end_rs=(1+z_start)*0.9, rerun=rerun_DH)
+        T_k_DH_init, x_e_DH_init = dh_wrapper.get_init_cond(rs=1+z_edges[0])
+        phot_bath_spec = dh_wrapper.get_phot_bath(rs=1+z_edges[0])
+
+        p21c.global_params.TK_at_Z_HEAT_MAX = T_k_DH_init
+        p21c.global_params.XION_at_Z_HEAT_MAX = x_e_DH_init
+
     perturbed_field = p21c.perturb_field(redshift=z_edges[0], init_boxes=p21c_initial_conditions)
     spin_temp, ionized_box, brightness_temp = p21c_step(perturbed_field=perturbed_field, spin_temp=None, ionized_box=None, astro_params=debug_astro_params)
 
-    if debug_copy_dh_init is not None:
-        import shutil
-        dh_init_source = f"{p21c.config['direc']}/../{debug_copy_dh_init}/dh_init_soln.p"
-        if os.path.exists(dh_init_source):
-            shutil.copy(dh_init_source, f"{p21c.config['direc']}/dh_init_soln.p")
-            logging.info(f'Copied dh_init_soln.p from {debug_copy_dh_init}')
-        else:
-            logging.warning(f'Could not find dh_init_soln.p at {dh_init_source}')
-    dh_wrapper.evolve(end_rs=(1+z_start)*0.9, rerun=rerun_DH)
-    dh_wrapper.match(spin_temp, ionized_box)
-    phot_bath_spec = dh_wrapper.get_phot_bath(rs=1+z_edges[0])
+    if use_DH_init:
+        residual_T_k = T_k_DH_init - np.mean(spin_temp.Tk_box)
+        residual_x_e = x_e_DH_init - np.mean(spin_temp.x_e_box)
+    else:
+        residual_T_k = 0.
+        residual_x_e = 0.
+    
 
     #===== main loop =====
     #--- trackers ---
@@ -180,6 +196,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
     else:
         print_str = ''
 
+    #--- loop ---
     for i_z in z_iterator:
         print_str += f'i_z={i_z}/{len(z_edges)-1} z={z_edges[i_z]:.2f}'
 
@@ -193,7 +210,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         if 'xraycheck' in debug_flags:
             x_e_box = np.asarray(spin_temp.x_e_box)
         else:
-            logging.warning('\nusing xe = 1 - mean(ionized_box.xH_box) for deposition\n')
+            # logging.warning('\nusing xe = 1 - mean(ionized_box.xH_box) for deposition\n')
             x_e_box = np.asarray(1 - ionized_box.xH_box)
         inj_per_Bavg_box = phys.inj_rate(rho_DM_box, dm_params) * dt * dm_params.struct_boost(1+z_current) / nBavg # [inj/Bavg]
         
@@ -232,6 +249,9 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
                 profiler.record('xraycheck bath')
             
             emissivity_bracket = 0.
+
+            print_str += f' delta-mean='
+
             for i_z_shell in range(i_xraycheck_loop_start, i_z):
 
                 delta, L_X_spec, xraycheck_is_box_average, z_donor, R2 = delta_cacher.get_annulus_data(
@@ -239,6 +259,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
                 )
                 delta = np.clip(delta, -1.0+EPSILON, 1.5-EPSILON)
                 delta = np.array(delta)
+                print_str += f' {np.mean(delta):.3f}'
                 emissivity_bracket = Cond_SFRD_Interpolator((z_donor, delta, R2))
                 if np.mean(emissivity_bracket) > 0:
                     emissivity_bracket *= (ST_SFRD_Interpolator(z_donor) / np.mean(emissivity_bracket))
@@ -280,6 +301,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
             profiler.record('xray')
 
             #--- bath and homogeneous portion of xray ---
+            print_str += f' bath.toteng={phot_bath_spec.toteng():.3e} eV/Bavg'
             tf_wrapper.inject_phot(phot_bath_spec, inject_type='bath')
             
             #--- dark matter (on-the-spot) ---
@@ -298,6 +320,11 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         perturbed_field = p21c.perturb_field(redshift=z_next, init_boxes=p21c_initial_conditions)    
         input_heating, input_ionization, input_jalpha = gen_injection_boxes(z_next, p21c_initial_conditions)
         tf_wrapper.populate_injection_boxes(input_heating, input_ionization, input_jalpha)
+        if residual_T_k > 0. or residual_x_e > 0.: # hacky way to fix the initial conditions mismatch
+            input_heating.input_heating += residual_T_k
+            input_ionization.input_ionization += residual_x_e
+            residual_T_k = 0.
+            residual_x_e = 0.
         
         spin_temp, ionized_box, brightness_temp = p21c_step(
             perturbed_field, spin_temp, ionized_box,
@@ -347,7 +374,8 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
             delta_cacher.cache(z_current, perturbed_field.density, L_X_spec)
         
         else:
-            attenuation_arr = np.array(tf_wrapper.attenuation_arr(rs=1+z_current, x=np.mean(x_e_box))) # convert from jax array
+            x_e_for_attenuation = 1 - np.mean(ionized_box.xH_box)
+            attenuation_arr = np.array(tf_wrapper.attenuation_arr(rs=1+z_current, x=np.mean(x_e_for_attenuation))) # convert from jax array
             xray_cacher.advance_spectrum(attenuation_arr, z_next)
 
             xray_spec = Spectrum(abscs['photE'], emit_xray_N, rs=1+z_current, spec_type='N') # [ph / Bavg]
@@ -388,7 +416,9 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         
     #===== end of loop, save results =====
     arr_records = {k: np.array([r[k] for r in records]) for k in records[0].keys()}
-    np.save(f"{os.environ['DM21CM_DIR']}/data/run_info/{run_name}_records", arr_records)
+    if save_dir is None:
+        save_dir = os.environ['DM21CM_DIR'] + '/data/run_info'
+    np.save(f"{save_dir}/{run_name}_records", arr_records)
 
     profiler.print_summary()
 

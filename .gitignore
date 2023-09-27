@@ -8,6 +8,7 @@ notebooks/plots/tmp
 outputs/tmp
 outputs/slurm
 cross_check/ionhist_outputs/
+cross_check/run_info/
 **/slurm_outputs/
 
 **/__pycache__/

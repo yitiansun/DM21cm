@@ -18,7 +18,7 @@ if __name__ == '__main__':
     # print(f"Running m={args.m}...")
 
     return_dict = evolve(
-        run_name = f'xc_ours',
+        run_name = f'xc_ours_sfr0926-2_noatten',
         z_start = 45.,
         z_end = 5.,
         zplusone_step_factor = 1.01,
@@ -52,10 +52,11 @@ if __name__ == '__main__':
         rerun_DH = False,
         clear_cache = True,
         use_tqdm = False,
-        debug_flags = ['xraycheck'],
-        debug_xray_multiplier = 1.0,
+        debug_flags = ['xraycheck', 'xc-noatten'],
+        debug_xray_multiplier = 1.,
         debug_astro_params = p21c.AstroParams(
             L_X = 0. # log10 value
         ),
         debug_copy_dh_init = 'xc_base',
+        debug_dont_use_dh_init = True,
     )

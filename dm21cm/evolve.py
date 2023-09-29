@@ -154,57 +154,58 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
     #--- redshift stepping ---
     z_edges = get_z_edges(z_start, z_end, p21c.global_params.ZPRIME_STEP_FACTOR)
 
-    #===== initial step =====
-    if use_DH_init:
-        dh_wrapper = DarkHistoryWrapper(
-            dm_params,
-            prefix = p21c.config[f'direc'],
-        )
-        # if debug_copy_dh_init is not None:
-        #     import shutil
-        #     dh_init_source = f"{p21c.config['direc']}/../{debug_copy_dh_init}/dh_init_soln.p"
-        #     if os.path.exists(dh_init_source):
-        #         shutil.copy(dh_init_source, f"{p21c.config['direc']}/dh_init_soln.p")
-        #         logging.info(f'Copied dh_init_soln.p from {debug_copy_dh_init}')
-        #     else:
-        #         logging.warning(f'Could not find dh_init_soln.p at {dh_init_source}')
-        dh_wrapper.evolve(end_rs=(1+z_start)*0.9, rerun=rerun_DH)
-        T_k_DH_init, x_e_DH_init = dh_wrapper.get_init_cond(rs=1+z_edges[0])
-        phot_bath_spec = dh_wrapper.get_phot_bath(rs=1+z_edges[0])
-
-        p21c.global_params.TK_at_Z_HEAT_MAX = T_k_DH_init
-        p21c.global_params.XION_at_Z_HEAT_MAX = x_e_DH_init
-
-    perturbed_field = p21c.perturb_field(redshift=z_edges[0], init_boxes=p21c_initial_conditions)
-    #===== TMP =====
-    # initial_spin_temp = p21c.TsBox(
-    #     redshift=p21c.global_params.Z_HEAT_MAX,
-    #     user_params=p21c_initial_conditions.user_params,
-    #     cosmo_params=p21c_initial_conditions.cosmo_params,
-    #     astro_params=debug_astro_params,
-    #     flag_options=None,
-    #     initial=True,
-    #     random_seed=54321,
-    # )
-    # initial_spin_temp = p21c.spin_temperature(
-    #     redshift=z_edges[0],
-    #     user_params=p21c_initial_conditions.user_params,
-    #     cosmo_params=p21c_initial_conditions.cosmo_params,
-    #     astro_params=debug_astro_params,
-    #     flag_options=None,
-    #     random_seed=54321,
-    #     zprime_step_factor=1.0,
-    # )
-    #===============
-    spin_temp, ionized_box, brightness_temp = p21c_step(perturbed_field=perturbed_field, spin_temp=None, ionized_box=None, astro_params=debug_astro_params)
-
-    if use_DH_init:
-        residual_T_k = T_k_DH_init - np.mean(spin_temp.Tk_box)
-        residual_x_e = x_e_DH_init - np.mean(spin_temp.x_e_box)
-    else:
-        residual_T_k = 0.
-        residual_x_e = 0.
+    #===== initial steps =====
+    if not use_DH_init:
+        raise NotImplementedError
     
+    dh_wrapper = DarkHistoryWrapper(
+        dm_params,
+        prefix = p21c.config[f'direc'],
+    )
+    # if debug_copy_dh_init is not None:
+    #     import shutil
+    #     dh_init_source = f"{p21c.config['direc']}/../{debug_copy_dh_init}/dh_init_soln.p"
+    #     if os.path.exists(dh_init_source):
+    #         shutil.copy(dh_init_source, f"{p21c.config['direc']}/dh_init_soln.p")
+    #         logging.info(f'Copied dh_init_soln.p from {debug_copy_dh_init}')
+    #     else:
+    #         logging.warning(f'Could not find dh_init_soln.p at {dh_init_source}')
+
+    # We have to synchronize at the second step because 21cmFAST acts weird in the first step:
+    # - global_params.TK_at_Z_HEAT_MAX is not set correctly (it is probably set and evolved for a step)
+    # - global_params.XION_at_Z_HEAT_MAX is not set correctly (it is probably set and evolved for a step)
+    # - first step ignores any values added to spin_temp.Tk_box and spin_temp.x_e_box
+    z_match = z_edges[1]
+    dh_wrapper.evolve(end_rs=(1+z_match)*0.9, rerun=rerun_DH)
+    T_k_DH_init, x_e_DH_init = dh_wrapper.get_init_cond(rs=1+z_match)
+    phot_bath_spec = dh_wrapper.get_phot_bath(rs=1+z_match)
+    logging.warning('Turning off bath, remember to turn back on')
+    phot_bath_spec *= 0.
+
+    perturbed_field = p21c.perturb_field(redshift=z_edges[1], init_boxes=p21c_initial_conditions)
+    spin_temp, ionized_box, brightness_temp = p21c_step(perturbed_field=perturbed_field, spin_temp=None, ionized_box=None, astro_params=debug_astro_params)
+    spin_temp.Tk_box += T_k_DH_init - np.mean(spin_temp.Tk_box)
+    spin_temp.x_e_box += x_e_DH_init - np.mean(spin_temp.x_e_box)
+    ionized_box.xH_box = 1 - spin_temp.x_e_box
+
+    records = []
+    record = {
+        'z'   : z_edges[1],
+        'T_s' : np.mean(spin_temp.Ts_box), # [mK]
+        'T_b' : np.mean(brightness_temp.brightness_temp), # [K]
+        'T_k' : np.mean(spin_temp.Tk_box), # [K]
+        'x_e' : np.mean(spin_temp.x_e_box), # [1]
+        '1-x_H' : np.mean(1 - ionized_box.xH_box), # [1]
+        'E_phot' : phot_bath_spec.toteng(), # [eV/Bavg]
+        'dE_inj_per_B' : 0.,
+        'f_ion'  : 0.,
+        'f_exc'  : 0.,
+        'f_heat' : 0.,
+        'x_e_slice' : np.array(spin_temp.x_e_box[10]),
+        'x_H_slice' : np.array(ionized_box.xH_box[10]),
+    }
+    records.append(record)
+
 
     #===== main loop =====
     #--- trackers ---
@@ -212,9 +213,10 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         i_xraycheck_loop_start = 0
     else:
         i_xray_loop_start = 0 # where we start looking for annuli
-    records = []
+    
     profiler = Profiler()
 
+    z_edges = z_edges[1:] # Maybe fix this later
     z_iterator = range(len(z_edges)-1)
     if use_tqdm:
         from tqdm import tqdm
@@ -351,20 +353,11 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
                 raise ValueError('input_ionization.input_ionization has NaNs')
             if np.any(np.isnan(input_jalpha.input_jalpha)):
                 raise ValueError('input_jalpha.input_jalpha has NaNs')
-        perturbed_field = p21c.perturb_field(redshift=z_next, init_boxes=p21c_initial_conditions)    
+        perturbed_field = p21c.perturb_field(redshift=z_next, init_boxes=p21c_initial_conditions)
         input_heating, input_ionization, input_jalpha = gen_injection_boxes(z_next, p21c_initial_conditions)
         tf_wrapper.populate_injection_boxes(input_heating, input_ionization, input_jalpha)
-        if residual_T_k != 0. or residual_x_e != 0.: # hacky way to fix the initial conditions mismatch
-            print('residual_T_k', residual_T_k)
-            print('residual_x_e', residual_x_e)
-            print('1 input_heating', np.mean(input_heating.input_heating))
-            input_heating.input_heating += residual_T_k
-            input_ionization.input_ionization += residual_x_e
-            print('2 input_heating', np.mean(input_heating.input_heating))
-            residual_T_k = 0.
-            residual_x_e = 0.
         print('before', np.mean(spin_temp.Tk_box), np.mean(spin_temp.x_e_box))
-        print('3 input_heating', np.mean(input_heating.input_heating))
+        print('input_heating', np.mean(input_heating.input_heating))
         spin_temp, ionized_box, brightness_temp = p21c_step(
             perturbed_field, spin_temp, ionized_box,
             input_heating = input_heating,
@@ -373,7 +366,6 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
             astro_params=debug_astro_params
         )
         print('after', np.mean(spin_temp.Tk_box), np.mean(spin_temp.x_e_box))
-        return None
 
         profiler.record('21cmFAST')
         

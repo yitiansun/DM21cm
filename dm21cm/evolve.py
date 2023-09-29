@@ -42,6 +42,8 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
            debug_astro_params=None,
            debug_copy_dh_init=None,
            save_dir=None,
+           debug_dhc_DH_xe_func=None,
+           debug_dhc_delta_one=False,
            ):
     """
     Main evolution function.
@@ -72,6 +74,10 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
                 'xc-halfatten' : Xray check: half attenuation.
         debug_astro_params (AstroParams): AstroParams in p21c.
         debug_dont_use_dh_init (bool): Whether to not use DarkHistory initial conditions.
+        
+        DarkHistory checks:
+            debug_dhc_DH_xe_func (callable): Interpolating function to get x_e from DarkHistory.
+            debug_dhc_delta_one (bool): Whether to use delta = 1.
         
     Returns:
         dict: Dictionary of results.
@@ -170,7 +176,18 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         p21c.global_params.XION_at_Z_HEAT_MAX = x_e_DH_init
 
     perturbed_field = p21c.perturb_field(redshift=z_edges[0], init_boxes=p21c_initial_conditions)
-    spin_temp, ionized_box, brightness_temp = p21c_step(perturbed_field=perturbed_field, spin_temp=None, ionized_box=None, astro_params=debug_astro_params)
+    #===== TMP =====
+    initial_spin_temp = p21c.TsBox(
+        redshift=p21c.global_params.Z_HEAT_MAX,
+        user_params=p21c_initial_conditions.user_params,
+        cosmo_params=p21c_initial_conditions.cosmo_params,
+        astro_params=debug_astro_params,
+        flag_options=None,
+        initial=True,
+        random_seed=54321,
+    )
+    #===============
+    spin_temp, ionized_box, brightness_temp = p21c_step(perturbed_field=perturbed_field, spin_temp=initial_spin_temp, ionized_box=None, astro_params=debug_astro_params)
 
     if use_DH_init:
         residual_T_k = T_k_DH_init - np.mean(spin_temp.Tk_box)
@@ -193,8 +210,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
     if use_tqdm:
         from tqdm import tqdm
         z_iterator = tqdm(z_iterator)
-    else:
-        print_str = ''
+    print_str = ''
 
     #--- loop ---
     for i_z in z_iterator:
@@ -214,10 +230,18 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
             x_e_box = np.asarray(1 - ionized_box.xH_box)
         inj_per_Bavg_box = phys.inj_rate(rho_DM_box, dm_params) * dt * dm_params.struct_boost(1+z_current) / nBavg # [inj/Bavg]
         
+        if debug_dhc_DH_xe_func is not None:
+            x_e_box_tf = jnp.full_like(x_e_box, debug_dhc_DH_xe_func(z_current))
+        else:
+            x_e_box_tf = x_e_box
+        if debug_dhc_delta_one:
+            delta_plus_one_box_tf = jnp.ones_like(delta_plus_one_box)
+        else:
+            delta_plus_one_box_tf = delta_plus_one_box
         tf_wrapper.init_step(
             rs = 1 + z_current,
-            delta_plus_one_box = delta_plus_one_box,
-            x_e_box = x_e_box,
+            delta_plus_one_box = delta_plus_one_box_tf,
+            x_e_box = x_e_box_tf,
         )
         
         #===== photon injection and energy deposition =====
@@ -293,7 +317,8 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
                 # If we are smoothing on the scale of the box then dump to the global bath spectrum.
                 # The deposition will happen with `phot_bath_spec`, and we will not revisit this shell.
                 if is_box_average or 'uniform_xray' in debug_flags:
-                    phot_bath_spec.N += xray_brightness_box[0, 0, 0] * xray_spec.N # TMP: fix the [0,0,0]
+                    #phot_bath_spec.N += xray_brightness_box[0, 0, 0] * xray_spec.N # TMP: fix the [0,0,0]
+                    phot_bath_spec.N += xray_spec.N
                     i_xray_loop_start = max(i_z_shell+1, i_xray_loop_start)
                 else:
                     tf_wrapper.inject_phot(xray_spec, inject_type='xray', weight_box=xray_brightness_box)
@@ -320,12 +345,17 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         perturbed_field = p21c.perturb_field(redshift=z_next, init_boxes=p21c_initial_conditions)    
         input_heating, input_ionization, input_jalpha = gen_injection_boxes(z_next, p21c_initial_conditions)
         tf_wrapper.populate_injection_boxes(input_heating, input_ionization, input_jalpha)
-        if residual_T_k > 0. or residual_x_e > 0.: # hacky way to fix the initial conditions mismatch
+        if residual_T_k != 0. or residual_x_e != 0.: # hacky way to fix the initial conditions mismatch
+            print('residual_T_k', residual_T_k)
+            print('residual_x_e', residual_x_e)
+            print('1 input_heating', np.mean(input_heating.input_heating))
             input_heating.input_heating += residual_T_k
             input_ionization.input_ionization += residual_x_e
+            print('2 input_heating', np.mean(input_heating.input_heating))
             residual_T_k = 0.
             residual_x_e = 0.
-        
+        print('before', np.mean(spin_temp.Tk_box), np.mean(spin_temp.x_e_box))
+        print('3 input_heating', np.mean(input_heating.input_heating))
         spin_temp, ionized_box, brightness_temp = p21c_step(
             perturbed_field, spin_temp, ionized_box,
             input_heating = input_heating,
@@ -333,6 +363,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
             input_jalpha = input_jalpha,
             astro_params=debug_astro_params
         )
+        print('after', np.mean(spin_temp.Tk_box), np.mean(spin_temp.x_e_box))
 
         profiler.record('21cmFAST')
         
@@ -412,7 +443,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
 
         if not use_tqdm:
             print(print_str, flush=True)
-            print_str = ''
+        print_str = ''
         
     #===== end of loop, save results =====
     arr_records = {k: np.array([r[k] for r in records]) for k in records[0].keys()}

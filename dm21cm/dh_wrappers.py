@@ -44,9 +44,10 @@ class DarkHistoryWrapper:
             primary=self.dm_params.primary,
             sigmav=self.dm_params.sigmav, lifetime=self.dm_params.lifetime,
             struct_boost=self.dm_params.struct_boost,
-            start_rs=3000, end_rs=end_rs, coarsen_factor=12, verbose=1,
-            reion_switch=False
+            start_rs=3000, end_rs=end_rs, coarsen_factor=1, verbose=1,
+            reion_switch=False, debug=True
         )
+        logging.warning('DarkHistoryWrapper: Remember to change back debug and coarsen factor!')
         default_kwargs.update(kwargs)
         self.soln = evolve_DH(**default_kwargs)
         self.soln['dm_params'] = self.dm_params
@@ -62,6 +63,7 @@ class DarkHistoryWrapper:
         x_e_DH = np.interp(
             rs, self.soln['rs'][::-1], self.soln['x'][::-1, 0]
         ) # HII
+        print('get_init_cond', T_k_DH, x_e_DH)
         return T_k_DH, x_e_DH
 
     def match(self, spin_temp, ionized_box, match_list=['T_k', 'x_e']):

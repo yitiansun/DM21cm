@@ -177,17 +177,26 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
 
     perturbed_field = p21c.perturb_field(redshift=z_edges[0], init_boxes=p21c_initial_conditions)
     #===== TMP =====
-    initial_spin_temp = p21c.TsBox(
-        redshift=p21c.global_params.Z_HEAT_MAX,
-        user_params=p21c_initial_conditions.user_params,
-        cosmo_params=p21c_initial_conditions.cosmo_params,
-        astro_params=debug_astro_params,
-        flag_options=None,
-        initial=True,
-        random_seed=54321,
-    )
+    # initial_spin_temp = p21c.TsBox(
+    #     redshift=p21c.global_params.Z_HEAT_MAX,
+    #     user_params=p21c_initial_conditions.user_params,
+    #     cosmo_params=p21c_initial_conditions.cosmo_params,
+    #     astro_params=debug_astro_params,
+    #     flag_options=None,
+    #     initial=True,
+    #     random_seed=54321,
+    # )
+    # initial_spin_temp = p21c.spin_temperature(
+    #     redshift=z_edges[0],
+    #     user_params=p21c_initial_conditions.user_params,
+    #     cosmo_params=p21c_initial_conditions.cosmo_params,
+    #     astro_params=debug_astro_params,
+    #     flag_options=None,
+    #     random_seed=54321,
+    #     zprime_step_factor=1.0,
+    # )
     #===============
-    spin_temp, ionized_box, brightness_temp = p21c_step(perturbed_field=perturbed_field, spin_temp=initial_spin_temp, ionized_box=None, astro_params=debug_astro_params)
+    spin_temp, ionized_box, brightness_temp = p21c_step(perturbed_field=perturbed_field, spin_temp=None, ionized_box=None, astro_params=debug_astro_params)
 
     if use_DH_init:
         residual_T_k = T_k_DH_init - np.mean(spin_temp.Tk_box)
@@ -364,6 +373,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
             astro_params=debug_astro_params
         )
         print('after', np.mean(spin_temp.Tk_box), np.mean(spin_temp.x_e_box))
+        return None
 
         profiler.record('21cmFAST')
         

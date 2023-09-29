@@ -37,6 +37,8 @@ class DarkHistoryWrapper:
                 return self.soln
             else:
                 logging.warning('DarkHistoryWrapper: DMParams mismatch, rerunning.')
+                logging.warning('DarkHistoryWrapper: Overriding remember to turn off.')
+                return self.soln
         
         logging.info('DarkHistoryWrapper: Running DarkHistory to generate initial conditions...')
         default_kwargs = dict(
@@ -44,8 +46,8 @@ class DarkHistoryWrapper:
             primary=self.dm_params.primary,
             sigmav=self.dm_params.sigmav, lifetime=self.dm_params.lifetime,
             struct_boost=self.dm_params.struct_boost,
-            start_rs=3000, end_rs=end_rs, coarsen_factor=1, verbose=1,
-            reion_switch=False, debug=True
+            start_rs=3000, end_rs=end_rs, coarsen_factor=12, verbose=1,
+            reion_switch=False, debug=False
         )
         logging.warning('DarkHistoryWrapper: Remember to change back debug and coarsen factor!')
         default_kwargs.update(kwargs)

@@ -46,6 +46,8 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
            debug_dhc_delta_fixed=False,
            debug_no_bath=False,
            debug_use_tf_dt=False,
+           debug_bath_point_injection=False,
+           debug_break_after_z=None,
            ):
     """
     Main evolution function.
@@ -350,6 +352,15 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
             #--- bath and homogeneous portion of xray ---
             if debug_no_bath:
                 phot_bath_spec *= 0.
+            if debug_bath_point_injection:
+                if np.isclose(z_current, 37.713184, rtol=1e-3):
+                    logging.warning('Point injecting bath at z=37.713184')
+                    phot_bath_spec.N *= 0.
+                    phot_bath_spec.N[307] = 1e-6
+                    print(f'bath energy', phot_bath_spec.toteng())
+                    print(f'eng per inj', dm_params.inj_phot_spec.toteng())
+                    print(f'inj_per_Bavg', np.mean(inj_per_Bavg_box))
+                    print(f'inj eng', dm_params.inj_phot_spec.toteng() * np.mean(inj_per_Bavg_box))
             print_str += f' bath.toteng={phot_bath_spec.toteng():.3e} eV/Bavg'
             tf_wrapper.inject_phot(phot_bath_spec, inject_type='bath')
             
@@ -459,7 +470,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         profiler.record('prep_next')
 
         #===== compare f =====
-        f_point = tf_wrapper.phot_dep_tf.point_interp(rs=1+z_current, nBs=1.006, x=debug_dhc_DH_xe_func(z_current))
+        f_point = tf_wrapper.phot_dep_tf.point_interp(rs=1+z_current, nBs=1.006, x=np.mean(spin_temp.x_e_box))
         inj_N = dm_params.inj_phot_spec.N / dm_params.inj_phot_spec.toteng()
         print('----- DM21CM -----')
         print('z', z_current)
@@ -473,6 +484,8 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         if not use_tqdm:
             print(print_str, flush=True)
         print_str = ''
+        if debug_break_after_z is not None and z_current < debug_break_after_z:
+            break
         
     #===== end of loop, save results =====
     arr_records = {k: np.array([r[k] for r in records]) for k in records[0].keys()}

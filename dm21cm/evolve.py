@@ -43,7 +43,9 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
            debug_copy_dh_init=None,
            save_dir=None,
            debug_dhc_DH_xe_func=None,
-           debug_dhc_delta_one=False,
+           debug_dhc_delta_fixed=False,
+           debug_no_bath=False,
+           debug_use_tf_dt=False,
            ):
     """
     Main evolution function.
@@ -101,7 +103,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
     p21c.global_params.CLUMPING_FACTOR = 1.
     EPSILON = 1e-6
 
-    abscs = load_h5_dict(f'../data/abscissas/abscs_{tf_version}.h5')
+    abscs = load_h5_dict(f"{os.environ['DM21CM_DIR']}/data/abscissas/abscs_{tf_version}.h5")
     if not np.isclose(np.log(zplusone_step_factor), abscs['dlnz']):
         raise ValueError('zplusone_step_factor and tf_version mismatch')
     dm_params.set_inj_specs(abscs)
@@ -179,8 +181,10 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
     dh_wrapper.evolve(end_rs=(1+z_match)*0.9, rerun=rerun_DH)
     T_k_DH_init, x_e_DH_init = dh_wrapper.get_init_cond(rs=1+z_match)
     phot_bath_spec = dh_wrapper.get_phot_bath(rs=1+z_match)
-    logging.warning('Turning off bath, remember to turn back on')
-    phot_bath_spec *= 0.
+    #phot_bath_spec = Spectrum(abscs['photE'], np.zeros_like(abscs['photE']), spec_type='N', rs=1+z_match) # [ph / Bavg]
+    if debug_no_bath:
+        logging.warning('Turning off bath, remember to turn back on')
+        phot_bath_spec *= 0.
 
     perturbed_field = p21c.perturb_field(redshift=z_edges[1], init_boxes=p21c_initial_conditions)
     spin_temp, ionized_box, brightness_temp = p21c_step(perturbed_field=perturbed_field, spin_temp=None, ionized_box=None, astro_params=debug_astro_params)
@@ -223,6 +227,9 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         z_iterator = tqdm(z_iterator)
     print_str = ''
 
+    if debug_use_tf_dt:
+        dts = np.load(os.environ['DM21CM_DATA_DIR']+'/tf/zf01/phot/dt_rxneo.npy')
+
     #--- loop ---
     for i_z in z_iterator:
         print_str += f'i_z={i_z}/{len(z_edges)-1} z={z_edges[i_z]:.2f}'
@@ -230,6 +237,10 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         z_current = z_edges[i_z]
         z_next = z_edges[i_z+1]
         dt = ( cosmo.age(z_next) - cosmo.age(z_current) ).to('s').value
+        if debug_use_tf_dt:
+            dt_new = dt
+            dt = np.interp(1+z_current, abscs['rs'], dts[:,1])
+            print('dt', dt_new, dt)
         
         nBavg = phys.n_B * (1+z_current)**3 # [Bavg / (physical cm)^3]
         delta_plus_one_box = 1 + np.asarray(perturbed_field.density)
@@ -245,8 +256,8 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
             x_e_box_tf = jnp.full_like(x_e_box, debug_dhc_DH_xe_func(z_current))
         else:
             x_e_box_tf = x_e_box
-        if debug_dhc_delta_one:
-            delta_plus_one_box_tf = jnp.ones_like(delta_plus_one_box)
+        if debug_dhc_delta_fixed:
+            delta_plus_one_box_tf = jnp.full_like(delta_plus_one_box, 1.006)
         else:
             delta_plus_one_box_tf = delta_plus_one_box
         tf_wrapper.init_step(
@@ -337,6 +348,8 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
             profiler.record('xray')
 
             #--- bath and homogeneous portion of xray ---
+            if debug_no_bath:
+                phot_bath_spec *= 0.
             print_str += f' bath.toteng={phot_bath_spec.toteng():.3e} eV/Bavg'
             tf_wrapper.inject_phot(phot_bath_spec, inject_type='bath')
             
@@ -375,6 +388,8 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         emit_bath_N, emit_xray_N = split_xray(emit_phot_N, abscs['photE'])
         phot_bath_spec = Spectrum(abscs['photE'], prop_phot_N + emit_bath_N, rs=1+z_current, spec_type='N') # photons not emitted to the xray band are added to the bath (treated as uniform)
         phot_bath_spec.redshift(1+z_next)
+        if debug_no_bath:
+            phot_bath_spec *= 0.
 
         #--- xray ---
         if 'xraycheck' in debug_flags:
@@ -442,6 +457,18 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         records.append(record)
 
         profiler.record('prep_next')
+
+        #===== compare f =====
+        f_point = tf_wrapper.phot_dep_tf.point_interp(rs=1+z_current, nBs=1.006, x=debug_dhc_DH_xe_func(z_current))
+        inj_N = dm_params.inj_phot_spec.N / dm_params.inj_phot_spec.toteng()
+        print('----- DM21CM -----')
+        print('z', z_current)
+        print(np.dot(inj_N, f_point))
+        print(np.mean(tf_wrapper.dep_box[...,0])/ dE_inj_per_Bavg_unclustered)
+        print(np.mean(tf_wrapper.dep_box[...,1])/ dE_inj_per_Bavg_unclustered)
+        print(np.mean(tf_wrapper.dep_box[...,2])/ dE_inj_per_Bavg_unclustered)
+        print(np.mean(tf_wrapper.dep_box[...,3])/ dE_inj_per_Bavg_unclustered)
+        print('-----------------')
 
         if not use_tqdm:
             print(print_str, flush=True)

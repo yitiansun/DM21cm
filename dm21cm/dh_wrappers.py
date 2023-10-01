@@ -47,7 +47,11 @@ class DarkHistoryWrapper:
             sigmav=self.dm_params.sigmav, lifetime=self.dm_params.lifetime,
             struct_boost=self.dm_params.struct_boost,
             start_rs=3000, end_rs=end_rs, coarsen_factor=12, verbose=1,
-            reion_switch=False, debug=False
+            # use fake reionization to get case-A recomb. coeff.
+            reion_switch=True, reion_rs=46.,
+            photoion_rate_func=[lambda x: 0., lambda x: 0., lambda x: 0.],
+            photoheat_rate_func=[lambda x: 0., lambda x: 0., lambda x: 0.],
+            cross_check_21cmfast=True,
         )
         logging.warning('DarkHistoryWrapper: Remember to change back debug and coarsen factor!')
         default_kwargs.update(kwargs)

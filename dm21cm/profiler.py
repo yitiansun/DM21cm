@@ -1,12 +1,13 @@
 """Simple profiler for the evolve function."""
 
+import os
 import time
 import numpy as np
 from collections import OrderedDict
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-mpl.rc_file("../matplotlibrc")
+mpl.rc_file(f"{os.environ['DM21CM_DIR']}/matplotlibrc")
 
 
 class Profiler:

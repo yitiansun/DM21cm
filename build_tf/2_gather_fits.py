@@ -17,12 +17,12 @@ if __name__ == "__main__":
 
     #===== Config =====
     parser = argparse.ArgumentParser()
-    parser.add_argument('--run_name', type=str, required=True, help="run name")
-    parser.add_argument('--tf_type', type=str, required=True, help="phot or elec")
+    parser.add_argument('-n', '--name', type=str, help='run name')
+    parser.add_argument('-t', '--type', type=str, help="{'phot', 'elec'}")
     args = parser.parse_args()
 
-    run_name = args.run_name
-    tf_type = args.tf_type
+    run_name = args.name
+    tf_type = args.type
 
 
     #===== Initialize =====

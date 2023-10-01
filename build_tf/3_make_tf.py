@@ -77,6 +77,8 @@ if __name__ == '__main__':
 
     for i_rs, rs in enumerate(abscs['rs']):
         
+        if i_rs != 8:
+            continue
         #dt = dlnz / phys.hubble(rs)
         dt = dts[i_rs, 1] # (rs, step)
         
@@ -85,7 +87,11 @@ if __name__ == '__main__':
         cmb_un_E = cmb_un.toteng()
         
         for i_x, x in enumerate(abscs['x']):
+            if i_x != 3:
+                continue
             for i_nBs, nBs in enumerate(abscs['nBs']):
+                if i_nBs != 6:
+                    continue
                 for i in range(len(inj_abscs)):
                     cmb_E = cmbloss_gv[i_rs, i_x, i_nBs][i]# * dt # now [eV/Bavg]
                     hep_tfgv[i_rs, i_x, i_nBs][i] += (-cmb_E/cmb_un_E) * cmb_un.N
@@ -100,6 +106,9 @@ if __name__ == '__main__':
                         lep_tfgv[i_rs, i_x, i_nBs][i][i] = 1.
                 
                 for i_injE, injE in enumerate(inj_abscs):
+
+                    if i_injE != 429:
+                        continue
                     
                     assert n_run <= stop_after_n
                     n_run += 1
@@ -142,6 +151,9 @@ if __name__ == '__main__':
                         ion_old=False
                     )
                     f_raw = f_low + f_high
+
+                    print(f_low)
+                    print(f_high)
 
                     #===== Compute tf & f values =====
                     lep_prop_spec_N = lep_spec_N * (abscs['photE'] < 10.2)
@@ -188,5 +200,5 @@ if __name__ == '__main__':
                     pbar.update()
 
     #===== Save =====
-    np.save(f'{save_dir}/{tf_type}_tfgv.npy', tfgv)
-    np.save(f'{save_dir}/{tf_type}_depgv.npy', depgv)
+    # np.save(f'{save_dir}/{tf_type}_tfgv.npy', tfgv)
+    # np.save(f'{save_dir}/{tf_type}_depgv.npy', depgv)

@@ -21,7 +21,7 @@ def save_aad(filename, axes, axes_abscs_keys, data):
 if __name__ == '__main__':
 
     #===== config =====
-    run_name = 'zf003'
+    run_name = 'zf01'
     make_list = ['phot_phot', 'phot_dep', 'elec_phot', 'elec_dep'] # {phot_phot, phot_dep, elec_phot, elec_dep}
 
     abscs = load_h5_dict(f"../data/abscissas/abscs_{run_name}.h5")

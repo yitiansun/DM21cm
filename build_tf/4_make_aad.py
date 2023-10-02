@@ -1,5 +1,6 @@
 import os
 import sys
+import argparse
 import h5py
 import numpy as np
 
@@ -21,7 +22,11 @@ def save_aad(filename, axes, axes_abscs_keys, data):
 if __name__ == '__main__':
 
     #===== config =====
-    run_name = 'zf01'
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-n', '--name', type=str, help='run name')
+    args = parser.parse_args()
+
+    run_name = args.name
     make_list = ['phot_phot', 'phot_dep', 'elec_phot', 'elec_dep'] # {phot_phot, phot_dep, elec_phot, elec_dep}
 
     abscs = load_h5_dict(f"../data/abscissas/abscs_{run_name}.h5")
@@ -82,20 +87,6 @@ if __name__ == '__main__':
 
         del phot_tfgv_rxneo, phot_phot, phot_prop, phot_prop_diag, phot_scat
 
-    #===== elec -> phot =====
-    if 'elec_phot' in make_list:
-        print('elec_phot', end=' ', flush=True)
-        elec_tfgv_rxneo = np.load(f'{data_dir}/elec/elec_tfgv.npy')
-        elec_scat = np.einsum('rxneo -> renxo', elec_tfgv_rxneo)
-        save_aad(
-            f"{save_dir}/elec_scat.h5",
-            ['rs', 'Ein', 'nBs', 'x', 'out'],
-            ['rs', 'elecEk', 'nBs', 'x', 'photE'],
-            elec_scat
-        )
-
-        del elec_tfgv_rxneo, elec_scat
-
     #===== phot -> dep =====
     if 'phot_dep' in make_list:
         print('phot_dep', end=' ', flush=True)
@@ -110,6 +101,20 @@ if __name__ == '__main__':
         )
 
         del phot_depgv, phot_dep_Nf, phot_dep_NE
+
+    #===== elec -> phot =====
+    if 'elec_phot' in make_list:
+        print('elec_phot', end=' ', flush=True)
+        elec_tfgv_rxneo = np.load(f'{data_dir}/elec/elec_tfgv.npy')
+        elec_scat = np.einsum('rxneo -> renxo', elec_tfgv_rxneo)
+        save_aad(
+            f"{save_dir}/elec_scat.h5",
+            ['rs', 'Ein', 'nBs', 'x', 'out'],
+            ['rs', 'elecEk', 'nBs', 'x', 'photE'],
+            elec_scat
+        )
+
+        del elec_tfgv_rxneo, elec_scat
 
     #===== elec -> dep =====
     if 'elec_dep' in make_list:

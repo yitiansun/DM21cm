@@ -77,28 +77,20 @@ if __name__ == '__main__':
 
     for i_rs, rs in enumerate(abscs['rs']):
         
-        if i_rs != 8:
-            continue
-        #dt = dlnz / phys.hubble(rs)
-        dt = dts[i_rs, 1] # (rs, step)
+        #dt = dlnz / phys.hubble(rs) # DH dt
+        dt = dts[i_rs, 1] # (rs, step) # IDL dt
         
         #===== Add cmbloss to highengphot =====
         cmb_un = spectools.discretize(abscs['photE'], phys.CMB_spec, phys.TCMB(rs))
         cmb_un_E = cmb_un.toteng()
         
         for i_x, x in enumerate(abscs['x']):
-            if i_x != 3:
-                continue
             for i_nBs, nBs in enumerate(abscs['nBs']):
-                if i_nBs != 6:
-                    continue
                 for i in range(len(inj_abscs)):
                     cmb_E = cmbloss_gv[i_rs, i_x, i_nBs][i]# * dt # now [eV/Bavg]
                     hep_tfgv[i_rs, i_x, i_nBs][i] += (-cmb_E/cmb_un_E) * cmb_un.N
 
                 #===== Add lowengphot diagonal =====
-                if nBs == 0: # lowengphot is 0 when nBs is 0
-                    raise NotImplementedError
                 if tf_type == 'phot':
                     for i in range(len(inj_abscs)):
                         if lep_tfgv[i_rs, i_x, i_nBs][i][i] > 1e-40:
@@ -106,9 +98,6 @@ if __name__ == '__main__':
                         lep_tfgv[i_rs, i_x, i_nBs][i][i] = 1.
                 
                 for i_injE, injE in enumerate(inj_abscs):
-
-                    if i_injE != 429:
-                        continue
                     
                     assert n_run <= stop_after_n
                     n_run += 1
@@ -152,9 +141,6 @@ if __name__ == '__main__':
                     )
                     f_raw = f_low + f_high
 
-                    print(f_low)
-                    print(f_high)
-
                     #===== Compute tf & f values =====
                     lep_prop_spec_N = lep_spec_N * (abscs['photE'] < 10.2)
                     f_lep_prop = np.dot(abscs['photE'], lep_prop_spec_N) / injE
@@ -178,9 +164,10 @@ if __name__ == '__main__':
                     #===== Energy conservation =====
                     f_dep_str = ' '.join([f'{v:.3e}' for v in f_dep])
                     print_str = f'{n_run} | {i_rs} {i_x} {i_nBs} {i_injE} | f_prop={f_prop:.6f} f_dep={f_dep_str} f_tot={f_tot:.6f}'
-                    if np.abs(f_tot - 1.) > 1e-2:
-                        print_str += ' | Energy error > 1%'
-                    if verbose >= 1 or np.abs(f_tot - 1.) > 1e-2:
+                    energy_conservation_threshold = 1e-4
+                    if np.abs(f_tot - 1.) > energy_conservation_threshold:
+                        print_str += f' | Energy error > {energy_conservation_threshold}'
+                    if verbose >= 1 or np.abs(f_tot - 1.) > energy_conservation_threshold:
                         print(print_str, flush=True)
                     
                     phot_spec_N[i_injE] += 1 - f_tot # gives all extra energy to propagating photons
@@ -200,5 +187,5 @@ if __name__ == '__main__':
                     pbar.update()
 
     #===== Save =====
-    # np.save(f'{save_dir}/{tf_type}_tfgv.npy', tfgv)
-    # np.save(f'{save_dir}/{tf_type}_depgv.npy', depgv)
+    np.save(f'{save_dir}/{tf_type}_tfgv.npy', tfgv)
+    np.save(f'{save_dir}/{tf_type}_depgv.npy', depgv)

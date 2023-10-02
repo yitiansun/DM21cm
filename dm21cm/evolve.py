@@ -48,6 +48,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
            debug_use_tf_dt=False,
            debug_bath_point_injection=False,
            debug_break_after_z=None,
+           dh_bath_N_interp_func=None,
            ):
     """
     Main evolution function.
@@ -230,7 +231,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
     print_str = ''
 
     if debug_use_tf_dt:
-        dts = np.load(os.environ['DM21CM_DATA_DIR']+'/tf/zf01/phot/dt_rxneo.npy')
+        dts = np.load(os.environ['DM21CM_DATA_DIR']+f'/tf/{tf_version}/phot/dt_rxneo.npy')
 
     #--- loop ---
     for i_z in z_iterator:
@@ -240,7 +241,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         z_next = z_edges[i_z+1]
         dt = ( cosmo.age(z_next) - cosmo.age(z_current) ).to('s').value
         if debug_use_tf_dt:
-            dt_new = dt
+            dt_new = dt # cosmo.age
             dt = np.interp(1+z_current, abscs['rs'], dts[:,1])
             print('dt', dt_new, dt)
         
@@ -353,14 +354,19 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
             if debug_no_bath:
                 phot_bath_spec *= 0.
             if debug_bath_point_injection:
-                if np.isclose(z_current, 37.713184, rtol=1e-3):
-                    logging.warning('Point injecting bath at z=37.713184')
+                #if np.isclose(z_current, 37.713184, rtol=1e-3): # 38.713184 test
+                if np.isclose(z_current, 4.530668e+01, rtol=1e-3):
+                    logging.warning(f'Point injecting bath at z={z_current} ---------------------')
                     phot_bath_spec.N *= 0.
-                    phot_bath_spec.N[307] = 1e-6
+                    phot_bath_spec.N[407] = 1e-5
                     print(f'bath energy', phot_bath_spec.toteng())
                     print(f'eng per inj', dm_params.inj_phot_spec.toteng())
                     print(f'inj_per_Bavg', np.mean(inj_per_Bavg_box))
                     print(f'inj eng', dm_params.inj_phot_spec.toteng() * np.mean(inj_per_Bavg_box))
+                    print(np.where(phot_bath_spec.N > 0))
+                    print(np.where(dm_params.inj_phot_spec.N > 0))
+            if dh_bath_N_interp_func is not None:
+                phot_bath_spec.N = dh_bath_N_interp_func(z_current)
             print_str += f' bath.toteng={phot_bath_spec.toteng():.3e} eV/Bavg'
             tf_wrapper.inject_phot(phot_bath_spec, inject_type='bath')
             

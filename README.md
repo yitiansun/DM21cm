@@ -2,6 +2,9 @@
 
 ![plot](notebooks/plots/DH.gif)
 
+## Assumptions
+ - Currently using tf's `dt` everywhere.
+
 ## Debug deconstructor
  - [ ] Remove `xraycheck`
  - [ ] Restore commented out code near line 1960 in SpinTemperatureBox.c

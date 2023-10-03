@@ -49,6 +49,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
            debug_bath_point_injection=False,
            debug_break_after_z=None,
            dh_bath_N_interp_func=None,
+           debug_no_helium=False,
            ):
     """
     Main evolution function.
@@ -105,6 +106,8 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
     p21c.global_params.ZPRIME_STEP_FACTOR = zplusone_step_factor
     p21c.global_params.CLUMPING_FACTOR = 1.
     EPSILON = 1e-6
+    if debug_no_helium:
+        p21c.global_params.Y_He = 1e-6
 
     abscs = load_h5_dict(f"{os.environ['DM21CM_DIR']}/data/abscissas/abscs_{tf_version}.h5")
     if not np.isclose(np.log(zplusone_step_factor), abscs['dlnz']):

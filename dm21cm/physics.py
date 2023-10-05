@@ -2,6 +2,7 @@
 
 import os
 import sys
+import logging
 import numpy as np
 from astropy.cosmology import Planck18 as cosmo
 from astropy import constants as const
@@ -65,6 +66,8 @@ n_B          = rho_baryon/m_p
 """ Baryon number density in cm\ :sup:`-3`\ ."""
 
 Y_He         = 0.245
+#Y_He         = 1e-6
+#logging.warning("We dont have Helium now")
 """Helium abundance by mass."""
 n_H          = (1-Y_He) * n_B
 """ Atomic hydrogen number density in cm\ :sup:`-3`\ ."""
@@ -74,6 +77,8 @@ n_A          = n_H + n_He
 """ Hydrogen and helium number density in cm\ :sup:`-3`\ .""" 
 chi          = n_He / n_H
 """Ratio of helium to hydrogen nuclei."""
+A_per_B      = n_A / n_B
+"""Ratio of all nuclei to baryons."""
 
 
 #===== Cosmology =====

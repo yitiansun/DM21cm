@@ -1,5 +1,4 @@
 import sys
-import argparse
 
 from astropy.cosmology import Planck18
 import py21cmfast as p21c
@@ -11,14 +10,8 @@ from dm21cm.evolve import evolve
 
 if __name__ == '__main__':
 
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument('-m', type=float, default=1.)
-    # args = parser.parse_args()
-
-    # print(f"Running m={args.m}...")
-
     return_dict = evolve(
-        run_name = f'xc_ours_sfr0926-2_noatten',
+        run_name = f'xc_test',
         z_start = 45.,
         z_end = 5.,
         zplusone_step_factor = 1.01,
@@ -30,7 +23,7 @@ if __name__ == '__main__':
             struct_boost_model='erfc 1e-3',
         ),
         enable_elec = False,
-        tf_version = '230629xc',
+        tf_version = 'zf01',
         
         p21c_initial_conditions = p21c.initial_conditions(
             user_params = p21c.UserParams(
@@ -43,6 +36,7 @@ if __name__ == '__main__':
                 OMb = Planck18.Ob0,
                 POWER_INDEX = Planck18.meta['n'],
                 SIGMA_8 = Planck18.meta['sigma8'],
+                #SIGMA_8 = 1e-6,
                 hlittle = Planck18.h,
             ),
             random_seed = 54321,
@@ -52,11 +46,14 @@ if __name__ == '__main__':
         rerun_DH = False,
         clear_cache = True,
         use_tqdm = False,
-        debug_flags = ['xraycheck', 'xc-noatten'],
+        #debug_flags = ['xraycheck', 'xc-noatten'], # our xray
+        debug_flags = [], # 21cmfast xray
         debug_xray_multiplier = 1.,
         debug_astro_params = p21c.AstroParams(
-            L_X = 0. # log10 value
+            L_X = 40. # log10 value
         ),
-        debug_copy_dh_init = 'xc_base',
-        debug_dont_use_dh_init = True,
+        use_DH_init = False,
+        custom_YHe = 0.245,
+        coarsen_interp_factor = None,
+        debug_turn_off_pop2ion = False,
     )

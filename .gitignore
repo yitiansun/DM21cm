@@ -10,6 +10,8 @@ outputs/slurm
 cross_check/ionhist_outputs/
 cross_check/run_info/
 **/slurm_outputs/
+scripts/*.txt
+scripts/*.out
 
 **/__pycache__/
 #------------------------

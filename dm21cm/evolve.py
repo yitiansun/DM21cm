@@ -40,16 +40,16 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
            debug_flags=[],
            debug_xray_multiplier=1.,
            debug_astro_params=None,
-           debug_copy_dh_init=None,
            save_dir=None,
            debug_dhc_DH_xe_func=None,
            debug_dhc_delta_fixed=False,
            debug_no_bath=False,
-           debug_use_tf_dt=False,
            debug_bath_point_injection=False,
            debug_break_after_z=None,
            dh_bath_N_interp_func=None,
-           debug_no_helium=False,
+           custom_YHe=None,
+           coarsen_interp_factor=None,
+           debug_turn_off_pop2ion=False,
            ):
     """
     Main evolution function.
@@ -79,7 +79,6 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
                 'xc-noatten' : Xray check: no attenuation.
                 'xc-halfatten' : Xray check: half attenuation.
         debug_astro_params (AstroParams): AstroParams in p21c.
-        debug_dont_use_dh_init (bool): Whether to not use DarkHistory initial conditions.
         
         DarkHistory checks:
             debug_dhc_DH_xe_func (callable): Interpolating function to get x_e from DarkHistory.
@@ -106,8 +105,10 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
     p21c.global_params.ZPRIME_STEP_FACTOR = zplusone_step_factor
     p21c.global_params.CLUMPING_FACTOR = 1.
     EPSILON = 1e-6
-    if debug_no_helium:
-        p21c.global_params.Y_He = 1e-6
+    if custom_YHe is not None:
+        p21c.global_params.Y_He = custom_YHe
+    if debug_turn_off_pop2ion:
+        p21c.global_params.Pop2_ion = 0.
 
     abscs = load_h5_dict(f"{os.environ['DM21CM_DIR']}/data/abscissas/abscs_{tf_version}.h5")
     if not np.isclose(np.log(zplusone_step_factor), abscs['dlnz']):
@@ -149,6 +150,16 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         cond_sfrd_table = res_dict['Cond_SFRD_Table']
         st_sfrd_table =  res_dict['ST_SFRD_Table']
 
+        if coarsen_interp_factor is not None:
+            c = coarsen_interp_factor
+            z_range = np.concatenate([z_range[::c], z_range[-1:]])
+            delta_range = np.concatenate([delta_range[::c], delta_range[-1:]])
+            r_range = np.concatenate([r_range[::c], r_range[-1:]])
+            cond_sfrd_table = np.concatenate([cond_sfrd_table[::c, :, :], cond_sfrd_table[-1:, :, :]], axis=0)
+            cond_sfrd_table = np.concatenate([cond_sfrd_table[:, ::c, :], cond_sfrd_table[:, -1:, :]], axis=1)
+            cond_sfrd_table = np.concatenate([cond_sfrd_table[:, :, ::c], cond_sfrd_table[:, :, -1:]], axis=2)
+            st_sfrd_table = np.concatenate([st_sfrd_table[::c], st_sfrd_table[-1:]])
+
         # Takes the redshift as `z`
         # The overdensity parameter smoothed on scale `R`
         # The smoothing scale `R` in units of Mpc
@@ -163,9 +174,6 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
     z_edges = get_z_edges(z_start, z_end, p21c.global_params.ZPRIME_STEP_FACTOR)
 
     #===== initial steps =====
-    if not use_DH_init:
-        raise NotImplementedError
-    
     dh_wrapper = DarkHistoryWrapper(
         dm_params,
         prefix = p21c.config[f'direc'],
@@ -184,19 +192,22 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
     # - global_params.XION_at_Z_HEAT_MAX is not set correctly (it is probably set and evolved for a step)
     # - first step ignores any values added to spin_temp.Tk_box and spin_temp.x_e_box
     z_match = z_edges[1]
-    dh_wrapper.evolve(end_rs=(1+z_match)*0.9, rerun=rerun_DH)
-    T_k_DH_init, x_e_DH_init = dh_wrapper.get_init_cond(rs=1+z_match)
-    phot_bath_spec = dh_wrapper.get_phot_bath(rs=1+z_match)
-    #phot_bath_spec = Spectrum(abscs['photE'], np.zeros_like(abscs['photE']), spec_type='N', rs=1+z_match) # [ph / Bavg]
+    if use_DH_init:
+        dh_wrapper.evolve(end_rs=(1+z_match)*0.9, rerun=rerun_DH)
+        T_k_DH_init, x_e_DH_init = dh_wrapper.get_init_cond(rs=1+z_match)
+        phot_bath_spec = dh_wrapper.get_phot_bath(rs=1+z_match)
+    else:
+        phot_bath_spec = Spectrum(abscs['photE'], np.zeros_like(abscs['photE']), spec_type='N', rs=1+z_match) # [ph / Bavg]
     if debug_no_bath:
         logging.warning('Turning off bath, remember to turn back on')
         phot_bath_spec *= 0.
 
     perturbed_field = p21c.perturb_field(redshift=z_edges[1], init_boxes=p21c_initial_conditions)
     spin_temp, ionized_box, brightness_temp = p21c_step(perturbed_field=perturbed_field, spin_temp=None, ionized_box=None, astro_params=debug_astro_params)
-    spin_temp.Tk_box += T_k_DH_init - np.mean(spin_temp.Tk_box)
-    spin_temp.x_e_box += x_e_DH_init - np.mean(spin_temp.x_e_box)
-    ionized_box.xH_box = 1 - spin_temp.x_e_box
+    if use_DH_init:
+        spin_temp.Tk_box += T_k_DH_init - np.mean(spin_temp.Tk_box)
+        spin_temp.x_e_box += x_e_DH_init - np.mean(spin_temp.x_e_box)
+        ionized_box.xH_box = 1 - spin_temp.x_e_box
 
     records = []
     record = {
@@ -233,20 +244,17 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         z_iterator = tqdm(z_iterator)
     print_str = ''
 
-    if debug_use_tf_dt:
-        dts = np.load(os.environ['DM21CM_DATA_DIR']+f'/tf/{tf_version}/phot/dt_rxneo.npy')
+    dts = np.load(os.environ['DM21CM_DATA_DIR']+f'/tf/{tf_version}/phot/dt_rxneo.npy')
 
     #--- loop ---
     for i_z in z_iterator:
-        print_str += f'i_z={i_z}/{len(z_edges)-1} z={z_edges[i_z]:.2f}'
+        print(f'i_z={i_z}/{len(z_edges)-2} z={z_edges[i_z]:.2f}', file=sys.stderr, flush=True)
+        print_str += f'i_z={i_z}/{len(z_edges)-2} z={z_edges[i_z]:.2f}'
 
         z_current = z_edges[i_z]
         z_next = z_edges[i_z+1]
-        dt = ( cosmo.age(z_next) - cosmo.age(z_current) ).to('s').value
-        if debug_use_tf_dt:
-            dt_new = dt # cosmo.age
-            dt = np.interp(1+z_current, abscs['rs'], dts[:,1])
-            print('dt', dt_new, dt)
+        # dt = ( cosmo.age(z_next) - cosmo.age(z_current) ).to('s').value # cosmo
+        dt = np.interp(1+z_current, abscs['rs'], dts[:,1])
         
         nBavg = phys.n_B * (1+z_current)**3 # [Bavg / (physical cm)^3]
         delta_plus_one_box = 1 + np.asarray(perturbed_field.density)
@@ -389,8 +397,8 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         perturbed_field = p21c.perturb_field(redshift=z_next, init_boxes=p21c_initial_conditions)
         input_heating, input_ionization, input_jalpha = gen_injection_boxes(z_next, p21c_initial_conditions)
         tf_wrapper.populate_injection_boxes(input_heating, input_ionization, input_jalpha)
-        print('before', np.mean(spin_temp.Tk_box), np.mean(spin_temp.x_e_box))
-        print('input_heating', np.mean(input_heating.input_heating))
+        print('before', np.mean(spin_temp.Tk_box), np.mean(spin_temp.x_e_box), flush=True)
+        print('input_heating', np.mean(input_heating.input_heating), flush=True)
         spin_temp, ionized_box, brightness_temp = p21c_step(
             perturbed_field, spin_temp, ionized_box,
             input_heating = input_heating,
@@ -398,7 +406,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
             input_jalpha = input_jalpha,
             astro_params=debug_astro_params
         )
-        print('after', np.mean(spin_temp.Tk_box), np.mean(spin_temp.x_e_box))
+        print('after', np.mean(spin_temp.Tk_box), np.mean(spin_temp.x_e_box), flush=True)
 
         profiler.record('21cmFAST')
         
@@ -484,11 +492,10 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         print('----- DM21CM -----')
         print('z', z_current)
         print(np.dot(inj_N, f_point))
-        print(np.mean(tf_wrapper.dep_box[...,0])/ dE_inj_per_Bavg_unclustered)
-        print(np.mean(tf_wrapper.dep_box[...,1])/ dE_inj_per_Bavg_unclustered)
-        print(np.mean(tf_wrapper.dep_box[...,2])/ dE_inj_per_Bavg_unclustered)
-        print(np.mean(tf_wrapper.dep_box[...,3])/ dE_inj_per_Bavg_unclustered)
-        print('-----------------')
+        print(np.mean(tf_wrapper.dep_box[...,0]) / phys.A_per_B, 'eV/A')
+        print((np.mean(tf_wrapper.dep_box[...,1]) + np.mean(tf_wrapper.dep_box[...,2])) / phys.A_per_B, 'eV/A')
+        print(np.mean(tf_wrapper.dep_box[...,3]) / phys.A_per_B, 'eV/A')
+        print('-----------------', flush=True)
 
         if not use_tqdm:
             print(print_str, flush=True)

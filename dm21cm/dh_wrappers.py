@@ -229,16 +229,16 @@ class TransferFunctionWrapper:
     def populate_injection_boxes(self, input_heating, input_ionization, input_jalpha):
         
         input_heating.input_heating += np.array(
-            2 / (3*phys.kB*(1+self.params['x_e_box'])) * self.dep_box[...,3] / self.params['nBs_box']
-        ) # [K/Bavg] / [B/Bavg] = [K/B]
+            2 / (3*phys.kB*(1+self.params['x_e_box'])) * self.dep_box[...,3] / self.params['nBs_box'] / phys.A_per_B
+        ) # [K/Bavg] / [B/Bavg] / [A/B] = [K/A]
     
         input_ionization.input_ionization += np.array(
-            (self.dep_box[...,0] + self.dep_box[...,1]) / phys.rydberg / self.params['nBs_box']
-        ) # [1/Bavg] / [B/Bavg] = [1/B]
+            (self.dep_box[...,0] + self.dep_box[...,1]) / phys.rydberg / self.params['nBs_box'] / phys.A_per_B
+        ) # [1/Bavg] / [B/Bavg] / [A/B] = [1/A]
 
         nBavg = phys.n_B * self.params['rs']**3 # [Bavg / cm^3]
         n_lya = self.dep_box[...,2] * nBavg / phys.lya_eng # [lya cm^-3]
-        dnu_lya = (phys.rydberg - phys.lya_eng) / (2*np.pi*phys.hbar) # [Hz^-1]
+        dnu_lya = (phys.rydberg - phys.lya_eng) / (2*np.pi*phys.hbar) # [Hz]
         J_lya = n_lya * phys.c / (4*np.pi) / dnu_lya # [lya cm^-2 s^-1 sr^-1 Hz^-1]
         input_jalpha.input_jalpha += np.array(J_lya)
 

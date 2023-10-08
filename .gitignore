@@ -5,10 +5,10 @@ data/tf/
 data/run_info/**
 notebooks/plots/tmp
 **/.DS_Store
-outputs/tmp
-outputs/slurm
+outputs/
 cross_check/ionhist_outputs/
 cross_check/run_info/
+cross_check/xray/*.pdf
 **/slurm_outputs/
 scripts/*.txt
 scripts/*.out

@@ -1,3 +1,4 @@
+import os
 import sys
 
 from astropy.cosmology import Planck18
@@ -7,20 +8,21 @@ sys.path.append("..")
 from dm21cm.dm_params import DMParams
 from dm21cm.evolve import evolve
 
+WDIR = os.environ['DM21CM_DIR']
+
 
 if __name__ == '__main__':
 
     return_dict = evolve(
-        run_name = f'xc_test',
+        run_name = f'xc_phph_noLX_nos8_noHe_nosp',
         z_start = 45.,
         z_end = 5.,
         zplusone_step_factor = 1.01,
         dm_params = DMParams(
-            mode='swave',
+            mode='decay',
             primary='phot_delta',
-            m_DM=1e0,
-            sigmav=1e-50,
-            struct_boost_model='erfc 1e-3',
+            m_DM=1e10, # [eV]
+            lifetime=1e25, # [s]
         ),
         enable_elec = False,
         tf_version = 'zf01',
@@ -35,8 +37,8 @@ if __name__ == '__main__':
                 OMm = Planck18.Om0,
                 OMb = Planck18.Ob0,
                 POWER_INDEX = Planck18.meta['n'],
-                SIGMA_8 = Planck18.meta['sigma8'],
-                #SIGMA_8 = 1e-6,
+                #SIGMA_8 = Planck18.meta['sigma8'],
+                SIGMA_8 = 1e-6,
                 hlittle = Planck18.h,
             ),
             random_seed = 54321,
@@ -46,14 +48,12 @@ if __name__ == '__main__':
         rerun_DH = False,
         clear_cache = True,
         use_tqdm = False,
+        debug_flags = ['uniform_xray'], # homogeneous injection
         #debug_flags = ['xraycheck', 'xc-noatten'], # our xray
-        debug_flags = [], # 21cmfast xray
-        debug_xray_multiplier = 1.,
-        debug_astro_params = p21c.AstroParams(
-            L_X = 40. # log10 value
-        ),
-        use_DH_init = False,
-        custom_YHe = 0.245,
-        coarsen_interp_factor = None,
+        debug_astro_params = p21c.AstroParams(L_X = 0.), # log10 value
+        use_DH_init = True,
+        custom_YHe = 1e-6, # 0.245
         debug_turn_off_pop2ion = False,
+        debug_even_split_f = False,
+        debug_copy_dh_init = f"{WDIR}/outputs/dh/xc_phph_noHe_soln.p"
     )

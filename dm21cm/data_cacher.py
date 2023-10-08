@@ -223,6 +223,6 @@ class BrightnessCache:
         box_index = np.argmin(np.abs(self.z_s - z))
 
         with h5py.File(self.data_path, 'r') as archive:
-            box = np.array(archive['Box_' + str(box_index)], dtype = complex)
+            box = jnp.array(archive['Box_' + str(box_index)], dtype=jnp.complex64)
         
         return box

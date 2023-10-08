@@ -14,17 +14,17 @@ WDIR = os.environ['DM21CM_DIR']
 if __name__ == '__main__':
 
     return_dict = evolve(
-        run_name = f'xc_xrayAllBath_noLX_nos8_noHe_nosp',
+        run_name = f'xc_ee_noLX_nos8_noHe_nosp',
         z_start = 45.,
         z_end = 5.,
         zplusone_step_factor = 1.01,
         dm_params = DMParams(
             mode='decay',
-            primary='phot_delta',
+            primary='elec_delta',
             m_DM=1e8, # [eV]
-            lifetime=1e50, # [s]
+            lifetime=1e26, # [s]
         ),
-        enable_elec = False,
+        enable_elec = True,
         tf_version = 'zf01',
         
         p21c_initial_conditions = p21c.initial_conditions(
@@ -51,11 +51,11 @@ if __name__ == '__main__':
         #debug_flags = ['uniform_xray'], # homogeneous injection
         #debug_flags = ['xraycheck', 'xc-noatten'], # our xray noatten to compare with 21cmfast
         #debug_flags = ['xraycheck'], # our xray ST compare with DH
-        debug_flags = ['xraycheck', 'xc-bath', 'xc-force-bath'], # our xray ST forced to bath compare with DH
+        #debug_flags = ['xraycheck', 'xc-bath', 'xc-force-bath'], # our xray ST forced to bath compare with DH
         debug_astro_params = p21c.AstroParams(L_X = 0.), # log10 value
         use_DH_init = True,
         custom_YHe = 1e-6, # 0.245
         debug_turn_off_pop2ion = False,
         debug_even_split_f = False,
-        debug_copy_dh_init = f"{WDIR}/outputs/dh/xc_xrayST_noHe_soln.p"
+        debug_copy_dh_init = f"{WDIR}/outputs/dh/xc_ee_noHe_soln.p"
     )

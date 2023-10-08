@@ -297,7 +297,8 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
                     i_xraycheck_loop_start = i_z # all goes into uniform injection
                 for i_z_shell in range(i_xraycheck_loop_start): # uniform injection
                     z_shell = z_edges[i_z_shell]
-                    shell_N = delta_cacher.spectrum_cache.get_spectrum(z_shell).N # [ph / Msun]
+                    shell_N = np.array(delta_cacher.spectrum_cache.get_spectrum(z_shell).N) # [ph / Msun]
+                    print(f'XCBATH-DEBUG: BATH i_z={i_z} i_shell={i_z_shell}, raw {np.dot(shell_N, abscs["photE"]):.3e} eV/Msun')
 
                     delta_unif = 0. # just a number
                     emissivity_bracket_unif = Cond_SFRD_Interpolator((z_shell, delta_unif, 512.-EPSILON)) # [Msun / Mpc^3 s]
@@ -307,6 +308,8 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
                     emissivity_bracket_unif *= L_X_numerical_factor * debug_xray_multiplier # [Msun / Bavg]
                     shell_N *= emissivity_bracket_unif # [ph / Bavg]
                     xraycheck_bath_N += shell_N # put in bath
+
+                    print(f'XCBATH-DEBUG: BATH i_z={i_z} i_shell={i_z_shell}, inject {np.dot(shell_N, abscs["photE"]):.3e} eV/Bavg')
 
                 L_X_bath_spec = Spectrum(abscs['photE'], xraycheck_bath_N, spec_type='N', rs=1+z_current) # [counts / (keV Msun)]
                 weight = jnp.ones_like(delta_plus_one_box)
@@ -325,6 +328,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
                 delta, L_X_spec, xraycheck_is_box_average, z_donor, R2 = delta_cacher.get_annulus_data(
                     z_current, z_edges[i_z_shell], z_edges[i_z_shell+1]
                 )
+                print(f'XCBATH-DEBUG: SHELL i_z={i_z} i_shell={i_z_shell}, raw {np.dot(L_X_spec.N, abscs["photE"]):.3e} eV/Msun')
                 delta = np.clip(delta, -1.0+EPSILON, 1.5-EPSILON)
                 delta = np.array(delta)
                 print_str += f' {np.mean(delta):.3f}'
@@ -343,6 +347,8 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
                 else:
                     L_X_spec_inj = L_X_spec
                 
+                print(f'XCBATH-DEBUG: SHELL i_z={i_z} i_shell={i_z_shell}, inject {np.mean(emissivity_bracket)*np.dot(L_X_spec_inj.N, abscs["photE"]):.3e} eV/Bavg')
+
                 if ST_SFRD_Interpolator(z_donor) > 0.:
                     tf_wrapper.inject_phot(L_X_spec_inj, inject_type='xray', weight_box=jnp.asarray(emissivity_bracket))
             

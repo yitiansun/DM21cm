@@ -37,6 +37,8 @@ rydberg      = 13.60569253
 """Ionization potential of ground state hydrogen in eV."""
 lya_eng      = rydberg*3/4
 """Lyman alpha transition energy in eV."""
+He_ion_eng   = 24.587387936
+"""First ionization energy of helium in eV."""
 
 
 #===== Densities and Hubble =====
@@ -65,9 +67,9 @@ rho_baryon   = rho_crit*omega_baryon
 n_B          = rho_baryon/m_p
 """ Baryon number density in cm\ :sup:`-3`\ ."""
 
-Y_He         = 0.245
-#Y_He         = 1e-6
-#logging.warning("We dont have Helium now")
+#Y_He         = 0.245
+Y_He         = 1e-6
+logging.warning("DM21CM: We dont do Helium here")
 """Helium abundance by mass."""
 n_H          = (1-Y_He) * n_B
 """ Atomic hydrogen number density in cm\ :sup:`-3`\ ."""

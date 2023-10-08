@@ -226,20 +226,31 @@ class TransferFunctionWrapper:
             self.inject_elec(dm_params.inj_elec_spec, weight_box=inj_per_Bavg_box)
 
 
-    def populate_injection_boxes(self, input_heating, input_ionization, input_jalpha):
+    def populate_injection_boxes(self, input_heating, input_ionization, input_jalpha, dt, debug_even_split_f=False):
+        
+        if debug_even_split_f:
+            dep_tot_box = np.sum(self.dep_box[...,:4], axis=-1)
+            dep_heat_box = dep_tot_box / 3
+            dep_ion_box = dep_tot_box / 3 / phys.rydberg
+            dep_lya_box = dep_tot_box / 3
+        else:
+            dep_heat_box = self.dep_box[...,3]
+            dep_ion_box = (self.dep_box[...,0]/phys.rydberg + self.dep_box[...,1]/phys.He_ion_eng)
+            dep_lya_box = self.dep_box[...,2]
         
         input_heating.input_heating += np.array(
-            2 / (3*phys.kB*(1+self.params['x_e_box'])) * self.dep_box[...,3] / self.params['nBs_box'] / phys.A_per_B
+            2 / (3*phys.kB*(1+self.params['x_e_box'])) * dep_heat_box / self.params['nBs_box'] / phys.A_per_B
         ) # [K/Bavg] / [B/Bavg] / [A/B] = [K/A]
     
         input_ionization.input_ionization += np.array(
-            (self.dep_box[...,0] + self.dep_box[...,1]) / phys.rydberg / self.params['nBs_box'] / phys.A_per_B
+            dep_ion_box / self.params['nBs_box'] / phys.A_per_B
         ) # [1/Bavg] / [B/Bavg] / [A/B] = [1/A]
 
-        nBavg = phys.n_B * self.params['rs']**3 # [Bavg / cm^3]
-        n_lya = self.dep_box[...,2] * nBavg / phys.lya_eng # [lya cm^-3]
-        dnu_lya = (phys.rydberg - phys.lya_eng) / (2*np.pi*phys.hbar) # [Hz]
-        J_lya = n_lya * phys.c / (4*np.pi) / dnu_lya # [lya cm^-2 s^-1 sr^-1 Hz^-1]
+        nBavg = phys.n_B * self.params['rs']**3 # [Bavg / pcm^3]
+        dNlya_dVdt = dep_lya_box * nBavg / dt / phys.lya_eng # [lya pcm^-3 s^-1]
+        nu_lya_Hz = (phys.lya_eng) / (2*np.pi*phys.hbar) # [Hz]
+        J_lya = dNlya_dVdt * phys.c / (4*np.pi * nu_lya_Hz * phys.hubble(self.params['rs'])) # [lya pcm^-3 s^-1 pcm/s] / [sr Hz s^-1] = [lya sr^-1 s^-1 pcm^-2 Hz^-1]
+        # hubble might be inconsistent with 1 / ((1+z) * dtdz)
         input_jalpha.input_jalpha += np.array(J_lya)
 
         self.params = None # invalidate parameters

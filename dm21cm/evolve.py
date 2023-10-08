@@ -6,10 +6,13 @@ import logging
 import gc
 
 import numpy as np
-import jax.numpy as jnp
 from scipy import interpolate
 from astropy.cosmology import Planck18
 import astropy.units as u
+
+from jax import config
+config.update("jax_enable_x64", True)
+import jax.numpy as jnp
 
 import py21cmfast as p21c
 from py21cmfast import cache_tools
@@ -50,6 +53,8 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
            custom_YHe=None,
            coarsen_interp_factor=None,
            debug_turn_off_pop2ion=False,
+           debug_even_split_f=False,
+           debug_copy_dh_init=None,
            ):
     """
     Main evolution function.
@@ -178,14 +183,13 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         dm_params,
         prefix = p21c.config[f'direc'],
     )
-    # if debug_copy_dh_init is not None:
-    #     import shutil
-    #     dh_init_source = f"{p21c.config['direc']}/../{debug_copy_dh_init}/dh_init_soln.p"
-    #     if os.path.exists(dh_init_source):
-    #         shutil.copy(dh_init_source, f"{p21c.config['direc']}/dh_init_soln.p")
-    #         logging.info(f'Copied dh_init_soln.p from {debug_copy_dh_init}')
-    #     else:
-    #         logging.warning(f'Could not find dh_init_soln.p at {dh_init_source}')
+    if debug_copy_dh_init is not None:
+        import shutil
+        if os.path.exists(debug_copy_dh_init):
+            shutil.copy(debug_copy_dh_init, f"{p21c.config['direc']}/dh_init_soln.p")
+            logging.info(f'Copied dh_init_soln.p from {debug_copy_dh_init}')
+        else:
+            logging.warning(f'Could not find dh_init_soln.p at {debug_copy_dh_init}')
 
     # We have to synchronize at the second step because 21cmFAST acts weird in the first step:
     # - global_params.TK_at_Z_HEAT_MAX is not set correctly (it is probably set and evolved for a step)
@@ -219,9 +223,10 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         '1-x_H' : np.mean(1 - ionized_box.xH_box), # [1]
         'E_phot' : phot_bath_spec.toteng(), # [eV/Bavg]
         'dE_inj_per_B' : 0.,
-        'f_ion'  : 0.,
-        'f_exc'  : 0.,
-        'f_heat' : 0.,
+        'dE_inj_per_Bavg_unclustered' : 0.,
+        'dep_ion'  : 0.,
+        'dep_exc'  : 0.,
+        'dep_heat' : 0.,
         'x_e_slice' : np.array(spin_temp.x_e_box[10]),
         'x_H_slice' : np.array(ionized_box.xH_box[10]),
     }
@@ -357,6 +362,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
                     phot_bath_spec.N += xray_spec.N
                     i_xray_loop_start = max(i_z_shell+1, i_xray_loop_start)
                 else:
+                    print(f'DEBUG uniform-xray: xray_brightness_box = {np.mean(xray_brightness_box):.3e}')
                     tf_wrapper.inject_phot(xray_spec, inject_type='xray', weight_box=xray_brightness_box)
 
             profiler.record('xray')
@@ -396,7 +402,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
                 raise ValueError('input_jalpha.input_jalpha has NaNs')
         perturbed_field = p21c.perturb_field(redshift=z_next, init_boxes=p21c_initial_conditions)
         input_heating, input_ionization, input_jalpha = gen_injection_boxes(z_next, p21c_initial_conditions)
-        tf_wrapper.populate_injection_boxes(input_heating, input_ionization, input_jalpha)
+        tf_wrapper.populate_injection_boxes(input_heating, input_ionization, input_jalpha, dt, debug_even_split_f=debug_even_split_f)
         print('before', np.mean(spin_temp.Tk_box), np.mean(spin_temp.x_e_box), flush=True)
         print('input_heating', np.mean(input_heating.input_heating), flush=True)
         spin_temp, ionized_box, brightness_temp = p21c_step(
@@ -457,10 +463,12 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
             xray_spec = Spectrum(abscs['photE'], emit_xray_N, rs=1+z_current, spec_type='N') # [ph / Bavg]
             xray_spec.redshift(1+z_next)
             xray_tot_eng = np.dot(abscs['photE'], emit_xray_N)
+            print(f'DM21CM DEBUG: xray_tot_eng={xray_tot_eng:.3e} eV/Bavg')
             if xray_tot_eng == 0.:
                 xray_rel_eng_box = np.zeros_like(tf_wrapper.xray_eng_box)
             else:
                 xray_rel_eng_box = tf_wrapper.xray_eng_box / xray_tot_eng # [1 (relative energy) / Bavg]
+            print(f'DM21CM DEBUG: xray_rel_eng_box={np.mean(xray_rel_eng_box):.3e} 1/Bavg')
             xray_cacher.cache(z_current, xray_rel_eng_box, xray_spec)
         
         #===== calculate and save some global quantities =====
@@ -476,9 +484,10 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
             '1-x_H' : np.mean(1 - ionized_box.xH_box), # [1]
             'E_phot' : phot_bath_spec.toteng(), # [eV/Bavg]
             'dE_inj_per_B' : dE_inj_per_Bavg,
-            'f_ion'  : np.mean(tf_wrapper.dep_box[...,0] + tf_wrapper.dep_box[...,1]) / dE_inj_per_Bavg_unclustered,
-            'f_exc'  : np.mean(tf_wrapper.dep_box[...,2]) / dE_inj_per_Bavg_unclustered,
-            'f_heat' : np.mean(tf_wrapper.dep_box[...,3]) / dE_inj_per_Bavg_unclustered,
+            'dE_inj_per_Bavg_unclustered' : dE_inj_per_Bavg_unclustered,
+            'dep_ion'  : np.mean(tf_wrapper.dep_box[...,0] + tf_wrapper.dep_box[...,1]),
+            'dep_exc'  : np.mean(tf_wrapper.dep_box[...,2]),
+            'dep_heat' : np.mean(tf_wrapper.dep_box[...,3]),
             'x_e_slice' : np.array(spin_temp.x_e_box[10]),
             'x_H_slice' : np.array(ionized_box.xH_box[10]),
         }
@@ -506,7 +515,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
     #===== end of loop, save results =====
     arr_records = {k: np.array([r[k] for r in records]) for k in records[0].keys()}
     if save_dir is None:
-        save_dir = os.environ['DM21CM_DIR'] + '/data/run_info'
+        save_dir = os.environ['DM21CM_DIR'] + '/outputs/dm21cm'
     np.save(f"{save_dir}/{run_name}_records", arr_records)
 
     profiler.print_summary()

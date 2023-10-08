@@ -83,6 +83,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
                 'xc-noredshift' : Xray check: don't redshift xrays.
                 'xc-noatten' : Xray check: no attenuation.
                 'xc-halfatten' : Xray check: half attenuation.
+                'xc-force-bath : Xray check: force inject into xray bath.
         debug_astro_params (AstroParams): AstroParams in p21c.
         
         DarkHistory checks:
@@ -292,14 +293,16 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
             if 'xc-bath' in debug_flags:
                 xraycheck_bath_N = np.zeros((500,)) # [ph / Bavg]
                 emissivity_bracket_unif = 0.
+                if 'xc-force-bath' in debug_flags:
+                    i_xraycheck_loop_start = i_z # all goes into uniform injection
                 for i_z_shell in range(i_xraycheck_loop_start): # uniform injection
                     z_shell = z_edges[i_z_shell]
                     shell_N = delta_cacher.spectrum_cache.get_spectrum(z_shell).N # [ph / Msun]
 
                     delta_unif = 0. # just a number
-                    emissivity_bracket_unif = Cond_SFRD_Interpolator((z_donor, delta_unif, 512.-EPSILON)) # [M_Sun / Mpc^3 s]
+                    emissivity_bracket_unif = Cond_SFRD_Interpolator((z_shell, delta_unif, 512.-EPSILON)) # [Msun / Mpc^3 s]
                     if np.mean(emissivity_bracket_unif) > 0:
-                        emissivity_bracket_unif *= (ST_SFRD_Interpolator(z_donor) / np.mean(emissivity_bracket_unif)) # [Msun / Mpc^3 s]
+                        emissivity_bracket_unif *= (ST_SFRD_Interpolator(z_shell) / np.mean(emissivity_bracket_unif)) # [Msun / Mpc^3 s]
                     emissivity_bracket_unif *= (1 + delta_unif) / (phys.n_B * u.cm**-3).to('Mpc**-3').value * dt # [Msun / Mpc^3 s] * [Bavg / Mpc^3]^-1 * [s] = [Msun / Bavg]
                     emissivity_bracket_unif *= L_X_numerical_factor * debug_xray_multiplier # [Msun / Bavg]
                     shell_N *= emissivity_bracket_unif # [ph / Bavg]
@@ -344,7 +347,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
                     tf_wrapper.inject_phot(L_X_spec_inj, inject_type='xray', weight_box=jnp.asarray(emissivity_bracket))
             
             print_str += f' shells:{i_xraycheck_loop_start}-{i_z}'
-            if i_z > 0:
+            if i_z > i_xraycheck_loop_start: # if shells were injected at all
                 avg_eng = np.mean(emissivity_bracket)*L_X_spec_inj.toteng()
                 print_str += f' shell xray:{avg_eng:.3e} eV/Bavg'
             profiler.record('xraycheck')

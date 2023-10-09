@@ -67,9 +67,9 @@ rho_baryon   = rho_crit*omega_baryon
 n_B          = rho_baryon/m_p
 """ Baryon number density in cm\ :sup:`-3`\ ."""
 
-#Y_He         = 0.245
-Y_He         = 1e-6
-logging.warning("DM21CM: We dont do Helium here")
+Y_He         = 0.245
+#Y_He         = 1e-6
+#logging.warning("DM21CM: We dont do Helium here")
 """Helium abundance by mass."""
 n_H          = (1-Y_He) * n_B
 """ Atomic hydrogen number density in cm\ :sup:`-3`\ ."""
@@ -149,6 +149,20 @@ def conformal_dt_between_z(z_high, z_low):
     integrand = lambda z: (1+z) * dtdz(1+z) / norm
     val, err = np.array(integrate.quad(integrand, z_high, z_low)) * norm
     return val
+
+def dt_step(z, zplusone_factor):
+    """Calculate delta t [s] between current redshift z and next redshift step.
+    Consistent with 21cmFAST's time step.
+
+    Args:
+        z (float): Redshift.
+        zplusone_factor (float): (1+z)/(1+z_next)
+
+    Returns:
+        float: Delta t [s].
+    """
+    z_next = (1+z) / zplusone_factor - 1
+    return np.abs((cosmo.age(z) - cosmo.age(z_next)).to('s').value)
 
 
 #===== Dark Matter =====

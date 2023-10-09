@@ -260,7 +260,8 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         z_current = z_edges[i_z]
         z_next = z_edges[i_z+1]
         # dt = ( cosmo.age(z_next) - cosmo.age(z_current) ).to('s').value # cosmo
-        dt = np.interp(1+z_current, abscs['rs'], dts[:,1])
+        # dt = np.interp(1+z_current, abscs['rs'], dts[:,1])
+        dt = phys.dt_step(z_current, np.exp(abscs['dlnz']))
         
         nBavg = phys.n_B * (1+z_current)**3 # [Bavg / (physical cm)^3]
         delta_plus_one_box = 1 + np.asarray(perturbed_field.density)

@@ -6,6 +6,7 @@ import numpy as np
 
 sys.path.append("..")
 from dm21cm.utils import load_h5_dict
+import dm21cm.physics as phys
 
 
 def save_aad(filename, axes, axes_abscs_keys, data):
@@ -121,7 +122,7 @@ if __name__ == '__main__':
         print('elec_dep', end=' ', flush=True)
         elec_depgv = np.load(data_dir + '/elec/elec_depgv.npy')
         elec_dep_Nf = np.einsum('rxneo -> renxo', elec_depgv)
-        elec_dep_NE = np.einsum('renxo,e -> renxo', elec_dep_Nf, abscs['photE']) # multiply in energy
+        elec_dep_NE = np.einsum('renxo,e -> renxo', elec_dep_Nf, abscs['elecEk'] + phys.m_e) # multiply in energy
         save_aad(
             f"{save_dir}/elec_dep.h5",
             ['rs', 'Ein', 'nBs', 'x', 'out'],

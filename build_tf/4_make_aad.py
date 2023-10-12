@@ -28,7 +28,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     run_name = args.name
-    make_list = ['phot_phot', 'phot_dep', 'elec_phot', 'elec_dep'] # {phot_phot, phot_dep, elec_phot, elec_dep}
+    make_list = ['phot_phot', 'phot_dep', 'elec_phot', 'elec_dep'] # {'phot_phot', 'phot_dep', 'elec_phot', 'elec_dep'}
 
     abscs = load_h5_dict(f"../data/abscissas/abscs_{run_name}.h5")
     data_dir = os.environ['DM21CM_DATA_DIR'] + f'/tf/{run_name}'

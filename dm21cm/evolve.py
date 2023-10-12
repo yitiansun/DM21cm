@@ -19,6 +19,7 @@ from py21cmfast import cache_tools
 
 sys.path.append(os.environ['DH_DIR']) # use branch test_dm21cm
 from darkhistory.spec.spectrum import Spectrum
+from darkhistory.history.reionization import alphaA_recomb
 
 sys.path.append("..")
 import dm21cm.physics as phys
@@ -55,6 +56,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
            debug_turn_off_pop2ion=False,
            debug_even_split_f=False,
            debug_copy_dh_init=None,
+           track_Tk_xe=False,
            ):
     """
     Main evolution function.
@@ -231,6 +233,13 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         'x_e_slice' : np.array(spin_temp.x_e_box[10]),
         'x_H_slice' : np.array(ionized_box.xH_box[10]),
     }
+    if track_Tk_xe:
+        T_k_track = np.mean(spin_temp.Tk_box)
+        x_e_track = np.mean(spin_temp.x_e_box)
+        record.update({
+            'T_k_tracker' : T_k_track, # [K]
+            'x_e_tracker' : x_e_track, # [1]
+        })
     records.append(record)
 
 
@@ -249,8 +258,6 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         from tqdm import tqdm
         z_iterator = tqdm(z_iterator)
     print_str = ''
-
-    dts = np.load(os.environ['DM21CM_DATA_DIR']+f'/tf/{tf_version}/phot/dt_rxneo.npy')
 
     #--- loop ---
     for i_z in z_iterator:
@@ -423,6 +430,17 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
             astro_params=debug_astro_params
         )
         print('after', np.mean(spin_temp.Tk_box), np.mean(spin_temp.x_e_box), flush=True)
+
+        if track_Tk_xe:
+            T_k_track += np.mean(input_heating.input_heating)
+            x_e_track += np.mean(input_ionization.input_ionization)
+
+            dxion_sink_dt = alphaA_recomb('HII', T_k_track) * x_e_track**2 * phys.n_H * (1+z_current)**3
+            x_e_track += dxion_sink_dt * dt
+
+            dadia_dzp = 2 * T_k_track / (1 + z_current)
+            
+            dcomp_dzp = dcomp_dzp_prefactor * (x_e_track/(1 + x_e_track)) * ( Trad_fast - T );
 
         profiler.record('21cmFAST')
         

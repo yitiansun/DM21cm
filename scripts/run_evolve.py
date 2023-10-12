@@ -14,15 +14,15 @@ WDIR = os.environ['DM21CM_DIR']
 if __name__ == '__main__':
 
     return_dict = evolve(
-        run_name = f'xc_ee_noLX_nos8_noHe_nosp',
-        z_start = 45.,
+        run_name = f'xc_phph_noLX_nos8_noHe_nosp',
+        z_start = 25.,
         z_end = 5.,
         zplusone_step_factor = 1.01,
         dm_params = DMParams(
             mode='decay',
-            primary='elec_delta',
+            primary='phot_delta',
             m_DM=1e8, # [eV]
-            lifetime=1e26, # [s]
+            lifetime=1e25, # [s]
         ),
         enable_elec = True,
         tf_version = 'zf01',
@@ -48,7 +48,7 @@ if __name__ == '__main__':
         rerun_DH = False,
         clear_cache = True,
         use_tqdm = False,
-        #debug_flags = ['uniform_xray'], # homogeneous injection
+        debug_flags = ['uniform_xray'], # homogeneous injection
         #debug_flags = ['xraycheck', 'xc-noatten'], # our xray noatten to compare with 21cmfast
         #debug_flags = ['xraycheck'], # our xray ST compare with DH
         #debug_flags = ['xraycheck', 'xc-bath', 'xc-force-bath'], # our xray ST forced to bath compare with DH
@@ -57,5 +57,5 @@ if __name__ == '__main__':
         custom_YHe = 1e-6, # 0.245
         debug_turn_off_pop2ion = False,
         debug_even_split_f = False,
-        debug_copy_dh_init = f"{WDIR}/outputs/dh/xc_ee_noHe_soln.p"
+        debug_copy_dh_init = f"{WDIR}/outputs/dh/xc_phph_noHe_soln.p"
     )

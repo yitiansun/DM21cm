@@ -2,7 +2,7 @@
 
 #SBATCH --job-name=3C_zf01
 #SBATCH --partition=shared
-#SBATCH --array=0-9
+#SBATCH --array=5-9
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=16GB

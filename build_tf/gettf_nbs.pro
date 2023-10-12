@@ -43,7 +43,7 @@ PRO gettf_nbs, $
         xx_s = [0.0010000000d]
         nB_s = [1.0000000000d]
         inj_mode = 'phot'
-        outfolder = '$DM21CM_DIR/build_tf/ionhist_outputs/debug'
+        outfolder = GETENV('DM21CM_DIR')+'/build_tf/ionhist_outputs/debug'
     ENDIF ELSE BEGIN
         !EXCEPT = 0 ; turn off underflow error
         outfolder = GETENV('DM21CM_DATA_DIR')+'/tf/'+run_name+'/'+inj_mode+'/ionhist_outputs'
@@ -207,6 +207,7 @@ PRO gettf_nbs, $
         ENDIF ELSE BEGIN
             outname = STRING(inj_mode, 'tf_rs', i_rs, '_xx', i_xx, '_nB', i_nB, format='(A,A,I0,A,I0,A,I0,A,I0)')
         ENDELSE
+
         outpath = outfolder + '/' + outname + '.fits'
         mwrfits, save_struct, outpath, /create, /silent ; when saving to fits, (a, b, c, ...) will load to (..., c, b, a) in numpy
         

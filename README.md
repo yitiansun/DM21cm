@@ -1,6 +1,6 @@
 # DM21cm
 
-![plot](notebooks/plots/DH.gif)
+<!--- ![plot](notebooks/plots/DH.gif) --->
 
 ## Assumptions
  - Using Planck18 dt everywhere (consistent with 21cmFAST)
@@ -10,12 +10,10 @@
  - [ ] Restore commented out code near line 1960 in SpinTemperatureBox.c
  - [ ] Check bath is turned on.
  - [ ] In `dh_wrappers`, address all warnings.
- - [ ] Make consistent `dt`
- - [ ] Change zf01-generated DarkHistory tf's nBs back to 1. (from 1.006)
+ - [X] Make consistent `dt`
+ - [X] Change zf01-generated DarkHistory tf's nBs back to 1. (from 1.006)
+ - [ ] Restore YHe values
 
 ## Transfer functions status
-### valid
- - zf01
-### need regeneration from step 2
- - zf05
- - zf001
+ - zf01:  1 2 3A 3B 3C 3D 4
+ - zf001:

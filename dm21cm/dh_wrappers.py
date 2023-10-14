@@ -226,17 +226,23 @@ class TransferFunctionWrapper:
             self.inject_elec(dm_params.inj_elec_spec, weight_box=inj_per_Bavg_box)
 
 
-    def populate_injection_boxes(self, input_heating, input_ionization, input_jalpha, dt, debug_even_split_f=False):
+    def populate_injection_boxes(self, input_heating, input_ionization, input_jalpha, dt, debug_even_split_f=False, ref_depE_per_B=None):
         
+        dep_heat_box = self.dep_box[...,3]
+        dep_ion_box = (self.dep_box[...,0]/phys.rydberg + self.dep_box[...,1]/phys.He_ion_eng)
+        dep_lya_box = self.dep_box[...,2]
+
+        if ref_depE_per_B is not None:
+            dep_tot = np.mean(dep_heat_box) + np.mean(dep_ion_box) + np.mean(dep_lya_box)
+            if dep_tot > 0:
+                dep_heat_box *= ref_depE_per_B / dep_tot
+                dep_ion_box *= ref_depE_per_B / dep_tot
+                dep_lya_box *= ref_depE_per_B / dep_tot
         if debug_even_split_f:
             dep_tot_box = np.sum(self.dep_box[...,:4], axis=-1)
             dep_heat_box = dep_tot_box / 3
             dep_ion_box = dep_tot_box / 3 / phys.rydberg
             dep_lya_box = dep_tot_box / 3
-        else:
-            dep_heat_box = self.dep_box[...,3]
-            dep_ion_box = (self.dep_box[...,0]/phys.rydberg + self.dep_box[...,1]/phys.He_ion_eng)
-            dep_lya_box = self.dep_box[...,2]
         
         input_heating.input_heating += np.array(
             2 / (3*phys.kB*(1+self.params['x_e_box'])) * dep_heat_box / self.params['nBs_box'] / phys.A_per_B

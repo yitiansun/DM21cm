@@ -37,6 +37,7 @@ if __name__ == '__main__':
     data_dir = f"{os.environ['DM21CM_DATA_DIR']}/tf/{run_name}/nBsdhtf"
     save_dir = f"{os.environ['DM21CM_DATA_DIR']}/tf/{run_name}/elec"
 
+    do_not_track_lowengphot = True
     include_f_xray = True
     xray_eng_range = (1e2, 1e4) # [eV]
     use_tqdm = True
@@ -222,14 +223,20 @@ if __name__ == '__main__':
                 )
                 f_raw = f_low + f_high
 
-                #===== Compute tf & f values ===== (same as make_phottf)
-                lep_prop_spec_N = lep_spec_N * (abscs['photE'] < 10.2)
-                f_lep_prop = np.dot(abscs['photE'], lep_prop_spec_N) / injE
-                phot_spec_N = hep_spec_N + lep_prop_spec_N
-                f_prop = np.dot(abscs['photE'], phot_spec_N) / injE
-
+                #===== Compute tf & f values =====
                 f_dep = f_raw
-                f_dep[4] -= f_lep_prop # adjust for the propagating lowengphot
+                if do_not_track_lowengphot:
+                    phot_spec_N = hep_spec_N
+                    f_prop = np.dot(abscs['photE'], phot_spec_N) / injE
+                else:
+                    i_exc_bin = np.searchsorted(spectools.get_bin_bound(abscs['photE']), 10.2) - 1 # 149
+                    lep_prop_spec_N = lep_spec_N.copy()
+                    lep_prop_spec_N[:i_exc_bin] *= 0.
+                    f_lep_prop = np.dot(abscs['photE'], lep_prop_spec_N) / injE
+                    phot_spec_N = hep_spec_N + lep_prop_spec_N
+                    f_dep[4] -= f_lep_prop # adjust for the propagating lowengphot
+
+                f_prop = np.dot(abscs['photE'], phot_spec_N) / injE
                 f_tot = f_prop + np.sum(f_dep)
 
                 #===== Energy conservation =====

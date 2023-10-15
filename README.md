@@ -1,11 +1,24 @@
 # DM21cm
 
+## Installation
+
+### DarkHistory
+- Clone the DarkHistory repository [here](https://github.com/hongwanliu/DarkHistory/tree/test-dm21cm). Checkout branch `test-dm21cm`.
+- Set environment variable `DH_DIR` to point to the project folder (directory containing `README.md`).
+- Set environment variable `DH_DATA_DIR` to point to the DarkHistory data (v1.1) folder (directory containing `binning.p`). The data files can be downloaded [here](https://zenodo.org/records/6819310).
+
+### 21cmFAST
+- Clone the 21cmFAST fork [here](https://github.com/joshwfoster/21cmFAST). Checkout branch `master`.
+- Install 
+- Set environment variable `P21C_CACHE_DIR` to a directory for storing cached 
+
 [Cross check run status](cross_check/xc_status.md)
 
 ## Assumptions
  - Using Planck18 dt everywhere (consistent with 21cmFAST)
 
 ## Debug deconstructor
+ - [ ] Merge `debug` branch in 21cmFAST in `master`
  - [ ] Remove `xraycheck`
  - [ ] Restore commented out code near line 1960 in SpinTemperatureBox.c
  - [ ] Check bath is turned on.

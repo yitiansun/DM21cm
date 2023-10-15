@@ -5,13 +5,13 @@
 - DH: `xc_xray_noHe`
 
 [X] special
-DH: `xc_xrayST_noHe`
-DC: `xc_xray_noLX_nos8_noHe_nosp`
-DC: `xc_xray_noLX_nos8_noHe_nosp_noatten`
-DC: `xc_xray_noLX_noHe_nosp`
-DC: `xc_xray_noLX_noHe_nosp_noatten`
-21: `xc_noHe_nosp`
-DC: `xc_xray_noLX_nos8_noHe_nosp_21totdep`
+- DH: `xc_xrayST_noHe`
+- DC: `xc_xray_noLX_nos8_noHe_nosp`
+- DC: `xc_xray_noLX_nos8_noHe_nosp_noatten`
+- DC: `xc_xray_noLX_noHe_nosp`
+- DC: `xc_xray_noLX_noHe_nosp_noatten`
+- 21: `xc_noHe_nosp`
+- DC: `xc_xray_noLX_nos8_noHe_nosp_21totdep`
 
 ## 2. DM injection
 
@@ -19,7 +19,7 @@ DC: `xc_xray_noLX_nos8_noHe_nosp_21totdep`
 - DC: `xc_phph_noLX_nos8_noHe_nosp_lifetime25`
 - DH: `xc_phph_noHe_lifetime25`
 
-[ ] phph_nos8_noHe_nosp_lifetime25_zf001
+[R] phph_nos8_noHe_nosp_lifetime25_zf001
 - DC: `xc_phph_noLX_nos8_noHe_nosp_lifetime25_zf001`
 - DH: `xc_phph_noHe_lifetime25_zf001`
 

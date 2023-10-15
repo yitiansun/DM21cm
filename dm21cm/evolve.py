@@ -270,7 +270,8 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
 
     #--- loop ---
     for i_z in z_iterator:
-        print(f'i_z={i_z}/{len(z_edges)-2} z={z_edges[i_z]:.2f}', file=sys.stderr, flush=True)
+        if not use_tqdm:
+            print(f'i_z={i_z}/{len(z_edges)-2} z={z_edges[i_z]:.2f}', file=sys.stderr, flush=True)
         print_str += f'i_z={i_z}/{len(z_edges)-2} z={z_edges[i_z]:.2f}'
 
         z_current = z_edges[i_z]
@@ -469,8 +470,6 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
             #dcomp_dzp = dcomp_dzp_prefactor * (x_e_track/(1 + x_e_track)) * ( Trad_fast - T ); # 21cmFAST
             dTdz_comp_DH = compton_cooling_rate(x, phys.chi*x, 0, phys.kB*T, rs) * phys.dtdz(rs) / phys.kB / (3/2 * phys.n_H * (rs**3) * (1 + phys.chi + x))
             T_k_track += (dTdz_adia + dTdz_comp_DH) * (z_next - z)
-
-
 
         profiler.record('21cmFAST')
         

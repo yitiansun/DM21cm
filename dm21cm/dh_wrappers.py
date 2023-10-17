@@ -269,5 +269,5 @@ class TransferFunctionWrapper:
 
     def attenuation_arr(self, rs, x, nBs=1.):
         dep_tf_at_point = self.phot_dep_tf.point_interp(rs=rs, x=x, nBs=nBs, out_of_bounds_action='clip')
-        dep_toteng = np.sum(dep_tf_at_point[:, :4], axis=1)
+        dep_toteng = np.sum(dep_tf_at_point[:, :5], axis=1) # H ion, He ion, exc, heat, cont
         return 1 - dep_toteng/self.abscs['photE']

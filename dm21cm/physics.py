@@ -67,9 +67,9 @@ rho_baryon   = rho_crit*omega_baryon
 n_B          = rho_baryon/m_p
 """ Baryon number density in cm\ :sup:`-3`\ ."""
 
-#Y_He         = 0.245
-Y_He         = 1e-6
-logging.warning("DM21CM: We dont do Helium here")
+Y_He         = 0.245
+#Y_He         = 1e-6
+#logging.warning("DM21CM: We dont do Helium here")
 """Helium abundance by mass."""
 n_H          = (1-Y_He) * n_B
 """ Atomic hydrogen number density in cm\ :sup:`-3`\ ."""

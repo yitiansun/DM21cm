@@ -1,8 +1,47 @@
+## Status
+
+21cmFAST: species: ON. even-split-f: OFF.
+physics: YHe: ON.
+
 ## 3. Xray
 
-[ ] xray_unif
+### 3.1 With DarkHistory
+[X] xc_xrayVDH_nos8_noHe_nosp
 - DC: `xc_xray_noLX_nos8_noHe_nosp`
-- DH: `xc_xray_noHe`
+- DH: `xc_xrayST_noHe`
+
+[X] xc_xrayVDH_nopop2_noHe_nosp
+- DC: `xc_xray_noLX_nopop2_noHe_nosp`
+- DH: `xc_xrayST_noHe`
+
+[ ] xc_xrayVDH_nopop2_noHe
+- DC: `xc_xray_noLX_nopop2_noHe`
+- DH: `xc_xrayST_noHe`
+
+[X] xc_xrayVDH_nopop2
+- DC: `xc_xray_noLX_nopop2`
+- DH: `xc_xrayST`
+
+[X] xc_xrayVDH
+- DC: `xc_xray_noLX`
+- DH: `xc_xrayST`
+
+### 3.2 With 21cmFAST
+[ ] xc_xrayV21_nopop2_noHe_nosp_21totdep_esf
+- DC: `xc_xray_noLX_nopop2_noHe_nosp_21totdep_esf`
+- 21: `xc_nopop2_noHe_nosp_esf`
+
+[ ] xc_xrayV21_nopop2_noHe_nosp_esf
+- DC: `xc_xray_noLX_nopop2_noHe_nosp_esf`
+- 21: `xc_nopop2_noHe_nosp_esf`
+
+
+
+Fix total f and fraction to 21
+
+Fix only total f
+
+Relax: (just noHe nos8 nosp no attenuation)
 
 [X] special
 - DH: `xc_xrayST_noHe`
@@ -15,17 +54,33 @@
 
 ## 2. DM injection
 
-[ ] phph_nos8_noHe_nosp_lifetime25
-- DC: `xc_phph_noLX_nos8_noHe_nosp_lifetime25`
-- DH: `xc_phph_noHe_lifetime25`
+### 2.1 Photon
 
-[R] phph_nos8_noHe_nosp_lifetime25_zf001
+[X] phph_nos8_noHe_nosp_lifetime25_zf001
 - DC: `xc_phph_noLX_nos8_noHe_nosp_lifetime25_zf001`
 - DH: `xc_phph_noHe_lifetime25_zf001`
 
-[ ] phph_lifetime25
+[X] phph_nos8_noHe_nosp_lifetime25
+- DC: `xc_phph_noLX_nos8_noHe_nosp_lifetime25`
+- DH: `xc_phph_noHe_lifetime25`
+
+[X] phph_nos8_noHe_lifetime25
+- DC: `xc_phph_noLX_nos8_noHe_lifetime25`
+- DH: `xc_phph_noHe_lifetime25`
+
+[X] phph_nos8_lifetime25
+- DC: `xc_phph_noLX_nos8_lifetime25`
+- DH: `xc_phph_lifetime25`
+
+[X] phph_nopop2_lifetime25
+- DC: `xc_phph_noLX_nopop2_lifetime25`
+- DH: `xc_phph_lifetime25`
+
+[X] phph_lifetime25
 - DC: `xc_phph_noLX_lifetime25`
 - DH: `xc_phph_lifetime25`
+
+### 2.2 Electron
 
 [ ] ee_nos8_noHe_nosp_lifetime25
 - DC: `xc_ee_noLX_nos8_noHe_nosp_lifetime25`

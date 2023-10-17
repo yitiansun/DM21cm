@@ -607,7 +607,7 @@ def get_z_edges(z_max, z_min, zplusone_step_factor):
 def split_xray(phot_N, phot_eng):
     """Split a photon spectrum (N in bin) into bath and xray band."""
 
-    ex_lo, ex_hi = 5e2, 1e4 # [eV]
+    ex_lo, ex_hi = 1e2, 1e4 # [eV]
     ix_lo = np.searchsorted(phot_eng, ex_lo) # i of first bin greater than ex_lo, excluded
     ix_hi = np.searchsorted(phot_eng, ex_hi) # i of first bin greater than ex_hi, included
 

@@ -442,6 +442,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
             input_heating, input_ionization, input_jalpha, dt,
             debug_even_split_f=debug_even_split_f,
             ref_depE_per_B=ref_depE_per_B,
+            debug_z = z_current,
         )
         # print('before', np.mean(spin_temp.Tk_box), np.mean(spin_temp.x_e_box), flush=True)
         # print('input_heating', np.mean(input_heating.input_heating), flush=True)
@@ -663,13 +664,32 @@ def debug_get_21totf_interp(fn):
     e_arr = []
     with open(fn, 'r') as f:
         for line in f:
-            if "E_(tot=heat+ion+lya) =" in line:
+            if "E_tot_ave = " in line:
                 line_arr.append(line)
-                tokens = line.split()
-                e_arr.append(float(tokens[-2]))
-            if "TsBox.c DEBUG:" in line:
-                line_arr.append(line)
-                tokens = line.split()
-                z_arr.append(float(tokens[-1]))
+                tokens = line.split('E_tot_ave = ')
+                e_arr.append(float(tokens[-1]))
+                tokens = tokens[0].split('zp = ')
+                z_arr.append(float(tokens[1]))
+
+    # z_arr = np.array(z_arr)[1:]
+    # e_arr = np.array(e_arr)[:-1]
     assert len(z_arr) == len(e_arr)
     return interpolate.interp1d(z_arr, e_arr, kind='linear', bounds_error=False, fill_value='extrapolate')
+
+# def debug_get_21totf_interp(fn):
+#     line_arr = []
+#     z_arr = []
+#     e_arr = []
+#     with open(fn, 'r') as f:
+#         for line in f:
+#             if "E_(tot=heat+ion+lya)" in line:
+#                 line_arr.append(line)
+#                 tokens = line.split()
+#                 e_arr.append(float(tokens[-2]))
+#             if "TsBox.c DEBUG:  zp = " in line:
+#                 line_arr.append(line)
+#                 tokens = line.split()
+#                 z_arr.append(float(tokens[-1]))
+
+#     assert len(z_arr) == len(e_arr)
+#     return interpolate.interp1d(z_arr, e_arr, kind='linear', bounds_error=False, fill_value='extrapolate')

@@ -1,7 +1,7 @@
 ## Status
 
-21cmFAST: species: ON. even-split-f: OFF.
-physics: YHe: ON.
+21cmFAST: species: OFF. even-split-f: ON. atten: OFF
+physics: YHe: OFF.
 
 ## 3. Xray
 
@@ -14,7 +14,7 @@ physics: YHe: ON.
 - DC: `xc_xray_noLX_nopop2_noHe_nosp`
 - DH: `xc_xrayST_noHe`
 
-[ ] xc_xrayVDH_nopop2_noHe
+[-] xc_xrayVDH_nopop2_noHe
 - DC: `xc_xray_noLX_nopop2_noHe`
 - DH: `xc_xrayST_noHe`
 
@@ -26,15 +26,30 @@ physics: YHe: ON.
 - DC: `xc_xray_noLX`
 - DH: `xc_xrayST`
 
+[ ] xc_xrayVDH
+- DC: `xc_xray_noLX_noatten`
+- DH: `xc_xrayST`
+
 ### 3.2 With 21cmFAST
-[ ] xc_xrayV21_nopop2_noHe_nosp_21totdep_esf
-- DC: `xc_xray_noLX_nopop2_noHe_nosp_21totdep_esf`
-- 21: `xc_nopop2_noHe_nosp_esf`
+[ ] xc_xrayV21_nopop2_noHe_nosp_noatten_21totdep_esf
+- DC: `xc_xray_noLX_nopop2_noHe_nosp_noatten_21totdep_esf`
+- 21: `xc_nopop2_noHe_nosp_noatten_esf`
 
-[ ] xc_xrayV21_nopop2_noHe_nosp_esf
-- DC: `xc_xray_noLX_nopop2_noHe_nosp_esf`
-- 21: `xc_nopop2_noHe_nosp_esf`
+[ ] xc_xrayV21_nopop2_noHe_nosp_noatten_21totdep
+- DC: `xc_xray_noLX_nopop2_noHe_nosp_noatten_21totdep`
+- 21: `xc_nopop2_noHe_nosp_noatten`
 
+[ ] xc_xrayV21_nopop2_noHe_nosp_noatten
+- DC: `xc_xray_noLX_nopop2_noHe_nosp_noatten`
+- 21: `xc_nopop2_noHe_nosp_noatten`
+
+[ ] xc_xrayV21_noatten
+- DC: `xc_xray_noLX_noatten`
+- 21: `xc_noatten`
+
+[ ] xc_xrayV21
+- DC: `xc_xray_noLX`
+- 21: `xc`
 
 
 Fix total f and fraction to 21

@@ -14,7 +14,7 @@ WDIR = os.environ['DM21CM_DIR']
 if __name__ == '__main__':
 
     return_dict = evolve(
-        run_name = f'xc_xray_noLX_nopop2_noHe_nosp_noatten_21totdep_esf',
+        run_name = f'xc',
         z_start = 45.,
         z_end = 5.,
         zplusone_step_factor = 1.01,
@@ -49,16 +49,15 @@ if __name__ == '__main__':
         clear_cache = True,
         use_tqdm = True,
         #debug_flags = ['uniform_xray'], # homogeneous injection
-        debug_flags = ['xraycheck', 'xc-noatten'], # our xray noatten to compare with 21cmfast
+        #debug_flags = ['xraycheck', 'xc-noatten'], # our xray noatten to compare with 21cmfast
         #debug_flags = ['xraycheck'], # our xray ST compare with DH
         #debug_flags = ['xraycheck', 'xc-bath', 'xc-force-bath'], # our xray ST forced to bath compare with DH
-        debug_astro_params = p21c.AstroParams(L_X = 0.), # log10 value
+        debug_astro_params = p21c.AstroParams(L_X = 40.), # log10 value
         use_DH_init = True,
-        custom_YHe = 1e-6, # 0.245
-        debug_turn_off_pop2ion = True,
+        custom_YHe = 0.245, # 0.245
+        debug_turn_off_pop2ion = False,
         debug_copy_dh_init = f"{WDIR}/outputs/dh/xc_xrayST_soln.p",
         track_Tk_xe = True,
-        #use_21totf = None,
-        use_21totf=f"{WDIR}/outputs/stdout/xc_nopop2_noHe_nosp_noatten_esf.out",
-        debug_even_split_f = True,
+        #use_21totf=f"{WDIR}/outputs/stdout/xc_nopop2_noHe_nosp_noatten_esf.out",
+        #debug_even_split_f = True,
     )

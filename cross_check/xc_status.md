@@ -1,9 +1,42 @@
 ## Status
 
-21cmFAST: species: OFF. even-split-f: ON. atten: OFF
-physics: YHe: OFF.
+21cmFAST: species: ON. even-split-f: OFF. atten: ON
+physics: YHe: ON.
 
 ## 3. Xray
+
+### 3.2 With 21cmFAST
+
+<!-- [ ] xc_xrayV21_nopop2_noHe_nosp_noatten_21totdep_esf
+- DC: `xc_xray_noLX_nopop2_noHe_nosp_noatten_21totdep_esf`
+- 21: `xc_nopop2_noHe_nosp_noatten_esf` -->
+
+[X] xc_xrayV21_nopop2_nosp_noatten_esf
+- DC: `xc_xray_noLX_nopop2_nosp_noatten_esf`
+- 21: `xc_nopop2_nosp_noatten_esf`
+
+[X] xc_xrayV21_nopop2_nosp_noatten
+- DC: `xc_xray_noLX_nopop2_nosp_noatten`
+- 21: `xc_nopop2_nosp_noatten`
+
+[X] xc_xrayV21_nopop2
+- DC: `xc_xray_noLX_nopop2`
+- 21: `xc_nopop2`
+
+[X] xc_xrayV21
+- DC: `xc_xray_noLX`
+- 21: `xc`
+
+### 3.3 Other
+
+[X] special
+- DH: `xc_xrayST_noHe`
+- DC: `xc_xray_noLX_nos8_noHe_nosp`
+- DC: `xc_xray_noLX_nos8_noHe_nosp_noatten`
+- DC: `xc_xray_noLX_noHe_nosp`
+- DC: `xc_xray_noLX_noHe_nosp_noatten`
+- 21: `xc_noHe_nosp`
+- DC: `xc_xray_noLX_nos8_noHe_nosp_21totdep`
 
 ### 3.1 With DarkHistory
 [X] xc_xrayVDH_nos8_noHe_nosp
@@ -29,43 +62,6 @@ physics: YHe: OFF.
 [ ] xc_xrayVDH
 - DC: `xc_xray_noLX_noatten`
 - DH: `xc_xrayST`
-
-### 3.2 With 21cmFAST
-[ ] xc_xrayV21_nopop2_noHe_nosp_noatten_21totdep_esf
-- DC: `xc_xray_noLX_nopop2_noHe_nosp_noatten_21totdep_esf`
-- 21: `xc_nopop2_noHe_nosp_noatten_esf`
-
-[ ] xc_xrayV21_nopop2_noHe_nosp_noatten_21totdep
-- DC: `xc_xray_noLX_nopop2_noHe_nosp_noatten_21totdep`
-- 21: `xc_nopop2_noHe_nosp_noatten`
-
-[ ] xc_xrayV21_nopop2_noHe_nosp_noatten
-- DC: `xc_xray_noLX_nopop2_noHe_nosp_noatten`
-- 21: `xc_nopop2_noHe_nosp_noatten`
-
-[ ] xc_xrayV21_noatten
-- DC: `xc_xray_noLX_noatten`
-- 21: `xc_noatten`
-
-[ ] xc_xrayV21
-- DC: `xc_xray_noLX`
-- 21: `xc`
-
-
-Fix total f and fraction to 21
-
-Fix only total f
-
-Relax: (just noHe nos8 nosp no attenuation)
-
-[X] special
-- DH: `xc_xrayST_noHe`
-- DC: `xc_xray_noLX_nos8_noHe_nosp`
-- DC: `xc_xray_noLX_nos8_noHe_nosp_noatten`
-- DC: `xc_xray_noLX_noHe_nosp`
-- DC: `xc_xray_noLX_noHe_nosp_noatten`
-- 21: `xc_noHe_nosp`
-- DC: `xc_xray_noLX_nos8_noHe_nosp_21totdep`
 
 ## 2. DM injection
 

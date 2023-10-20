@@ -236,6 +236,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         #'injected_bath_N' : np.zeros_like(phot_bath_spec.N), # [ph/Bavg]
         'dE_inj_per_B' : 0.,
         'dE_inj_per_Bavg_unclustered' : 0.,
+        'inj_xray_eng' : 0., # [eV/Bavg]
         'dep_ion'  : 0.,
         'dep_exc'  : 0.,
         'dep_heat' : 0.,
@@ -389,7 +390,6 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
                 # If we are smoothing on the scale of the box then dump to the global bath spectrum.
                 # The deposition will happen with `phot_bath_spec`, and we will not revisit this shell.
                 if is_box_average or 'uniform_xray' in debug_flags:
-                    #phot_bath_spec.N += xray_brightness_box[0, 0, 0] * xray_spec.N # TMP: fix the [0,0,0]
                     phot_bath_spec.N += xray_spec.N
                     i_xray_loop_start = max(i_z_shell+1, i_xray_loop_start)
                 else:
@@ -508,6 +508,10 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
             L_X_spec = Spectrum(abscs['photE'], L_X_dNdE, spec_type='dNdE', rs=1+z_current) # [1 / Msun eV]
             L_X_spec.switch_spec_type('N') # [1 / Msun]
 
+            # below calculates injected xray energy per step assuming uniform injection
+            
+            pass
+
             if 'xc-noredshift' in debug_flags:
                 L_X_spec.rs = 1+z_next
             else:
@@ -549,6 +553,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
             #'injected_bath_N' : injected_bath_N, # [ph/Bavg]
             'dE_inj_per_B' : dE_inj_per_Bavg,
             'dE_inj_per_Bavg_unclustered' : dE_inj_per_Bavg_unclustered,
+            'inj_xray_eng' : None, # [eV/Bavg]
             'dep_ion'  : np.mean(tf_wrapper.dep_box[...,0] + tf_wrapper.dep_box[...,1]),
             'dep_exc'  : np.mean(tf_wrapper.dep_box[...,2]),
             'dep_heat' : np.mean(tf_wrapper.dep_box[...,3]),

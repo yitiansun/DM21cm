@@ -242,6 +242,12 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         'dep_heat' : 0.,
         'x_e_slice' : np.array(spin_temp.x_e_box[10]),
         'x_H_slice' : np.array(ionized_box.xH_box[10]),
+        # temporary slices
+        # 'delta_slice' : np.zeros_like(spin_temp.x_e_box[10]),
+        # 'T_k_slice' : np.zeros_like(spin_temp.x_e_box[10]),
+        # 'dep_ion_slice' : np.zeros_like(spin_temp.x_e_box[10]),
+        # 'dep_exc_slice' : np.zeros_like(spin_temp.x_e_box[10]),
+        # 'dep_heat_slice' : np.zeros_like(spin_temp.x_e_box[10]),
     }
     if track_Tk_xe:
         T_k_track = np.mean(spin_temp.Tk_box)
@@ -286,6 +292,8 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         rho_DM_box = delta_plus_one_box * phys.rho_DM * (1+z_current)**3 # [eV/(physical cm)^3]
         if 'xraycheck' in debug_flags:
             x_e_box = np.asarray(spin_temp.x_e_box)
+            #x_e_box = np.asarray(1 - ionized_box.xH_box)
+            #logging.warning("Using 1 - x_H for deposition in xraycheck!! (usually x_e)")
         else:
             # logging.warning('\nusing xe = 1 - mean(ionized_box.xH_box) for deposition\n')
             x_e_box = np.asarray(1 - ionized_box.xH_box)
@@ -490,6 +498,9 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         #--- xray ---
         if 'xraycheck' in debug_flags:
             x_e_for_attenuation = 1 - np.mean(ionized_box.xH_box)
+            #x_e_for_attenuation = np.mean(spin_temp.x_e_box)
+            # if i_z == 0:
+            #     logging.warning("Using xe for attenuation in xraycheck!! (usually 1-xH)")
             attenuation_arr = np.array(tf_wrapper.attenuation_arr(rs=1+z_current, x=x_e_for_attenuation)) # convert from jax array
             if 'xc-halfatten' in debug_flags: # TMP: half attenuation
                 attenuation_arr = 1 - (1 - attenuation_arr) / 2
@@ -559,6 +570,12 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
             'dep_heat' : np.mean(tf_wrapper.dep_box[...,3]),
             'x_e_slice' : np.array(spin_temp.x_e_box[10]),
             'x_H_slice' : np.array(ionized_box.xH_box[10]),
+            # temporary slices
+            # 'delta_slice' : np.array(perturbed_field.density[10]),
+            # 'T_k_slice' : np.array(spin_temp.Tk_box[10]),
+            # 'dep_ion_slice' : np.array(tf_wrapper.dep_box[10,:,:,0] + tf_wrapper.dep_box[10,:,:,1]),
+            # 'dep_exc_slice' : np.array(tf_wrapper.dep_box[10,:,:,2]),
+            # 'dep_heat_slice' : np.array(tf_wrapper.dep_box[10,:,:,3]),
         }
         if track_Tk_xe:
             record.update({

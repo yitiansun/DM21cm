@@ -1,15 +1,15 @@
 ## Status
 
-21cmFAST: species: ON. even-split-f: OFF. atten: ON
+21cmFAST: species: OFF. even-split-f: OFF. atten: OFF
 physics: YHe: ON.
 
 ## 3. Xray
 
 ### 3.2 With 21cmFAST
 
-<!-- [ ] xc_xrayV21_nopop2_noHe_nosp_noatten_21totdep_esf
+[X] xc_xrayV21_nopop2_noHe_nosp_noatten_21totdep_esf
 - DC: `xc_xray_noLX_nopop2_noHe_nosp_noatten_21totdep_esf`
-- 21: `xc_nopop2_noHe_nosp_noatten_esf` -->
+- 21: `xc_nopop2_noHe_nosp_noatten_esf`
 
 [X] xc_xrayV21_nopop2_nosp_noatten_esf
 - DC: `xc_xray_noLX_nopop2_nosp_noatten_esf`
@@ -27,16 +27,13 @@ physics: YHe: ON.
 - DC: `xc_xray_noLX`
 - 21: `xc`
 
-### 3.3 Other
+<!-- [B] xc_xrayV21_xHdep
+- DC: `xc_xray_noLX_xHdep` using 1-xH as x for deposition instead of xe
+- 21: `xc` -->
 
-[X] special
-- DH: `xc_xrayST_noHe`
-- DC: `xc_xray_noLX_nos8_noHe_nosp`
-- DC: `xc_xray_noLX_nos8_noHe_nosp_noatten`
-- DC: `xc_xray_noLX_noHe_nosp`
-- DC: `xc_xray_noLX_noHe_nosp_noatten`
-- 21: `xc_noHe_nosp`
-- DC: `xc_xray_noLX_nos8_noHe_nosp_21totdep`
+<!-- [B] xc_xrayV21_xeatten
+- DC: `xc_xray_noLX_xeatten` using xe as x for attenuation instead of 1-xH
+- 21: `xc` -->
 
 ### 3.1 With DarkHistory
 [X] xc_xrayVDH_nos8_noHe_nosp

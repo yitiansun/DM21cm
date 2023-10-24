@@ -22,7 +22,7 @@ from darkhistory.spec.spectrum import Spectrum
 from darkhistory.history.reionization import alphaA_recomb
 from darkhistory.history.tla import compton_cooling_rate
 
-sys.path.append("..")
+sys.path.append(os.environ['DM21CM_DIR'])
 import dm21cm.physics as phys
 from dm21cm.dh_wrappers import DarkHistoryWrapper, TransferFunctionWrapper
 from dm21cm.utils import load_h5_dict
@@ -39,8 +39,8 @@ logging.getLogger('py21cmfast.wrapper').setLevel(logging.CRITICAL+1)
 def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
            dm_params=..., enable_elec=False, tf_version=...,
            p21c_initial_conditions=...,
-           use_DH_init=True,
-           rerun_DH=False, clear_cache=False,
+           use_DH_init=True, rerun_DH=False,
+           clear_cache=False,
            use_tqdm=True,
            debug_flags=[],
            debug_astro_params=None,
@@ -52,11 +52,9 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
            debug_break_after_z=None,
            custom_YHe=None,
            debug_turn_off_pop2ion=False,
-           debug_even_split_f=False,
            debug_copy_dh_init=None,
            track_Tk_xe=False,
            track_Tk_xe_set_tf_input=False,
-           use_21totf=None,
            tf_on_device=True,
            ):
     """
@@ -171,10 +169,6 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
 
     #--- redshift stepping ---
     z_edges = get_z_edges(z_start, z_end, p21c.global_params.ZPRIME_STEP_FACTOR)
-
-    #--- debug ---
-    if use_21totf is not None:
-        ref_interp = debug_get_21totf_interp(use_21totf)
 
     #===== initial steps =====
     dh_wrapper = DarkHistoryWrapper(
@@ -425,18 +419,10 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
                 raise ValueError('input_jalpha.input_jalpha has NaNs')
         perturbed_field = p21c.perturb_field(redshift=z_next, init_boxes=p21c_initial_conditions)
         input_heating, input_ionization, input_jalpha = gen_injection_boxes(z_next, p21c_initial_conditions)
-        if use_21totf:
-            ref_depE_per_B = ref_interp(z_current) * phys.A_per_B
-        else:
-            ref_depE_per_B = None
+
         tf_wrapper.populate_injection_boxes(
             input_heating, input_ionization, input_jalpha, dt,
-            debug_even_split_f=debug_even_split_f,
-            ref_depE_per_B=ref_depE_per_B,
-            debug_z = z_current,
         )
-        # print('before', np.mean(spin_temp.Tk_box), np.mean(spin_temp.x_e_box), flush=True)
-        # print('input_heating', np.mean(input_heating.input_heating), flush=True)
         spin_temp, ionized_box, brightness_temp = p21c_step(
             perturbed_field, spin_temp, ionized_box,
             input_heating = input_heating,
@@ -444,7 +430,6 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
             input_jalpha = input_jalpha,
             astro_params=debug_astro_params
         )
-        # print('after', np.mean(spin_temp.Tk_box), np.mean(spin_temp.x_e_box), flush=True)
 
         if track_Tk_xe:
             T_k_track += np.mean(input_heating.input_heating)

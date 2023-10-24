@@ -3,6 +3,7 @@ import sys
 import pickle
 import logging
 import numpy as np
+from scipy import interpolate
 
 sys.path.append("..")
 import dm21cm.physics as phys
@@ -62,44 +63,46 @@ class DarkHistoryWrapper:
         return self.soln
 
     def get_init_cond(self, rs):
-        """Returns initial conditions T_k [K], x_e [1] at redshift z."""
-        T_k_DH = np.interp(
-            rs, self.soln['rs'][::-1], self.soln['Tm'][::-1] / phys.kB
-        ) # [K]
-        x_e_DH = np.interp(
-            rs, self.soln['rs'][::-1], self.soln['x'][::-1, 0]
-        ) # HII
-        print('get_init_cond', T_k_DH, x_e_DH)
-        return T_k_DH, x_e_DH
+        """Returns initial conditions T_k [K], x_e [1], and photon bath spectrum [N / Bavg] at redshift rs=1+z."""
 
-    def match(self, spin_temp, ionized_box, match_list=['T_k', 'x_e']):
-        if 'T_k' in match_list:
-            T_k_DH = np.interp(
-                1+spin_temp.redshift, self.soln['rs'][::-1], self.soln['Tm'][::-1] / phys.kB
-            ) # [K]
-            spin_temp.Tk_box += T_k_DH - np.mean(spin_temp.Tk_box)
+        T_k = np.interp(rs, self.soln['rs'][::-1], self.soln['Tm'][::-1] / phys.kB) # [K]
+        x_e = np.interp(rs, self.soln['rs'][::-1], self.soln['x'][::-1, 0]) # HII
 
-        if 'x_e' in match_list:
-            x_e_DH = np.interp(
-                1+spin_temp.redshift, self.soln['rs'][::-1], self.soln['x'][::-1, 0]
-            ) # HI
-            spin_temp.x_e_box += x_e_DH - np.mean(spin_temp.x_e_box)
-            x_H_DH = 1 - x_e_DH
-            ionized_box.xH_box += x_H_DH - np.mean(ionized_box.xH_box)
+        spec_eng = self.soln['highengphot'][0].eng
+        spec_N_arr = np.array([s.N for s in self.soln['highengphot']]) + np.array([s.N for s in self.soln['lowengphot']]) * np.log(1.01) / 0.001
+        spec_N = interpolate.interp1d(self.soln['rs'], spec_N_arr, kind='linear', axis=0, bounds_error=True)(rs) # [N / Bavg]
+        spec = Spectrum(spec_eng, spec_N, rs=rs, spec_type='N')
 
-    def get_phot_bath(self, rs):
-        """Returns photon bath spectrum [N per Bavg] at redshift rs."""
-        logrs_dh_arr = np.log(self.soln['rs'])[::-1]
-        logrs = np.log(rs)
-        i = np.searchsorted(logrs_dh_arr, logrs)
-        logrs_left, logrs_right = logrs_dh_arr[i-1:i+1]
+        return T_k, x_e, spec
 
-        dh_eng = self.soln['highengphot'][0].eng
-        dh_spec_N_arr = np.array([s.N for s in self.soln['highengphot']])[::-1]
-        dh_spec_left, dh_spec_right = dh_spec_N_arr[i-1:i+1]
-        dh_spec = ( dh_spec_left * np.abs(logrs - logrs_right) + \
-                    dh_spec_right * np.abs(logrs - logrs_left) ) / np.abs(logrs_right - logrs_left)
-        return Spectrum(dh_eng, dh_spec, rs=rs, spec_type='N')
+    # def match(self, spin_temp, ionized_box, match_list=['T_k', 'x_e']):
+    #     if 'T_k' in match_list:
+    #         T_k_DH = np.interp(
+    #             1+spin_temp.redshift, self.soln['rs'][::-1], self.soln['Tm'][::-1] / phys.kB
+    #         ) # [K]
+    #         spin_temp.Tk_box += T_k_DH - np.mean(spin_temp.Tk_box)
+
+    #     if 'x_e' in match_list:
+    #         x_e_DH = np.interp(
+    #             1+spin_temp.redshift, self.soln['rs'][::-1], self.soln['x'][::-1, 0]
+    #         ) # HI
+    #         spin_temp.x_e_box += x_e_DH - np.mean(spin_temp.x_e_box)
+    #         x_H_DH = 1 - x_e_DH
+    #         ionized_box.xH_box += x_H_DH - np.mean(ionized_box.xH_box)
+
+    # def get_phot_bath(self, rs):
+    #     """Returns photon bath spectrum [N per Bavg] at redshift rs."""
+    #     logrs_dh_arr = np.log(self.soln['rs'])[::-1]
+    #     logrs = np.log(rs)
+    #     i = np.searchsorted(logrs_dh_arr, logrs)
+    #     logrs_left, logrs_right = logrs_dh_arr[i-1:i+1]
+
+    #     dh_eng = self.soln['highengphot'][0].eng
+    #     dh_spec_N_arr = np.array([s.N for s in self.soln['highengphot']])[::-1]
+    #     dh_spec_left, dh_spec_right = dh_spec_N_arr[i-1:i+1]
+    #     dh_spec = ( dh_spec_left * np.abs(logrs - logrs_right) + \
+    #                 dh_spec_right * np.abs(logrs - logrs_left) ) / np.abs(logrs_right - logrs_left)
+    #     return Spectrum(dh_eng, dh_spec, rs=rs, spec_type='N')
 
 
 class TransferFunctionWrapper:
@@ -127,6 +130,8 @@ class TransferFunctionWrapper:
     def load_tfs(self):
         """Initialize transfer functions."""
         
+        if not self.on_device:
+            logging.warning('TransferFunctionWrapper: Not saving transfer functions on device!')
         self.phot_prop_tf = BatchInterpolator(f'{self.prefix}/phot_prop.h5', self.on_device)
         self.phot_scat_tf = BatchInterpolator(f'{self.prefix}/phot_scat.h5', self.on_device)
         self.phot_dep_tf  = BatchInterpolator(f'{self.prefix}/phot_dep.h5', self.on_device)

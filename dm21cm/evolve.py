@@ -57,6 +57,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
            track_Tk_xe=False,
            track_Tk_xe_set_tf_input=False,
            use_21totf=None,
+           tf_on_device=True,
            ):
     """
     Main evolution function.
@@ -133,6 +134,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         abscs = abscs,
         prefix = tf_prefix,
         enable_elec = enable_elec,
+        on_device = tf_on_device,
     )
 
     #--- xray ---
@@ -194,8 +196,8 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
     z_match = z_edges[1]
     if use_DH_init:
         dh_wrapper.evolve(end_rs=(1+z_match)*0.9, rerun=rerun_DH)
-        T_k_DH_init, x_e_DH_init = dh_wrapper.get_init_cond(rs=1+z_match)
-        phot_bath_spec = dh_wrapper.get_phot_bath(rs=1+z_match)
+        T_k_DH_init, x_e_DH_init, phot_bath_spec = dh_wrapper.get_init_cond(rs=1+z_match)
+        #phot_bath_spec = dh_wrapper.get_phot_bath(rs=1+z_match)
     else:
         phot_bath_spec = Spectrum(abscs['photE'], np.zeros_like(abscs['photE']), spec_type='N', rs=1+z_match) # [ph / Bavg]
 

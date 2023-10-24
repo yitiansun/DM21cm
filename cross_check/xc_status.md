@@ -94,13 +94,13 @@ physics: YHe: ON.
 - DC: `xc_ee_noLX_nos8_noHe_nosp_lifetime25_zf001`
 - DH: `xc_ee_noHe_lifetime25_zf001`
 
-[ ] ee_nos8_lifetime25
-- DC: `xc_ee_noLX_nos8_lifetime25`
-- DH: `xc_ee_lifetime25`
+[R] ee_nos8_lifetime26
+- DC: `xc_ee_noLX_nos8_lifetime26`
+- DH: `xc_ee_lifetime26`
 
-[ ] ee_lifetime25
-- DC: `xc_ee_noLX_lifetime25`
-- DH: `xc_ee_lifetime25`
+[R] ee_lifetime26
+- DC: `xc_ee_noLX_lifetime26`
+- DH: `xc_ee_lifetime26`
 
 ## 1. Adiabatic evolution
 DM21cm vs. DarkHistory

@@ -14,7 +14,7 @@ WDIR = os.environ['DM21CM_DIR']
 if __name__ == '__main__':
 
     return_dict = evolve(
-        run_name = f'xc_ee_noLX_nos8_lifetime25', # xc_ee_noLX_lifetime25
+        run_name = f'xc_ee_noLX_lifetime26_defaultDH',
         z_start = 45.,
         z_end = 5.,
         zplusone_step_factor = 1.01,
@@ -22,7 +22,7 @@ if __name__ == '__main__':
             mode='decay',
             primary='elec_delta',
             m_DM=1e8, # [eV]
-            lifetime=1e25, # [s]
+            lifetime=1e26, # [s]
         ),
         enable_elec = True,
         tf_version = 'zf01',
@@ -37,8 +37,8 @@ if __name__ == '__main__':
                 OMm = Planck18.Om0,
                 OMb = Planck18.Ob0,
                 POWER_INDEX = Planck18.meta['n'],
-                #SIGMA_8 = Planck18.meta['sigma8'],
-                SIGMA_8 = 1e-6,
+                SIGMA_8 = Planck18.meta['sigma8'],
+                #SIGMA_8 = 1e-6,
                 hlittle = Planck18.h,
             ),
             random_seed = 54321,
@@ -56,8 +56,9 @@ if __name__ == '__main__':
         use_DH_init = True,
         custom_YHe = 0.245, # 0.245
         debug_turn_off_pop2ion = True,
-        debug_copy_dh_init = f"{WDIR}/outputs/dh/xc_ee_lifetime25_soln.p",
+        debug_copy_dh_init = f"{WDIR}/outputs/dh/xc_ee_lifetime26_soln.p",
         track_Tk_xe = True,
         #use_21totf=f"{WDIR}/outputs/stdout/xc_nopop2_noHe_nosp_noatten_esf.out",
         #debug_even_split_f = True,
+        #tf_on_device = False,
     )

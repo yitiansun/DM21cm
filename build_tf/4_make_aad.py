@@ -9,7 +9,7 @@ from dm21cm.utils import load_h5_dict
 import dm21cm.physics as phys
 
 
-def save_aad(filename, axes, axes_abscs_keys, data):
+def save_aad(filename, axes, axes_abscs_keys, abscs, data):
     # use global abscs and dts
     with h5py.File(filename, 'w') as hf:
         hf.create_dataset('axes', data=np.array(axes, dtype=h5py.string_dtype()))
@@ -35,7 +35,8 @@ if __name__ == '__main__':
     if 'elec' in args.type:
         make_list += ['elec_phot', 'elec_dep']
 
-    abscs = load_h5_dict(f"../data/abscissas/abscs_{run_name}.h5")
+    abscs_phot = load_h5_dict(f"../data/abscissas/abscs_{run_name}.h5")
+    abscs_elec = load_h5_dict(f"../data/abscissas/abscs_{run_name}e.h5")
     data_dir = os.environ['DM21CM_DATA_DIR'] + f'/tf/{run_name}'
     save_dir = os.environ['DM21CM_DATA_DIR'] + f'/tf/{run_name}'
 
@@ -51,34 +52,37 @@ if __name__ == '__main__':
             f"{save_dir}/phot_phot.h5",
             ['rs', 'Ein', 'nBs', 'x', 'out'],
             ['rs', 'photE', 'nBs', 'x', 'photE'],
+            abscs_phot,
             phot_phot
         )
 
         print('phot_prop', end=' ', flush=True)
         phot_prop = np.zeros_like(phot_tfgv_rxneo)
-        for i_rs in range(len(abscs['rs'])):
-            for i_x in range(len(abscs['x'])):
-                for i_nBs in range(len(abscs['nBs'])):
+        for i_rs in range(len(abscs_phot['rs'])):
+            for i_x in range(len(abscs_phot['x'])):
+                for i_nBs in range(len(abscs_phot['nBs'])):
                     np.fill_diagonal(phot_prop[i_rs,i_x,i_nBs], np.diagonal(phot_tfgv_rxneo[i_rs,i_x,i_nBs]))
         phot_prop = np.einsum('rxneo -> renxo', phot_prop)
         save_aad(
             f"{save_dir}/phot_prop.h5",
             ['rs', 'Ein', 'nBs', 'x', 'out'],
             ['rs', 'photE', 'nBs', 'x', 'photE'],
+            abscs_phot,
             phot_prop
         )
 
         print('phot_prop_diag', end=' ', flush=True)
-        phot_prop_diag = np.zeros((len(abscs['rs']), len(abscs['x']), len(abscs['nBs']), len(abscs['photE'])))
-        for i_rs in range(len(abscs['rs'])):
-            for i_x in range(len(abscs['x'])):
-                for i_nBs in range(len(abscs['nBs'])):
+        phot_prop_diag = np.zeros((len(abscs_phot['rs']), len(abscs_phot['x']), len(abscs_phot['nBs']), len(abscs_phot['photE'])))
+        for i_rs in range(len(abscs_phot['rs'])):
+            for i_x in range(len(abscs_phot['x'])):
+                for i_nBs in range(len(abscs_phot['nBs'])):
                     phot_prop_diag[i_rs,i_x,i_nBs] = np.diagonal(phot_tfgv_rxneo[i_rs,i_x,i_nBs])
         phot_prop_diag = np.einsum('rxno -> rnxo', phot_prop_diag) # o for both input and output
         save_aad(
             f"{save_dir}/phot_prop_diag.h5",
             ['rs', 'nBs', 'x', 'out'],
             ['rs', 'nBs', 'x', 'photE'],
+            abscs_phot,
             phot_prop_diag
         )
 
@@ -88,6 +92,7 @@ if __name__ == '__main__':
             f"{save_dir}/phot_scat.h5",
             ['rs', 'Ein', 'nBs', 'x', 'out'],
             ['rs', 'photE', 'nBs', 'x', 'photE'],
+            abscs_phot,
             phot_scat
         )
 
@@ -98,11 +103,12 @@ if __name__ == '__main__':
         print('phot_dep', end=' ', flush=True)
         phot_depgv = np.load(data_dir + '/phot/phot_depgv.npy')
         phot_dep_Nf = np.einsum('rxneo -> renxo', phot_depgv)
-        phot_dep_NE = np.einsum('renxo,e -> renxo', phot_dep_Nf, abscs['photE']) # multiply in energy
+        phot_dep_NE = np.einsum('renxo,e -> renxo', phot_dep_Nf, abscs_phot['photE']) # multiply in energy
         save_aad(
             f"{save_dir}/phot_dep.h5",
             ['rs', 'Ein', 'nBs', 'x', 'out'],
             ['rs', 'photE', 'nBs', 'x', 'dep_c'],
+            abscs_phot,
             phot_dep_NE
         )
 
@@ -117,6 +123,7 @@ if __name__ == '__main__':
             f"{save_dir}/elec_scat.h5",
             ['rs', 'Ein', 'nBs', 'x', 'out'],
             ['rs', 'elecEk', 'nBs', 'x', 'photE'],
+            abscs_elec,
             elec_scat
         )
 
@@ -127,11 +134,12 @@ if __name__ == '__main__':
         print('elec_dep', end=' ', flush=True)
         elec_depgv = np.load(data_dir + '/elec/elec_depgv.npy')
         elec_dep_Nf = np.einsum('rxneo -> renxo', elec_depgv)
-        elec_dep_NE = np.einsum('renxo,e -> renxo', elec_dep_Nf, abscs['elecEk'] + phys.m_e) # multiply in energy
+        elec_dep_NE = np.einsum('renxo,e -> renxo', elec_dep_Nf, abscs_elec['elecEk'] + phys.m_e) # multiply in energy
         save_aad(
             f"{save_dir}/elec_dep.h5",
             ['rs', 'Ein', 'nBs', 'x', 'out'],
             ['rs', 'elecEk', 'nBs', 'x', 'dep_c'],
+            abscs_elec,
             elec_dep_NE
         )
 

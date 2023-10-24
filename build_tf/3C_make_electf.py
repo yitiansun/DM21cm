@@ -45,7 +45,7 @@ if __name__ == '__main__':
     stop_after_n = np.inf
 
     #===== Initialize =====
-    abscs = load_h5_dict(f"{WDIR}/data/abscissas/abscs_{run_name}.h5")
+    abscs = load_h5_dict(f"{WDIR}/data/abscissas/abscs_{run_name}e.h5")
     dlnz = abscs['dlnz']
     inj_abscs = abscs['elecEk'] + dh_phys.me
     i_xray_fm = np.searchsorted(abscs['photE'], xray_eng_range[0])
@@ -66,6 +66,8 @@ if __name__ == '__main__':
         len(abscs['elecEk']),
         len(abscs['dep_c'])
     )) # channels: {H ionization, He ionization, excitation, heat, continuum, xray}
+    print(f'tfgv.shape = {tfgv.shape}')
+    print(f'depgv.shape = {depgv.shape}')
 
     #===== Load ICS transfer functions =====
     ics_tf_data = dh_load_data('ics_tf', verbose=1)

@@ -1,6 +1,6 @@
 ## Status
 
-21cmFAST: species: OFF. even-split-f: OFF. atten: OFF
+21cmFAST: species: ON. even-split-f: OFF. atten: ON
 physics: YHe: ON.
 
 ## 3. Xray
@@ -56,10 +56,6 @@ physics: YHe: ON.
 - DC: `xc_xray_noLX`
 - DH: `xc_xrayST`
 
-[ ] xc_xrayVDH
-- DC: `xc_xray_noLX_noatten`
-- DH: `xc_xrayST`
-
 ## 2. DM injection
 
 ### 2.1 Photon
@@ -97,6 +93,10 @@ physics: YHe: ON.
 [ ] ee_nos8_noHe_nosp_lifetime25_zf001
 - DC: `xc_ee_noLX_nos8_noHe_nosp_lifetime25_zf001`
 - DH: `xc_ee_noHe_lifetime25_zf001`
+
+[ ] ee_nos8_lifetime25
+- DC: `xc_ee_noLX_nos8_lifetime25`
+- DH: `xc_ee_lifetime25`
 
 [ ] ee_lifetime25
 - DC: `xc_ee_noLX_lifetime25`

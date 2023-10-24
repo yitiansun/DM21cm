@@ -17,7 +17,7 @@ if __name__ == '__main__':
     run_name = args.name
     data_dir = f"{os.environ['DM21CM_DATA_DIR']}/tf/{run_name}/elec"
 
-    abscs = load_h5_dict(f"{os.environ['DM21CM_DIR']}/data/abscissas/abscs_{run_name}.h5")
+    abscs = load_h5_dict(f"{os.environ['DM21CM_DIR']}/data/abscissas/abscs_{run_name}e.h5")
 
     tfgv = np.zeros(( # rxneo. in: elec, out: phot
         len(abscs['rs']),
@@ -33,6 +33,8 @@ if __name__ == '__main__':
         len(abscs['elecEk']),
         len(abscs['dep_c'])
     )) # channels: {H ionization, He ionization, excitation, heat, continuum, xray}
+    print("tfgv.shape", tfgv.shape)
+    print("depgv.shape", depgv.shape)
 
     for i_nBs, nBs in enumerate(abscs['nBs']):
         tfgv_slice = np.load(f'{data_dir}/elec_tfgv_nBs{i_nBs}_rxeo.npy')

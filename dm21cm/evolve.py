@@ -17,7 +17,7 @@ import jax.numpy as jnp
 import py21cmfast as p21c
 from py21cmfast import cache_tools
 
-sys.path.append(os.environ['DH_DIR']) # use branch test_dm21cm
+sys.path.append(os.environ['DH_DIR'])
 from darkhistory.spec.spectrum import Spectrum
 from darkhistory.history.reionization import alphaA_recomb
 from darkhistory.history.tla import compton_cooling_rate
@@ -112,10 +112,10 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
 
     #===== initialize =====
     #--- physics parameters ---
-    p21c.global_params.Z_HEAT_MAX = z_start + 1e-10
+    EPSILON = 1e-6
+    p21c.global_params.Z_HEAT_MAX = z_start + EPSILON
     p21c.global_params.ZPRIME_STEP_FACTOR = zplusone_step_factor
     p21c.global_params.CLUMPING_FACTOR = 1.
-    EPSILON = 1e-6
     if custom_YHe is not None:
         p21c.global_params.Y_He = custom_YHe
     if debug_turn_off_pop2ion:
@@ -240,11 +240,11 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         'dep_ion'  : 0.,
         'dep_exc'  : 0.,
         'dep_heat' : 0.,
-        'x_e_slice' : np.array(spin_temp.x_e_box[10]),
-        'x_H_slice' : np.array(ionized_box.xH_box[10]),
+        'x_e_slice' : np.array(spin_temp.x_e_box[0]),
+        'x_H_slice' : np.array(ionized_box.xH_box[0]),
+        'T_k_slice' : np.zeros_like(spin_temp.x_e_box[0]),
         # temporary slices
         # 'delta_slice' : np.zeros_like(spin_temp.x_e_box[10]),
-        # 'T_k_slice' : np.zeros_like(spin_temp.x_e_box[10]),
         # 'dep_ion_slice' : np.zeros_like(spin_temp.x_e_box[10]),
         # 'dep_exc_slice' : np.zeros_like(spin_temp.x_e_box[10]),
         # 'dep_heat_slice' : np.zeros_like(spin_temp.x_e_box[10]),
@@ -269,14 +269,14 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
     profiler = Profiler()
 
     z_edges = z_edges[1:] # Maybe fix this later
-    z_iterator = range(len(z_edges)-1)
+    z_range = range(len(z_edges)-1)
     if use_tqdm:
         from tqdm import tqdm
-        z_iterator = tqdm(z_iterator)
+        z_range = tqdm(z_range)
     print_str = ''
 
     #--- loop ---
-    for i_z in z_iterator:
+    for i_z in z_range:
         if not use_tqdm:
             print(f'i_z={i_z}/{len(z_edges)-2} z={z_edges[i_z]:.2f}', file=sys.stderr, flush=True)
         print_str += f'i_z={i_z}/{len(z_edges)-2} z={z_edges[i_z]:.2f}'
@@ -359,7 +359,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
                 delta, L_X_spec, xraycheck_is_box_average, z_donor, R2 = delta_cacher.get_annulus_data(
                     z_current, z_edges[i_z_shell], z_edges[i_z_shell+1]
                 )
-                print(f'XCBATH-DEBUG: SHELL i_z={i_z} i_shell={i_z_shell}, raw {np.dot(L_X_spec.N, abscs["photE"]):.3e} eV/Msun')
+                #print(f'XCBATH-DEBUG: SHELL i_z={i_z} i_shell={i_z_shell}, raw {np.dot(L_X_spec.N, abscs["photE"]):.3e} eV/Msun')
                 delta = np.clip(delta, -1.0+EPSILON, 1.5-EPSILON)
                 delta = np.array(delta)
                 print_str += f' {np.mean(delta):.3f}'
@@ -378,7 +378,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
                 else:
                     L_X_spec_inj = L_X_spec
                 
-                print(f'XCBATH-DEBUG: SHELL i_z={i_z} i_shell={i_z_shell}, inject {np.mean(emissivity_bracket)*np.dot(L_X_spec_inj.N, abscs["photE"]):.3e} eV/Bavg')
+                #print(f'XCBATH-DEBUG: SHELL i_z={i_z} i_shell={i_z_shell}, inject {np.mean(emissivity_bracket)*np.dot(L_X_spec_inj.N, abscs["photE"]):.3e} eV/Bavg')
 
                 if ST_SFRD_Interpolator(z_donor) > 0.:
                     tf_wrapper.inject_phot(L_X_spec_inj, inject_type='xray', weight_box=jnp.asarray(emissivity_bracket))
@@ -568,11 +568,11 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
             'dep_ion'  : np.mean(tf_wrapper.dep_box[...,0] + tf_wrapper.dep_box[...,1]),
             'dep_exc'  : np.mean(tf_wrapper.dep_box[...,2]),
             'dep_heat' : np.mean(tf_wrapper.dep_box[...,3]),
-            'x_e_slice' : np.array(spin_temp.x_e_box[10]),
-            'x_H_slice' : np.array(ionized_box.xH_box[10]),
+            'x_e_slice' : np.array(spin_temp.x_e_box[0]),
+            'x_H_slice' : np.array(ionized_box.xH_box[0]),
+            'T_k_slice' : np.array(spin_temp.Tk_box[0]),
             # temporary slices
             # 'delta_slice' : np.array(perturbed_field.density[10]),
-            # 'T_k_slice' : np.array(spin_temp.Tk_box[10]),
             # 'dep_ion_slice' : np.array(tf_wrapper.dep_box[10,:,:,0] + tf_wrapper.dep_box[10,:,:,1]),
             # 'dep_exc_slice' : np.array(tf_wrapper.dep_box[10,:,:,2]),
             # 'dep_heat_slice' : np.array(tf_wrapper.dep_box[10,:,:,3]),

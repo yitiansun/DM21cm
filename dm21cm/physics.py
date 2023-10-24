@@ -9,8 +9,8 @@ from astropy import constants as const
 from scipy import interpolate
 from scipy import integrate
 
-sys.path.append(os.environ['DH_DIR'])
-from darkhistory.config import load_data as dh_load_data
+#sys.path.append(os.environ['DH_DIR'])
+#from darkhistory.config import load_data as dh_load_data
 
 
 #===== Units in cgs =====
@@ -235,11 +235,11 @@ def struct_boost_func(model=...):
 
         return lambda rs: 1 + b_h / rs**delta * erfc( rs/(1+z_h) )
 
-    else:
-        struct_data = dh_load_data('struct')[model]
-        log_struct_interp = interpolate.interp1d(
-            np.log(struct_data[:,0]), np.log(struct_data[:,1]),
-            bounds_error=False, fill_value=(np.nan, 0.)
-        )
+    # else:
+    #     struct_data = dh_load_data('struct')[model]
+    #     log_struct_interp = interpolate.interp1d(
+    #         np.log(struct_data[:,0]), np.log(struct_data[:,1]),
+    #         bounds_error=False, fill_value=(np.nan, 0.)
+    #     )
 
-        return lambda rs: np.exp(log_struct_interp(np.log(rs)))
+    #     return lambda rs: np.exp(log_struct_interp(np.log(rs)))

@@ -43,17 +43,14 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
            rerun_DH=False, clear_cache=False,
            use_tqdm=True,
            debug_flags=[],
-           debug_xray_multiplier=1.,
            debug_astro_params=None,
            save_dir=None,
            debug_dhc_DH_xe_func=None,
            debug_dhc_delta_fixed=False,
-           debug_no_bath=False,
+           dh_bath_N_interp_func=None,
            debug_bath_point_injection=False,
            debug_break_after_z=None,
-           dh_bath_N_interp_func=None,
            custom_YHe=None,
-           coarsen_interp_factor=None,
            debug_turn_off_pop2ion=False,
            debug_even_split_f=False,
            debug_copy_dh_init=None,
@@ -87,7 +84,6 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
                 'xc-01attenuation' : Xray check: approximate attenuation.
                 'xc-noredshift' : Xray check: don't redshift xrays.
                 'xc-noatten' : Xray check: no attenuation.
-                'xc-halfatten' : Xray check: half attenuation.
                 'xc-force-bath : Xray check: force inject into xray bath.
         debug_astro_params (AstroParams): AstroParams in p21c.
         
@@ -161,16 +157,6 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         cond_sfrd_table = res_dict['Cond_SFRD_Table']
         st_sfrd_table =  res_dict['ST_SFRD_Table']
 
-        if coarsen_interp_factor is not None:
-            c = coarsen_interp_factor
-            z_range = np.concatenate([z_range[::c], z_range[-1:]])
-            delta_range = np.concatenate([delta_range[::c], delta_range[-1:]])
-            r_range = np.concatenate([r_range[::c], r_range[-1:]])
-            cond_sfrd_table = np.concatenate([cond_sfrd_table[::c, :, :], cond_sfrd_table[-1:, :, :]], axis=0)
-            cond_sfrd_table = np.concatenate([cond_sfrd_table[:, ::c, :], cond_sfrd_table[:, -1:, :]], axis=1)
-            cond_sfrd_table = np.concatenate([cond_sfrd_table[:, :, ::c], cond_sfrd_table[:, :, -1:]], axis=2)
-            st_sfrd_table = np.concatenate([st_sfrd_table[::c], st_sfrd_table[-1:]])
-
         # Takes the redshift as `z`
         # The overdensity parameter smoothed on scale `R`
         # The smoothing scale `R` in units of Mpc
@@ -212,9 +198,6 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         phot_bath_spec = dh_wrapper.get_phot_bath(rs=1+z_match)
     else:
         phot_bath_spec = Spectrum(abscs['photE'], np.zeros_like(abscs['photE']), spec_type='N', rs=1+z_match) # [ph / Bavg]
-    if debug_no_bath:
-        logging.warning('Turning off bath, remember to turn back on')
-        phot_bath_spec *= 0.
 
     perturbed_field = p21c.perturb_field(redshift=z_edges[1], init_boxes=p21c_initial_conditions)
     spin_temp, ionized_box, brightness_temp = p21c_step(perturbed_field=perturbed_field, spin_temp=None, ionized_box=None, astro_params=debug_astro_params)
@@ -336,7 +319,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
                     if np.mean(emissivity_bracket_unif) > 0:
                         emissivity_bracket_unif *= (ST_SFRD_Interpolator(z_shell) / np.mean(emissivity_bracket_unif)) # [Msun / Mpc^3 s]
                     emissivity_bracket_unif *= (1 + delta_unif) / (phys.n_B * u.cm**-3).to('Mpc**-3').value * dt # [Msun / Mpc^3 s] * [Bavg / Mpc^3]^-1 * [s] = [Msun / Bavg]
-                    emissivity_bracket_unif *= L_X_numerical_factor * debug_xray_multiplier # [Msun / Bavg]
+                    emissivity_bracket_unif *= L_X_numerical_factor # [Msun / Bavg]
                     shell_N *= emissivity_bracket_unif # [ph / Bavg]
                     xraycheck_bath_N += shell_N # put in bath
 
@@ -368,7 +351,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
                     emissivity_bracket *= (ST_SFRD_Interpolator(z_donor) / np.mean(emissivity_bracket))
                 z_shell = z_edges[i_z_shell]
                 emissivity_bracket *= (1 + delta) / (phys.n_B * u.cm**-3).to('Mpc**-3').value * dt
-                emissivity_bracket *= L_X_numerical_factor * debug_xray_multiplier
+                emissivity_bracket *= L_X_numerical_factor
                 if xraycheck_is_box_average:
                     i_xraycheck_loop_start = max(i_z_shell+1, i_xraycheck_loop_start)
 
@@ -407,8 +390,6 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
             profiler.record('xray')
 
             #--- bath and homogeneous portion of xray ---
-            if debug_no_bath:
-                phot_bath_spec *= 0.
             if debug_bath_point_injection:
                 #if np.isclose(z_current, 37.713184, rtol=1e-3): # 38.713184 test
                 if np.isclose(z_current, 4.530668e+01, rtol=1e-3):
@@ -492,18 +473,11 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         emit_bath_N, emit_xray_N = split_xray(emit_phot_N, abscs['photE'])
         phot_bath_spec = Spectrum(abscs['photE'], prop_phot_N + emit_bath_N, rs=1+z_current, spec_type='N') # photons not emitted to the xray band are added to the bath (treated as uniform)
         phot_bath_spec.redshift(1+z_next)
-        if debug_no_bath:
-            phot_bath_spec *= 0.
 
         #--- xray ---
         if 'xraycheck' in debug_flags:
             x_e_for_attenuation = 1 - np.mean(ionized_box.xH_box)
-            #x_e_for_attenuation = np.mean(spin_temp.x_e_box)
-            # if i_z == 0:
-            #     logging.warning("Using xe for attenuation in xraycheck!! (usually 1-xH)")
             attenuation_arr = np.array(tf_wrapper.attenuation_arr(rs=1+z_current, x=x_e_for_attenuation)) # convert from jax array
-            if 'xc-halfatten' in debug_flags: # TMP: half attenuation
-                attenuation_arr = 1 - (1 - attenuation_arr) / 2
             if 'xc-noatten' in debug_flags: # TMP: turn off attenuation
                 attenuation_arr = np.ones_like(attenuation_arr)
             delta_cacher.advance_spectrum(attenuation_arr, z_next, noredshift=('xc-noredshift' in debug_flags)) # can handle AttenuatedSpectrum

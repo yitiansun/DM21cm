@@ -75,35 +75,6 @@ class DarkHistoryWrapper:
 
         return T_k, x_e, spec
 
-    # def match(self, spin_temp, ionized_box, match_list=['T_k', 'x_e']):
-    #     if 'T_k' in match_list:
-    #         T_k_DH = np.interp(
-    #             1+spin_temp.redshift, self.soln['rs'][::-1], self.soln['Tm'][::-1] / phys.kB
-    #         ) # [K]
-    #         spin_temp.Tk_box += T_k_DH - np.mean(spin_temp.Tk_box)
-
-    #     if 'x_e' in match_list:
-    #         x_e_DH = np.interp(
-    #             1+spin_temp.redshift, self.soln['rs'][::-1], self.soln['x'][::-1, 0]
-    #         ) # HI
-    #         spin_temp.x_e_box += x_e_DH - np.mean(spin_temp.x_e_box)
-    #         x_H_DH = 1 - x_e_DH
-    #         ionized_box.xH_box += x_H_DH - np.mean(ionized_box.xH_box)
-
-    # def get_phot_bath(self, rs):
-    #     """Returns photon bath spectrum [N per Bavg] at redshift rs."""
-    #     logrs_dh_arr = np.log(self.soln['rs'])[::-1]
-    #     logrs = np.log(rs)
-    #     i = np.searchsorted(logrs_dh_arr, logrs)
-    #     logrs_left, logrs_right = logrs_dh_arr[i-1:i+1]
-
-    #     dh_eng = self.soln['highengphot'][0].eng
-    #     dh_spec_N_arr = np.array([s.N for s in self.soln['highengphot']])[::-1]
-    #     dh_spec_left, dh_spec_right = dh_spec_N_arr[i-1:i+1]
-    #     dh_spec = ( dh_spec_left * np.abs(logrs - logrs_right) + \
-    #                 dh_spec_right * np.abs(logrs - logrs_left) ) / np.abs(logrs_right - logrs_left)
-    #     return Spectrum(dh_eng, dh_spec, rs=rs, spec_type='N')
-
 
 class TransferFunctionWrapper:
     """Wrapper for transfer functions from DarkHistory.
@@ -231,25 +202,11 @@ class TransferFunctionWrapper:
             self.inject_elec(dm_params.inj_elec_spec, weight_box=inj_per_Bavg_box)
 
 
-    def populate_injection_boxes(self, input_heating, input_ionization, input_jalpha, dt, debug_even_split_f=False, ref_depE_per_B=None, debug_z=None):
+    def populate_injection_boxes(self, input_heating, input_ionization, input_jalpha, dt):
         
         dep_heat_box = self.dep_box[...,3]
         dep_ion_box = (self.dep_box[...,0]/phys.rydberg + self.dep_box[...,1]/phys.He_ion_eng)
         dep_lya_box = self.dep_box[...,2]
-
-        if ref_depE_per_B is not None:
-            dep_tot = np.mean(dep_heat_box) + np.mean(dep_ion_box) + np.mean(dep_lya_box)
-            print(f"DM21CM: z={debug_z} TOT INJ ENG {dep_tot / phys.A_per_B} eV/A")
-            print(f"DM21CM: z={debug_z} REF INJ ENG {ref_depE_per_B / phys.A_per_B} eV/A")
-            if dep_tot > 0:
-                dep_heat_box *= ref_depE_per_B / dep_tot
-                dep_ion_box *= ref_depE_per_B / dep_tot
-                dep_lya_box *= ref_depE_per_B / dep_tot
-        if debug_even_split_f:
-            dep_tot_box = dep_heat_box + dep_ion_box + dep_lya_box
-            dep_heat_box = dep_tot_box / 3
-            dep_ion_box = dep_tot_box / 3 / phys.rydberg
-            dep_lya_box = dep_tot_box / 3
         
         input_heating.input_heating += np.array(
             2 / (3*phys.kB*(1+self.params['x_e_box'])) * dep_heat_box / self.params['nBs_box'] / phys.A_per_B

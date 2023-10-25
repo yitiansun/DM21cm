@@ -19,8 +19,6 @@ from py21cmfast import cache_tools
 
 sys.path.append(os.environ['DH_DIR'])
 from darkhistory.spec.spectrum import Spectrum
-from darkhistory.history.reionization import alphaA_recomb
-from darkhistory.history.tla import compton_cooling_rate
 
 sys.path.append(os.environ['DM21CM_DIR'])
 import dm21cm.physics as phys
@@ -28,7 +26,6 @@ from dm21cm.dh_wrappers import DarkHistoryWrapper, TransferFunctionWrapper
 from dm21cm.utils import load_h5_dict
 from dm21cm.data_cacher import Cacher
 from dm21cm.profiler import Profiler
-from dm21cm.spectrum import AttenuatedSpectrum
 
 logging.getLogger().setLevel(logging.INFO)
 logging.getLogger('21cmFAST').setLevel(logging.CRITICAL+1)
@@ -37,7 +34,7 @@ logging.getLogger('py21cmfast.wrapper').setLevel(logging.CRITICAL+1)
 
 
 def evolve(run_name,
-           z_start=..., z_end=..., zplusone_step_factor=...,
+           z_start=..., z_end=...,
            dm_params=..., enable_elec=False,
            p21c_initial_conditions=...,
            p21c_astro_params=None,
@@ -52,27 +49,21 @@ def evolve(run_name,
     Main evolution function.
 
     Args:
-        run_name (str): Name of run. Used for cache directory.
-        z_start (float): Starting redshift.
-        z_end (float): Ending redshift.
-        zplusone_step_factor (float): (1+z)/(1+z_next). Must be greater than 1.
+        run_name (str):     Name of run. Used for cache directory.
+        z_start (float):    Starting redshift.
+        z_end (float):      Ending redshift.
         dm_params (dm21cm.dm_params.DMParams): Dark matter (DM) parameters.
         enable_elec (bool): Whether to enable electron injection.
         p21c_initial_conditions (p21c.InitialConditions): Initial conditions for 21cmFAST.
         p21c_astro_params (p21c.AstroParams): AstroParams for 21cmFAST.
         use_DH_init (bool): Whether to use DarkHistory initial conditions.
-        rerun_DH (bool): Whether to rerun DarkHistory to get initial values.
+        rerun_DH (bool):    Whether to rerun DarkHistory to get initial values.
         clear_cache (bool): Whether to clear cache for 21cmFAST.
-        use_tqdm (bool): Whether to use tqdm progress bars.
+        use_tqdm (bool):    Whether to use tqdm progress bars.
+
         debug_flags (list): List of debug flags. Can contain:
-            'uniform-xray' : Force xray to inject uniformly.
-            xraychecks: (Use x_e instead of 1-x_H for tf is now the baseline.)
-            'xraycheck' : Xray check mode. And only one of the following:
-                'xc-bath' : Xray check: include bath (larger box injection) as well.
-                'xc-01attenuation' : Xray check: approximate attenuation.
-                'xc-noredshift' : Xray check: don't redshift xrays.
-                'xc-noatten' : Xray check: no attenuation.
-                'xc-force-bath : Xray check: force inject into xray bath.
+            'xraycheck' : Xray check mode.
+        tf_on_device (bool): Whether to put transfer functions on device (GPU).
         
     Returns:
         dict: Dictionary of results.
@@ -92,14 +83,14 @@ def evolve(run_name,
 
     #===== initialize =====
     #--- physics parameters ---
+    abscs = load_h5_dict(f"{data_dir}/abscissas.h5")
+    dm_params.set_inj_specs(abscs)
+
     EPSILON = 1e-6
     p21c.global_params.Z_HEAT_MAX = z_start + EPSILON
+    zplusone_step_factor = 1.01
+    # zplusone_step_factor = abscs['zplusone_step_factor']
     p21c.global_params.ZPRIME_STEP_FACTOR = zplusone_step_factor
-
-    abscs = load_h5_dict(f"{data_dir}/abscissas.h5")
-    if not np.isclose(np.log(zplusone_step_factor), abscs['dlnz']):
-        raise ValueError('zplusone_step_factor and tf_version mismatch')
-    dm_params.set_inj_specs(abscs)
 
     box_dim = p21c_initial_conditions.user_params.HII_DIM
     box_len = p21c_initial_conditions.user_params.BOX_LEN
@@ -215,67 +206,27 @@ def evolve(run_name,
         #--- xray ---
         profiler.start()
         if 'xraycheck' in debug_flags:
-            if 'xc-bath' in debug_flags:
-                xraycheck_bath_N = np.zeros((500,)) # [ph / Bavg]
-                emissivity_bracket_unif = 0.
-                if 'xc-force-bath' in debug_flags:
-                    i_xraycheck_loop_start = i_z # all goes into uniform injection
-                for i_z_shell in range(i_xraycheck_loop_start): # uniform injection
-                    z_shell = z_edges[i_z_shell]
-                    shell_N = np.array(delta_cacher.spectrum_cache.get_spectrum(z_shell).N) # [ph / Msun]
-
-                    delta_unif = 0. # just a number
-                    emissivity_bracket_unif = Cond_SFRD_Interpolator((z_shell, delta_unif, 512.-EPSILON)) # [Msun / Mpc^3 s]
-                    if np.mean(emissivity_bracket_unif) > 0:
-                        emissivity_bracket_unif *= (ST_SFRD_Interpolator(z_shell) / np.mean(emissivity_bracket_unif)) # [Msun / Mpc^3 s]
-                    emissivity_bracket_unif *= (1 + delta_unif) / (phys.n_B * u.cm**-3).to('Mpc**-3').value * dt # [Msun / Mpc^3 s] * [Bavg / Mpc^3]^-1 * [s] = [Msun / Bavg]
-                    emissivity_bracket_unif *= L_X_numerical_factor # [Msun / Bavg]
-                    shell_N *= emissivity_bracket_unif # [ph / Bavg]
-                    xraycheck_bath_N += shell_N # put in bath
-
-                L_X_bath_spec = Spectrum(abscs['photE'], xraycheck_bath_N, spec_type='N', rs=1+z_current) # [counts / (keV Msun)]
-                weight = jnp.ones_like(delta_plus_one_box)
-                tf_wrapper.inject_phot(L_X_bath_spec, inject_type='xray', weight_box=weight) # inject bath
-
-                print_str += f' i_xray_bath=0-{i_xraycheck_loop_start}'
-                print_str += f' L_X_bath eng={L_X_bath_spec.toteng():.3e} eV/Bavg'
-                profiler.record('xraycheck bath')
-            
-            emissivity_bracket = 0.
-
-            print_str += f' delta-mean='
 
             for i_z_shell in range(i_xraycheck_loop_start, i_z):
 
                 delta, L_X_spec, xraycheck_is_box_average, z_donor, R2 = delta_cacher.get_annulus_data(
                     z_current, z_edges[i_z_shell], z_edges[i_z_shell+1]
                 )
-                #print(f'XCBATH-DEBUG: SHELL i_z={i_z} i_shell={i_z_shell}, raw {np.dot(L_X_spec.N, abscs["photE"]):.3e} eV/Msun')
                 delta = np.clip(delta, -1.0+EPSILON, 1.5-EPSILON)
                 delta = np.array(delta)
-                print_str += f' {np.mean(delta):.3f}'
                 emissivity_bracket = Cond_SFRD_Interpolator((z_donor, delta, R2))
                 if np.mean(emissivity_bracket) > 0:
                     emissivity_bracket *= (ST_SFRD_Interpolator(z_donor) / np.mean(emissivity_bracket))
-                z_shell = z_edges[i_z_shell]
                 emissivity_bracket *= (1 + delta) / (phys.n_B * u.cm**-3).to('Mpc**-3').value * dt
                 emissivity_bracket *= L_X_numerical_factor
                 if xraycheck_is_box_average:
                     i_xraycheck_loop_start = max(i_z_shell+1, i_xraycheck_loop_start)
 
-                if 'xc-01attenuation' in debug_flags:
-                    L_X_spec_inj = L_X_spec.approx_attenuated_spectrum
-                    print_str += f'\n    approx attenuation: {L_X_spec.approx_attentuation_arr_repr[xray_i_lo:xray_i_hi]}'
-                else:
-                    L_X_spec_inj = L_X_spec
+                L_X_spec_inj = L_X_spec
 
                 if ST_SFRD_Interpolator(z_donor) > 0.:
                     tf_wrapper.inject_phot(L_X_spec_inj, inject_type='xray', weight_box=jnp.asarray(emissivity_bracket))
             
-            print_str += f' shells:{i_xraycheck_loop_start}-{i_z}'
-            if i_z > i_xraycheck_loop_start: # if shells were injected at all
-                avg_eng = np.mean(emissivity_bracket)*L_X_spec_inj.toteng()
-                print_str += f' shell xray:{avg_eng:.3e} eV/Bavg'
             profiler.record('xraycheck')
 
         else: # regular routine
@@ -284,11 +235,9 @@ def evolve(run_name,
                 xray_brightness_box, xray_spec, is_box_average = xray_cacher.get_annulus_data(
                     z_current, z_edges[i_z_shell], z_edges[i_z_shell+1]
                 )
-                # If we are smoothing on the scale of the box then dump to the global bath spectrum.
-                # The deposition will happen with `phot_bath_spec`, and we will not revisit this shell.
-                if is_box_average or 'uniform_xray' in debug_flags:
-                    phot_bath_spec.N += xray_spec.N
-                    i_xray_loop_start = max(i_z_shell+1, i_xray_loop_start)
+                if is_box_average:                                          # if smoothing scale > box size,
+                    phot_bath_spec.N += xray_spec.N                         # then we can just dump to the global bath spectrum
+                    i_xray_loop_start = max(i_z_shell+1, i_xray_loop_start) # and we will not revisit this shell
                 else:
                     tf_wrapper.inject_phot(xray_spec, inject_type='xray', weight_box=xray_brightness_box)
 
@@ -318,11 +267,8 @@ def evolve(run_name,
         
         #===== prepare spectra for next step =====
         #--- bath (separating out xray) ---
-        prop_phot_N, emit_phot_N = tf_wrapper.prop_phot_N, tf_wrapper.emit_phot_N # propagating and emitted photons have been stored in tf_wrapper up to this point, time to get them out
-        # tmp fix 10.2 eV double counting
-        prop_phot_N = np.array(prop_phot_N)
-        emit_phot_N = np.array(emit_phot_N)
-        prop_phot_N[149] = 0.
+        prop_phot_N = np.array(tf_wrapper.prop_phot_N) # propagating and emitted photons have been stored in tf_wrapper up to this point, time to get them out
+        emit_phot_N = np.array(tf_wrapper.emit_phot_N)
         emit_bath_N, emit_xray_N = split_xray(emit_phot_N, abscs['photE'])
         phot_bath_spec = Spectrum(abscs['photE'], prop_phot_N + emit_bath_N, rs=1+z_current, spec_type='N') # photons not emitted to the xray band are added to the bath (treated as uniform)
         phot_bath_spec.redshift(1+z_next)
@@ -331,11 +277,7 @@ def evolve(run_name,
         if 'xraycheck' in debug_flags:
             x_e_for_attenuation = 1 - np.mean(ionized_box.xH_box)
             attenuation_arr = np.array(tf_wrapper.attenuation_arr(rs=1+z_current, x=x_e_for_attenuation)) # convert from jax array
-            if 'xc-noatten' in debug_flags: # TMP: turn off attenuation
-                attenuation_arr = np.ones_like(attenuation_arr)
-            delta_cacher.advance_spectrum(attenuation_arr, z_next, noredshift=('xc-noredshift' in debug_flags)) # can handle AttenuatedSpectrum
-
-            print_str += f" atten. mean={np.mean(attenuation_arr):.4f}"
+            delta_cacher.advance_spectrum(attenuation_arr, z_next) # can handle AttenuatedSpectrum
 
             L_X_spec_prefac = 1e40 / np.log(4) * u.erg * u.s**-1 * u.M_sun**-1 * u.yr * u.keV**-1 # value in [erg yr / s Msun keV]
             L_X_spec_prefac /= L_X_numerical_factor
@@ -346,13 +288,8 @@ def evolve(run_name,
             L_X_spec = Spectrum(abscs['photE'], L_X_dNdE, spec_type='dNdE', rs=1+z_current) # [1 / Msun eV]
             L_X_spec.switch_spec_type('N') # [1 / Msun]
 
-            if 'xc-noredshift' in debug_flags:
-                L_X_spec.rs = 1+z_next
-            else:
-                L_X_spec.redshift(1+z_next)
+            L_X_spec.redshift(1+z_next)
 
-            if 'xc-01attenuation' in debug_flags:
-                L_X_spec = AttenuatedSpectrum(L_X_spec)
             delta_cacher.cache(z_current, perturbed_field.density, L_X_spec)
         
         else:
@@ -360,20 +297,20 @@ def evolve(run_name,
             attenuation_arr = np.array(tf_wrapper.attenuation_arr(rs=1+z_current, x=np.mean(x_e_for_attenuation))) # convert from jax array
             xray_cacher.advance_spectrum(attenuation_arr, z_next)
 
-            xray_spec = Spectrum(abscs['photE'], emit_xray_N, rs=1+z_current, spec_type='N') # [ph / Bavg]
+            xray_spec = Spectrum(abscs['photE'], emit_xray_N, rs=1+z_current, spec_type='N') # [ph/Bavg]
             xray_spec.redshift(1+z_next)
             xray_tot_eng = np.dot(abscs['photE'], emit_xray_N)
             if xray_tot_eng == 0.:
                 xray_rel_eng_box = np.zeros_like(tf_wrapper.xray_eng_box)
             else:
-                xray_rel_eng_box = tf_wrapper.xray_eng_box / xray_tot_eng # [1 (relative energy) / Bavg]
+                xray_rel_eng_box = tf_wrapper.xray_eng_box / xray_tot_eng # [1 (relative energy)/Bavg]
             xray_cacher.cache(z_current, xray_rel_eng_box, xray_spec)
         
         #===== calculate and save some quantities =====
-        dE_inj_per_Bavg = dm_params.eng_per_inj * np.mean(inj_per_Bavg_box) # [eV per Bavg]
-        dE_inj_per_Bavg_unclustered = dE_inj_per_Bavg / dm_params.struct_boost(1+z_current)
+        dE_inj_per_Bavg = dm_params.eng_per_inj * np.mean(inj_per_Bavg_box) # [eV/Bavg]
+        dE_inj_per_Bavg_unclustered = dE_inj_per_Bavg / dm_params.struct_boost(1+z_current) # [eV/Bavg]
         
-        record = {
+        records.append({
             'z'   : z_next,
             'T_s' : np.mean(spin_temp.Ts_box), # [mK]
             'T_b' : np.mean(brightness_temp.brightness_temp), # [K]
@@ -382,17 +319,15 @@ def evolve(run_name,
             '1-x_H' : np.mean(1 - ionized_box.xH_box), # [1]
             'E_phot' : phot_bath_spec.toteng(), # [eV/Bavg]
             'phot_N' : phot_bath_spec.N, # [ph/Bavg]
-            'dE_inj_per_B' : dE_inj_per_Bavg,
-            'dE_inj_per_Bavg_unclustered' : dE_inj_per_Bavg_unclustered,
-            'inj_xray_eng' : None, # [eV/Bavg]
-            'dep_ion'  : np.mean(tf_wrapper.dep_box[...,0] + tf_wrapper.dep_box[...,1]),
-            'dep_exc'  : np.mean(tf_wrapper.dep_box[...,2]),
-            'dep_heat' : np.mean(tf_wrapper.dep_box[...,3]),
-            'x_e_slice' : np.array(spin_temp.x_e_box[0]),
-            'x_H_slice' : np.array(ionized_box.xH_box[0]),
-            'T_k_slice' : np.array(spin_temp.Tk_box[0]),
-        }
-        records.append(record)
+            'dE_inj_per_B' : dE_inj_per_Bavg, # [eV/Bavg]
+            'dE_inj_per_Bavg_unclustered' : dE_inj_per_Bavg_unclustered, # [eV/Bavg]
+            'dep_ion'  : np.mean(tf_wrapper.dep_box[...,0] + tf_wrapper.dep_box[...,1]), # [eV/Bavg]
+            'dep_exc'  : np.mean(tf_wrapper.dep_box[...,2]), # [eV/Bavg]
+            'dep_heat' : np.mean(tf_wrapper.dep_box[...,3]), # [eV/Bavg]
+            'x_e_slice' : np.array(spin_temp.x_e_box[0]), # [1]
+            'x_H_slice' : np.array(ionized_box.xH_box[0]), # [1]
+            'T_k_slice' : np.array(spin_temp.Tk_box[0]), # [K]
+        })
 
         profiler.record('prep_next')
 

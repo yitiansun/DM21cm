@@ -5,9 +5,8 @@ import sys
 import h5py
 import numpy as np
 
-sys.path.append("..")
+sys.path.append(os.environ['DM21CM_DIR'])
 import dm21cm.physics as phys
-from dm21cm.spectrum import AttenuatedSpectrum
 
 sys.path.append(os.environ['DH_DIR'])
 from darkhistory.spec.spectrum import Spectrum
@@ -59,17 +58,9 @@ class Cacher:
         self.spectrum_cache.clear_cache()
         self.brightness_cache.clear_cache()
 
-    def advance_spectrum(self, attenuation_factor, z, noredshift=False):
+    def advance_spectrum(self, attenuation_factor, z):
         self.spectrum_cache.attenuate(attenuation_factor)
-        if not noredshift:
-            self.spectrum_cache.redshift(z)
-        else:
-            for spec in self.spectrum_cache.spectrum_list:
-                spec.switch_spec_type('N')
-                if isinstance(spec, AttenuatedSpectrum):
-                    spec.spectrum.rs = 1+z
-                else:
-                    spec.rs = 1+z
+        self.spectrum_cache.redshift(z)
 
     def get_smoothing_radii(self, z_receiver, z1, z2):
         """Evaluates the shell radii [cfMpc] for a receiver at `z_receiver` for emission between redshifts `z1` and `z2`."""
@@ -160,14 +151,8 @@ class SpectrumCache:
         
     def attenuate(self, attenuation_arr):
         for spec in self.spectrum_list:
-            if isinstance(spec, Spectrum):
-                spec.switch_spec_type('N')
-                spec.N *= attenuation_arr
-            elif isinstance(spec, AttenuatedSpectrum):
-                spec.switch_spec_type('N')
-                spec.attenuate(attenuation_arr)
-            else:
-                raise TypeError('Spectrum type not recognized.')
+            spec.switch_spec_type('N')
+            spec.N *= attenuation_arr
             
     def redshift(self, z_target):
         for spec in self.spectrum_list:

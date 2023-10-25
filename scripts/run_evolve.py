@@ -32,7 +32,6 @@ if __name__ == '__main__':
             lifetime=1e26, # [s]
         ),
         enable_elec = False,
-        tf_version = 'zf01',
         
         p21c_initial_conditions = p21c.initial_conditions(
             user_params = p21c.UserParams(

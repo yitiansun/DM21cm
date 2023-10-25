@@ -44,7 +44,6 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
            use_tqdm=True,
            debug_flags=[],
            debug_astro_params=None,
-           save_dir=None,
            debug_dhc_DH_xe_func=None,
            debug_dhc_delta_fixed=False,
            dh_bath_N_interp_func=None,
@@ -565,16 +564,13 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         if debug_break_after_z is not None and z_current < debug_break_after_z:
             break
         
-    #===== end of loop, save results =====
+    #===== end of loop, return results =====
     arr_records = {k: np.array([r[k] for r in records]) for k in records[0].keys()}
-    if save_dir is None:
-        save_dir = os.environ['DM21CM_DIR'] + '/outputs/dm21cm'
-    np.save(f"{save_dir}/{run_name}_records", arr_records)
-
     profiler.print_summary()
 
     return {
         'profiler' : profiler,
+        'records' : arr_records,
     }
 
 

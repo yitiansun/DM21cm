@@ -56,9 +56,6 @@ if __name__ == '__main__':
         use_DH_init = True,
         custom_YHe = 0.245, # 0.245
         debug_turn_off_pop2ion = True,
-        debug_copy_dh_init = f"{WDIR}/outputs/dh/xc_ee_lifetime26_soln.p",
         track_Tk_xe = True,
-        #use_21totf=f"{WDIR}/outputs/stdout/xc_nopop2_noHe_nosp_noatten_esf.out",
-        #debug_even_split_f = True,
         #tf_on_device = False,
     )

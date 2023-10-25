@@ -18,6 +18,7 @@ EPSILON = 1e-6
 
 
 class DarkHistoryWrapper:
+    """Wrapper for running DarkHistory."""
     
     def __init__(self, dm_params, prefix='.', soln_name='dh_init_soln.p'):
 
@@ -230,6 +231,7 @@ class TransferFunctionWrapper:
         return self.dep_box[..., 5]
 
     def attenuation_arr(self, rs, x, nBs=1.):
+        """Attenuation (fraction of remaining) array w.r.t. energy. Applies to xray photons only (secondary photons not counted)."""
         dep_tf_at_point = self.phot_dep_tf.point_interp(rs=rs, x=x, nBs=nBs, out_of_bounds_action='clip')
         dep_toteng = np.sum(dep_tf_at_point[:, :5], axis=1) # H ion, He ion, exc, heat, cont
         return 1 - dep_toteng/self.abscs['photE']

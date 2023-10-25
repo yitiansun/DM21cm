@@ -47,7 +47,6 @@ class DarkHistoryWrapper:
             struct_boost=self.dm_params.struct_boost,
             start_rs=3000, end_rs=end_rs, coarsen_factor=10, verbose=1,
         ) # default parameters use case B coefficients
-        logging.warning('DarkHistoryWrapper: Remember to change back debug and coarsen factor!')
         default_kwargs.update(kwargs)
         self.soln = evolve_DH(**default_kwargs)
         self.soln['dm_params'] = self.dm_params
@@ -105,6 +104,8 @@ class TransferFunctionWrapper:
             self.elec_scat_tf = BatchInterpolator(f'{self.prefix}/elec_scat.h5', self.on_device)
             self.elec_dep_tf  = BatchInterpolator(f'{self.prefix}/elec_dep.h5', self.on_device)
             logging.info('TransferFunctionWrapper: Loaded electron transfer functions.')
+        else:
+            logging.info('TransferFunctionWrapper: Skipping electron transfer functions.')
             
     def init_step(self, rs=..., delta_plus_one_box=..., x_e_box=...):
         """Initializes parameters and receivers for injection step."""

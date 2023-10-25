@@ -98,6 +98,8 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
     p21c.global_params.Z_HEAT_MAX = z_start + EPSILON
     p21c.global_params.ZPRIME_STEP_FACTOR = zplusone_step_factor
     p21c.global_params.CLUMPING_FACTOR = 1.
+    print(p21c.global_params.Y_He)
+    return
     if custom_YHe is not None:
         p21c.global_params.Y_He = custom_YHe
     if debug_turn_off_pop2ion:
@@ -181,35 +183,6 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         spin_temp.x_e_box += x_e_DH_init - np.mean(spin_temp.x_e_box)
         ionized_box.xH_box = 1 - spin_temp.x_e_box
 
-    records = []
-    record = {
-        'z'   : z_edges[1],
-        'T_s' : np.mean(spin_temp.Ts_box), # [mK]
-        'T_b' : np.mean(brightness_temp.brightness_temp), # [K]
-        'T_k' : np.mean(spin_temp.Tk_box), # [K]
-        'x_e' : np.mean(spin_temp.x_e_box), # [1]
-        '1-x_H' : np.mean(1 - ionized_box.xH_box), # [1]
-        'E_phot' : phot_bath_spec.toteng(), # [eV/Bavg]
-        'phot_N' : phot_bath_spec.N, # [ph/Bavg]
-        #'injected_bath_N' : np.zeros_like(phot_bath_spec.N), # [ph/Bavg]
-        'dE_inj_per_B' : 0.,
-        'dE_inj_per_Bavg_unclustered' : 0.,
-        'inj_xray_eng' : 0., # [eV/Bavg]
-        'dep_ion'  : 0.,
-        'dep_exc'  : 0.,
-        'dep_heat' : 0.,
-        'x_e_slice' : np.array(spin_temp.x_e_box[0]),
-        'x_H_slice' : np.array(ionized_box.xH_box[0]),
-        'T_k_slice' : np.zeros_like(spin_temp.x_e_box[0]),
-        # temporary slices
-        # 'delta_slice' : np.zeros_like(spin_temp.x_e_box[10]),
-        # 'dep_ion_slice' : np.zeros_like(spin_temp.x_e_box[10]),
-        # 'dep_exc_slice' : np.zeros_like(spin_temp.x_e_box[10]),
-        # 'dep_heat_slice' : np.zeros_like(spin_temp.x_e_box[10]),
-    }
-    records.append(record)
-
-
     #===== main loop =====
     #--- trackers ---
     if 'xraycheck' in debug_flags:
@@ -221,6 +194,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
 
     z_edges = z_edges[1:] # Maybe fix this later
     z_range = range(len(z_edges)-1)
+    records = []
     if use_tqdm:
         from tqdm import tqdm
         z_range = tqdm(z_range)
@@ -409,10 +383,6 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
             L_X_spec = Spectrum(abscs['photE'], L_X_dNdE, spec_type='dNdE', rs=1+z_current) # [1 / Msun eV]
             L_X_spec.switch_spec_type('N') # [1 / Msun]
 
-            # below calculates injected xray energy per step assuming uniform injection
-            
-            pass
-
             if 'xc-noredshift' in debug_flags:
                 L_X_spec.rs = 1+z_next
             else:
@@ -451,7 +421,6 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
             '1-x_H' : np.mean(1 - ionized_box.xH_box), # [1]
             'E_phot' : phot_bath_spec.toteng(), # [eV/Bavg]
             'phot_N' : phot_bath_spec.N, # [ph/Bavg]
-            #'injected_bath_N' : injected_bath_N, # [ph/Bavg]
             'dE_inj_per_B' : dE_inj_per_Bavg,
             'dE_inj_per_Bavg_unclustered' : dE_inj_per_Bavg_unclustered,
             'inj_xray_eng' : None, # [eV/Bavg]
@@ -461,11 +430,6 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
             'x_e_slice' : np.array(spin_temp.x_e_box[0]),
             'x_H_slice' : np.array(ionized_box.xH_box[0]),
             'T_k_slice' : np.array(spin_temp.Tk_box[0]),
-            # temporary slices
-            # 'delta_slice' : np.array(perturbed_field.density[10]),
-            # 'dep_ion_slice' : np.array(tf_wrapper.dep_box[10,:,:,0] + tf_wrapper.dep_box[10,:,:,1]),
-            # 'dep_exc_slice' : np.array(tf_wrapper.dep_box[10,:,:,2]),
-            # 'dep_heat_slice' : np.array(tf_wrapper.dep_box[10,:,:,3]),
         }
         records.append(record)
 

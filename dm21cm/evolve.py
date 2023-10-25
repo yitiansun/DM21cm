@@ -46,7 +46,6 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
            debug_astro_params=None,
            custom_YHe=None,
            debug_turn_off_pop2ion=False,
-           debug_copy_dh_init=None,
            tf_on_device=True,
            ):
     """
@@ -163,13 +162,6 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         dm_params,
         prefix = p21c.config[f'direc'],
     )
-    if debug_copy_dh_init is not None:
-        import shutil
-        if os.path.exists(debug_copy_dh_init):
-            shutil.copy(debug_copy_dh_init, f"{p21c.config['direc']}/dh_init_soln.p")
-            logging.info(f'Copied dh_init_soln.p from {debug_copy_dh_init}')
-        else:
-            logging.warning(f'Could not find dh_init_soln.p at {debug_copy_dh_init}')
 
     # We have to synchronize at the second step because 21cmFAST acts weird in the first step:
     # - global_params.TK_at_Z_HEAT_MAX is not set correctly (it is probably set and evolved for a step)
@@ -179,7 +171,6 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
     if use_DH_init:
         dh_wrapper.evolve(end_rs=(1+z_match)*0.9, rerun=rerun_DH)
         T_k_DH_init, x_e_DH_init, phot_bath_spec = dh_wrapper.get_init_cond(rs=1+z_match)
-        #phot_bath_spec = dh_wrapper.get_phot_bath(rs=1+z_match)
     else:
         phot_bath_spec = Spectrum(abscs['photE'], np.zeros_like(abscs['photE']), spec_type='N', rs=1+z_match) # [ph / Bavg]
 

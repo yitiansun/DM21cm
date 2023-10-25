@@ -13,18 +13,20 @@ WDIR = os.environ['DM21CM_DIR']
 
 if __name__ == '__main__':
 
+    os.environ['DM21CM_DATA_DIR'] = '/n/holyscratch01/iaifi_lab/yitians/dm21cm/DM21cm/data/tf/zf01/data'
+
     return_dict = evolve(
-        run_name = f'xc_ee_noLX_lifetime26_defaultDH',
+        run_name = f'xc_phph_noLX_lifetime26_defaultDH_tmp',
         z_start = 45.,
         z_end = 5.,
         zplusone_step_factor = 1.01,
         dm_params = DMParams(
             mode='decay',
-            primary='elec_delta',
+            primary='phot_delta',
             m_DM=1e8, # [eV]
             lifetime=1e26, # [s]
         ),
-        enable_elec = True,
+        enable_elec = False,
         tf_version = 'zf01',
         
         p21c_initial_conditions = p21c.initial_conditions(

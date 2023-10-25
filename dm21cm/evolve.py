@@ -98,7 +98,8 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
 
     logging.info(f'Using 21cmFAST version {p21c.__version__}')
 
-    #===== cache and memory =====
+    #===== data and cache =====
+    data_dir = os.environ['DM21CM_DATA_DIR']
     p21c.config['direc'] = f"{os.environ['P21C_CACHE_DIR']}/{run_name}"
     logging.info(f"Cache dir: {p21c.config['direc']}")
     os.makedirs(p21c.config['direc'], exist_ok=True)
@@ -118,7 +119,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
     if debug_turn_off_pop2ion:
         p21c.global_params.Pop2_ion = 0.
 
-    abscs = load_h5_dict(f"{os.environ['DM21CM_DIR']}/data/abscissas/abscs_{tf_version}.h5")
+    abscs = load_h5_dict(f"{data_dir}/abscissas.h5")
     if not np.isclose(np.log(zplusone_step_factor), abscs['dlnz']):
         raise ValueError('zplusone_step_factor and tf_version mismatch')
     dm_params.set_inj_specs(abscs)
@@ -128,11 +129,10 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
     cosmo = Planck18
 
     #--- DarkHistory and transfer functions ---
-    tf_prefix = f"{os.environ['DM21CM_DATA_DIR']}/tf/{tf_version}"
     tf_wrapper = TransferFunctionWrapper(
         box_dim = box_dim,
         abscs = abscs,
-        prefix = tf_prefix,
+        prefix = data_dir,
         enable_elec = enable_elec,
         on_device = tf_on_device,
     )
@@ -153,7 +153,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         xray_i_lo = np.searchsorted(abscs['photE'], xray_eng_lo)
         xray_i_hi = np.searchsorted(abscs['photE'], xray_eng_hi)
 
-        res_dict = np.load('../data/xraycheck/Interpolators_0926_2.npz', allow_pickle=True)
+        res_dict = np.load(f"{data_dir}/xray_tables.npz", allow_pickle=True)
         z_range, delta_range, r_range = res_dict['SFRD_Params']
 
         cond_sfrd_table = res_dict['Cond_SFRD_Table']

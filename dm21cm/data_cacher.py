@@ -34,13 +34,12 @@ class Cacher:
         Brightness = energy per averaged baryon.
     """
 
-    def __init__(self, data_path, cosmo, N, dx, xraycheck=False):
+    def __init__(self, data_path, cosmo, N, dx):
 
         self.data_path = data_path
         self.cosmo = cosmo
         self.N = N
         self.dx = dx
-        self.xraycheck = xraycheck
 
         # Generate the k magnitudes and save them
         k = fft.fftfreq(N, d = dx)
@@ -79,8 +78,6 @@ class Cacher:
         Returns:
             (array, bool): The smoothed box, whether the whole box is averaged.
         """
-        if self.xraycheck:
-            R1 = 1e-10
         if min(R1, R2) > self.N // 2 * self.dx:
             box = fft.irfftn(box)
             is_box_averaged = True
@@ -127,11 +124,7 @@ class Cacher:
 
         # Get the spectrum
         spectrum = self.spectrum_cache.get_spectrum(z_donor)
-        if self.xraycheck:
-            is_box_averaged = max(R1, R2) > 500. #[cfMpc]
-            return smoothed_box, spectrum, is_box_averaged, z_donor, min(512.-1e-6, max(R1, R2))
-        else:
-            return smoothed_box, spectrum, is_box_averaged
+        return smoothed_box, spectrum, is_box_averaged
 
 
 class SpectrumCache:

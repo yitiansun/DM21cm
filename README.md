@@ -6,7 +6,7 @@
 ## Installation
 
 ### Prerequisite: DarkHistory
-- Clone the DarkHistory repository [here](https://github.com/hongwanliu/DarkHistory/tree/test-dm21cm). Checkout branch `test-dm21cm`.
+- Clone the DarkHistory repository [here](https://github.com/hongwanliu/DarkHistory/tree/test-dm21cm). Checkout branch `DM21cm`.
 - Install the require packages via `pip install -r requirements.txt`.
 - Set environment variable `DH_DIR` to point to the project folder (directory containing `README.md`).
 - Set environment variable `DH_DATA_DIR` to point to the DarkHistory data (v1.1) folder (directory containing `binning.p`). The data files can be downloaded [here](https://zenodo.org/records/6819310).
@@ -24,4 +24,4 @@
 - Download data files from [here]().
 - Install the require packages via `pip install -r requirements.txt`.
 - Set environment variable `DM21CM_DIR` to point to the project folder (directory containing `README.md`).
-- Set environment variable `DM21CM_DATA_DIR` to point to the data folder (directory containing `phot_prop.h5`).
+- Set environment variable `DM21CM_DATA_DIR` to point to the data folder (directory containing `abscissas.h5`).

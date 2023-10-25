@@ -44,16 +44,11 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
            use_tqdm=True,
            debug_flags=[],
            debug_astro_params=None,
-           debug_dhc_DH_xe_func=None,
-           debug_dhc_delta_fixed=False,
            dh_bath_N_interp_func=None,
            debug_bath_point_injection=False,
-           debug_break_after_z=None,
            custom_YHe=None,
            debug_turn_off_pop2ion=False,
            debug_copy_dh_init=None,
-           track_Tk_xe=False,
-           track_Tk_xe_set_tf_input=False,
            tf_on_device=True,
            ):
     """
@@ -84,10 +79,6 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
                 'xc-noatten' : Xray check: no attenuation.
                 'xc-force-bath : Xray check: force inject into xray bath.
         debug_astro_params (AstroParams): AstroParams in p21c.
-        
-        DarkHistory checks:
-            debug_dhc_DH_xe_func (callable): Interpolating function to get x_e from DarkHistory.
-            debug_dhc_delta_one (bool): Whether to use delta = 1.
         
     Returns:
         dict: Dictionary of results.
@@ -227,13 +218,6 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         # 'dep_exc_slice' : np.zeros_like(spin_temp.x_e_box[10]),
         # 'dep_heat_slice' : np.zeros_like(spin_temp.x_e_box[10]),
     }
-    if track_Tk_xe:
-        T_k_track = np.mean(spin_temp.Tk_box)
-        x_e_track = np.mean(spin_temp.x_e_box)
-        record.update({
-            'T_k_tracker' : T_k_track, # [K]
-            'x_e_tracker' : x_e_track, # [1]
-        })
     records.append(record)
 
 
@@ -277,22 +261,10 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
             x_e_box = np.asarray(1 - ionized_box.xH_box)
         inj_per_Bavg_box = phys.inj_rate(rho_DM_box, dm_params) * dt * dm_params.struct_boost(1+z_current) / nBavg # [inj/Bavg]
         
-        if debug_dhc_DH_xe_func is not None:
-            x_e_box_tf = jnp.full_like(x_e_box, debug_dhc_DH_xe_func(z_current))
-        else:
-            x_e_box_tf = x_e_box
-        if debug_dhc_delta_fixed:
-            delta_plus_one_box_tf = jnp.full_like(delta_plus_one_box, 1.)
-        else:
-            delta_plus_one_box_tf = delta_plus_one_box
-        if track_Tk_xe_set_tf_input:
-            x_e_box_tf = jnp.full_like(x_e_box, x_e_track)
-            logging.warning(f'Setting x_e_box_tf to x_e_track.')
-            #delta_plus_one_box_tf = jnp.full_like(delta_plus_one_box, 1.)
         tf_wrapper.init_step(
             rs = 1 + z_current,
-            delta_plus_one_box = delta_plus_one_box_tf,
-            x_e_box = x_e_box_tf,
+            delta_plus_one_box = delta_plus_one_box,
+            x_e_box = x_e_box,
         )
         
         #===== photon injection and energy deposition =====
@@ -430,23 +402,6 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
             astro_params=debug_astro_params
         )
 
-        if track_Tk_xe:
-            T_k_track += np.mean(input_heating.input_heating)
-            x_e_track += np.mean(input_ionization.input_ionization)
-
-            T = T_k_track
-            x = x_e_track
-            z = z_current
-            rs = 1 + z
-
-            dxion_sink_dt = - alphaA_recomb('HII', phys.kB*T) * x**2 * phys.n_H * (1+z)**3
-            x_e_track += dxion_sink_dt * dt
-
-            dTdz_adia = 2 * T / (1 + z)
-            #dcomp_dzp = dcomp_dzp_prefactor * (x_e_track/(1 + x_e_track)) * ( Trad_fast - T ); # 21cmFAST
-            dTdz_comp_DH = compton_cooling_rate(x, phys.chi*x, 0, phys.kB*T, rs) * phys.dtdz(rs) / phys.kB / (3/2 * phys.n_H * (rs**3) * (1 + phys.chi + x))
-            T_k_track += (dTdz_adia + dTdz_comp_DH) * (z_next - z)
-
         profiler.record('21cmFAST')
         
         #===== prepare spectra for next step =====
@@ -537,32 +492,13 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
             # 'dep_exc_slice' : np.array(tf_wrapper.dep_box[10,:,:,2]),
             # 'dep_heat_slice' : np.array(tf_wrapper.dep_box[10,:,:,3]),
         }
-        if track_Tk_xe:
-            record.update({
-                'T_k_tracker' : T_k_track, # [K]
-                'x_e_tracker' : x_e_track, # [1]
-            })
         records.append(record)
 
         profiler.record('prep_next')
 
-        #===== compare f =====
-        f_point = tf_wrapper.phot_dep_tf.point_interp(rs=1+z_current, nBs=1., x=np.mean(spin_temp.x_e_box))
-        inj_N = dm_params.inj_phot_spec.N / dm_params.inj_phot_spec.toteng()
-        # print('----- DM21CM -----')
-        # print('z', z_current)
-        # print(np.dot(inj_N, f_point))
-        # print(np.mean(tf_wrapper.dep_box[...,0]) / phys.A_per_B, 'eV/A')
-        # print((np.mean(tf_wrapper.dep_box[...,1]) + np.mean(tf_wrapper.dep_box[...,2])) / phys.A_per_B, 'eV/A')
-        # print(np.mean(tf_wrapper.dep_box[...,3]) / phys.A_per_B, 'eV/A')
-        # print('-----------------', flush=True)
-
         if not use_tqdm:
-            # print(print_str, flush=True)
-            pass
-        print_str = ''
-        if debug_break_after_z is not None and z_current < debug_break_after_z:
-            break
+            print(print_str, flush=True)
+            print_str = ''
         
     #===== end of loop, return results =====
     arr_records = {k: np.array([r[k] for r in records]) for k in records[0].keys()}

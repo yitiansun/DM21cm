@@ -153,11 +153,17 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         xray_i_lo = np.searchsorted(abscs['photE'], xray_eng_lo)
         xray_i_hi = np.searchsorted(abscs['photE'], xray_eng_hi)
 
-        res_dict = np.load(f"{data_dir}/xray_tables.npz", allow_pickle=True)
-        z_range, delta_range, r_range = res_dict['SFRD_Params']
+        # res_dict = np.load(f"{data_dir}/xray_tables.npz", allow_pickle=True)
+        # z_range, delta_range, r_range = res_dict['SFRD_Params']
 
-        cond_sfrd_table = res_dict['Cond_SFRD_Table']
-        st_sfrd_table =  res_dict['ST_SFRD_Table']
+        # cond_sfrd_table = res_dict['Cond_SFRD_Table']
+        # st_sfrd_table =  res_dict['ST_SFRD_Table']
+        hmf_tables = load_h5_dict(f"{data_dir}/hmf_tables.h5")
+        z_range = hmf_tables['z_range']
+        delta_range = hmf_tables['delta_range']
+        r_range = hmf_tables['r_range']
+        cond_sfrd_table = hmf_tables['cond_sfrd_table']
+        st_sfrd_table =  hmf_tables['st_sfrd_table']
 
         # Takes the redshift as `z`
         # The overdensity parameter smoothed on scale `R`

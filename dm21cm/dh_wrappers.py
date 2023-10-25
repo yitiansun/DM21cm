@@ -217,6 +217,10 @@ class TransferFunctionWrapper:
         # hubble might be inconsistent with 1 / ((1+z) * dtdz)
         input_jalpha.input_jalpha += np.array(J_lya)
 
+        assert not np.any(np.isnan(input_heating.input_heating)), 'input_heating has NaNs'
+        assert not np.any(np.isnan(input_ionization.input_ionization)), 'input_ionization has NaNs'
+        assert not np.any(np.isnan(input_jalpha.input_jalpha)), 'input_jalpha has NaNs'
+
         self.params = None # invalidate parameters
         self.tf_kwargs = None # invalidate parameters
 

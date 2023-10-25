@@ -16,6 +16,10 @@ if __name__ == '__main__':
 
     run_name = 'test'
 
+    # set global params
+    p21c.global_params.CLUMPING_FACTOR = 1.
+    #p21c.global_params.Pop2_ion = 0.
+
     return_dict = evolve(
         run_name = run_name,
         z_start = 45.,
@@ -46,14 +50,13 @@ if __name__ == '__main__':
             random_seed = 54321,
             write = True,
         ),
+        p21c_astro_params = p21c.AstroParams(L_X = 0.), # log10 value
         
         clear_cache = True,
         #debug_flags = ['uniform_xray'], # homogeneous injection
         #debug_flags = ['xraycheck', 'xc-noatten'], # our xray noatten to compare with 21cmfast
         #debug_flags = ['xraycheck'], # our xray ST compare with DH
         #debug_flags = ['xraycheck', 'xc-bath', 'xc-force-bath'], # our xray ST forced to bath compare with DH
-        debug_astro_params = p21c.AstroParams(L_X = 0.), # log10 value
-        debug_turn_off_pop2ion = True,
         #tf_on_device = False,
     )
 

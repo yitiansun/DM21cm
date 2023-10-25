@@ -37,15 +37,15 @@ logging.getLogger('py21cmfast.wrapper').setLevel(logging.CRITICAL+1)
 
 
 def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
-           dm_params=..., enable_elec=False, tf_version=...,
+           dm_params=..., enable_elec=False,
            p21c_initial_conditions=...,
+           p21c_astro_params=None,
            use_DH_init=True, rerun_DH=False,
            clear_cache=False,
            use_tqdm=True,
+
+           tf_version=...,
            debug_flags=[],
-           debug_astro_params=None,
-           custom_YHe=None,
-           debug_turn_off_pop2ion=False,
            tf_on_device=True,
            ):
     """
@@ -55,16 +55,14 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         run_name (str): Name of run. Used for cache directory.
         z_start (float): Starting redshift.
         z_end (float): Ending redshift.
-        zplusone_step_factor (float): (1+z) / (1+z_one_step_earlier). Must be greater than 1.
-        dm_params (DMParams): Dark matter (DM) parameters.
+        zplusone_step_factor (float): (1+z)/(1+z_next). Must be greater than 1.
+        dm_params (dm21cm.dm_params.DMParams): Dark matter (DM) parameters.
         enable_elec (bool): Whether to enable electron injection.
-        tf_version (str): Version of DarkHistory transfer function to use.
-        p21c_initial_conditions (InitialConditions): Initial conditions from py21cmfast.
+        p21c_initial_conditions (p21c.InitialConditions): Initial conditions for 21cmFAST.
+        p21c_astro_params (p21c.AstroParams): AstroParams for 21cmFAST.
         use_DH_init (bool): Whether to use DarkHistory initial conditions.
-        
         rerun_DH (bool): Whether to rerun DarkHistory to get initial values.
         clear_cache (bool): Whether to clear cache for 21cmFAST.
-        force_reload_tf (bool): Whether to force reload transfer functions. Use when changing dhtf_version.
         use_tqdm (bool): Whether to use tqdm progress bars.
         debug_flags (list): List of debug flags. Can contain:
             'uniform-xray' : Force xray to inject uniformly.
@@ -75,7 +73,6 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
                 'xc-noredshift' : Xray check: don't redshift xrays.
                 'xc-noatten' : Xray check: no attenuation.
                 'xc-force-bath : Xray check: force inject into xray bath.
-        debug_astro_params (AstroParams): AstroParams in p21c.
         
     Returns:
         dict: Dictionary of results.
@@ -89,7 +86,6 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
     os.makedirs(p21c.config['direc'], exist_ok=True)
     if clear_cache:
         cache_tools.clear_cache()
-    
     gc.collect()
 
     #===== initialize =====
@@ -97,13 +93,6 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
     EPSILON = 1e-6
     p21c.global_params.Z_HEAT_MAX = z_start + EPSILON
     p21c.global_params.ZPRIME_STEP_FACTOR = zplusone_step_factor
-    p21c.global_params.CLUMPING_FACTOR = 1.
-    print(p21c.global_params.Y_He)
-    return
-    if custom_YHe is not None:
-        p21c.global_params.Y_He = custom_YHe
-    if debug_turn_off_pop2ion:
-        p21c.global_params.Pop2_ion = 0.
 
     abscs = load_h5_dict(f"{os.environ['DM21CM_DIR']}/data/abscissas/abscs_{tf_version}.h5")
     if not np.isclose(np.log(zplusone_step_factor), abscs['dlnz']):
@@ -177,7 +166,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         phot_bath_spec = Spectrum(abscs['photE'], np.zeros_like(abscs['photE']), spec_type='N', rs=1+z_match) # [ph / Bavg]
 
     perturbed_field = p21c.perturb_field(redshift=z_edges[1], init_boxes=p21c_initial_conditions)
-    spin_temp, ionized_box, brightness_temp = p21c_step(perturbed_field=perturbed_field, spin_temp=None, ionized_box=None, astro_params=debug_astro_params)
+    spin_temp, ionized_box, brightness_temp = p21c_step(perturbed_field=perturbed_field, spin_temp=None, ionized_box=None, astro_params=p21c_astro_params)
     if use_DH_init:
         spin_temp.Tk_box += T_k_DH_init - np.mean(spin_temp.Tk_box)
         spin_temp.x_e_box += x_e_DH_init - np.mean(spin_temp.x_e_box)
@@ -202,26 +191,17 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
 
     #--- loop ---
     for i_z in z_range:
-        if not use_tqdm:
-            print(f'i_z={i_z}/{len(z_edges)-2} z={z_edges[i_z]:.2f}', file=sys.stderr, flush=True)
+
         print_str += f'i_z={i_z}/{len(z_edges)-2} z={z_edges[i_z]:.2f}'
 
         z_current = z_edges[i_z]
         z_next = z_edges[i_z+1]
-        # dt = ( cosmo.age(z_next) - cosmo.age(z_current) ).to('s').value # cosmo
-        # dt = np.interp(1+z_current, abscs['rs'], dts[:,1])
         dt = phys.dt_step(z_current, np.exp(abscs['dlnz']))
         
         nBavg = phys.n_B * (1+z_current)**3 # [Bavg / (physical cm)^3]
         delta_plus_one_box = 1 + np.asarray(perturbed_field.density)
         rho_DM_box = delta_plus_one_box * phys.rho_DM * (1+z_current)**3 # [eV/(physical cm)^3]
-        if 'xraycheck' in debug_flags:
-            x_e_box = np.asarray(spin_temp.x_e_box)
-            #x_e_box = np.asarray(1 - ionized_box.xH_box)
-            #logging.warning("Using 1 - x_H for deposition in xraycheck!! (usually x_e)")
-        else:
-            # logging.warning('\nusing xe = 1 - mean(ionized_box.xH_box) for deposition\n')
-            x_e_box = np.asarray(1 - ionized_box.xH_box)
+        x_e_box = np.asarray(1 - ionized_box.xH_box)
         inj_per_Bavg_box = phys.inj_rate(rho_DM_box, dm_params) * dt * dm_params.struct_boost(1+z_current) / nBavg # [inj/Bavg]
         
         tf_wrapper.init_step(
@@ -242,7 +222,6 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
                 for i_z_shell in range(i_xraycheck_loop_start): # uniform injection
                     z_shell = z_edges[i_z_shell]
                     shell_N = np.array(delta_cacher.spectrum_cache.get_spectrum(z_shell).N) # [ph / Msun]
-                    print(f'XCBATH-DEBUG: BATH i_z={i_z} i_shell={i_z_shell}, raw {np.dot(shell_N, abscs["photE"]):.3e} eV/Msun')
 
                     delta_unif = 0. # just a number
                     emissivity_bracket_unif = Cond_SFRD_Interpolator((z_shell, delta_unif, 512.-EPSILON)) # [Msun / Mpc^3 s]
@@ -252,8 +231,6 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
                     emissivity_bracket_unif *= L_X_numerical_factor # [Msun / Bavg]
                     shell_N *= emissivity_bracket_unif # [ph / Bavg]
                     xraycheck_bath_N += shell_N # put in bath
-
-                    print(f'XCBATH-DEBUG: BATH i_z={i_z} i_shell={i_z_shell}, inject {np.dot(shell_N, abscs["photE"]):.3e} eV/Bavg')
 
                 L_X_bath_spec = Spectrum(abscs['photE'], xraycheck_bath_N, spec_type='N', rs=1+z_current) # [counts / (keV Msun)]
                 weight = jnp.ones_like(delta_plus_one_box)
@@ -290,8 +267,6 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
                     print_str += f'\n    approx attenuation: {L_X_spec.approx_attentuation_arr_repr[xray_i_lo:xray_i_hi]}'
                 else:
                     L_X_spec_inj = L_X_spec
-                
-                #print(f'XCBATH-DEBUG: SHELL i_z={i_z} i_shell={i_z_shell}, inject {np.mean(emissivity_bracket)*np.dot(L_X_spec_inj.N, abscs["photE"]):.3e} eV/Bavg')
 
                 if ST_SFRD_Interpolator(z_donor) > 0.:
                     tf_wrapper.inject_phot(L_X_spec_inj, inject_type='xray', weight_box=jnp.asarray(emissivity_bracket))
@@ -314,14 +289,11 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
                     phot_bath_spec.N += xray_spec.N
                     i_xray_loop_start = max(i_z_shell+1, i_xray_loop_start)
                 else:
-                    print(f'DEBUG uniform-xray: xray_brightness_box = {np.mean(xray_brightness_box):.3e}')
                     tf_wrapper.inject_phot(xray_spec, inject_type='xray', weight_box=xray_brightness_box)
 
             profiler.record('xray')
 
             #--- bath and homogeneous portion of xray ---
-            print_str += f' bath.toteng={phot_bath_spec.toteng():.3e} eV/Bavg'
-            injected_bath_N = np.array(phot_bath_spec.N)
             tf_wrapper.inject_phot(phot_bath_spec, inject_type='bath')
             
             #--- dark matter (on-the-spot) ---
@@ -330,25 +302,15 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
             profiler.record('bath+dm')
         
         #===== 21cmFAST step =====
-        if i_z > 0: # TEMPORARY: catch NaNs before they go into 21cmFAST
-            if np.any(np.isnan(input_heating.input_heating)):
-                raise ValueError('input_heating.input_heating has NaNs')
-            if np.any(np.isnan(input_ionization.input_ionization)):
-                raise ValueError('input_ionization.input_ionization has NaNs')
-            if np.any(np.isnan(input_jalpha.input_jalpha)):
-                raise ValueError('input_jalpha.input_jalpha has NaNs')
         perturbed_field = p21c.perturb_field(redshift=z_next, init_boxes=p21c_initial_conditions)
         input_heating, input_ionization, input_jalpha = gen_injection_boxes(z_next, p21c_initial_conditions)
-
-        tf_wrapper.populate_injection_boxes(
-            input_heating, input_ionization, input_jalpha, dt,
-        )
+        tf_wrapper.populate_injection_boxes(input_heating, input_ionization, input_jalpha, dt,)
         spin_temp, ionized_box, brightness_temp = p21c_step(
             perturbed_field, spin_temp, ionized_box,
             input_heating = input_heating,
             input_ionization = input_ionization,
             input_jalpha = input_jalpha,
-            astro_params=debug_astro_params
+            astro_params = p21c_astro_params
         )
 
         profiler.record('21cmFAST')
@@ -400,15 +362,13 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
             xray_spec = Spectrum(abscs['photE'], emit_xray_N, rs=1+z_current, spec_type='N') # [ph / Bavg]
             xray_spec.redshift(1+z_next)
             xray_tot_eng = np.dot(abscs['photE'], emit_xray_N)
-            # print(f'DM21CM DEBUG: xray_tot_eng={xray_tot_eng:.3e} eV/Bavg')
             if xray_tot_eng == 0.:
                 xray_rel_eng_box = np.zeros_like(tf_wrapper.xray_eng_box)
             else:
                 xray_rel_eng_box = tf_wrapper.xray_eng_box / xray_tot_eng # [1 (relative energy) / Bavg]
-            # print(f'DM21CM DEBUG: xray_rel_eng_box={np.mean(xray_rel_eng_box):.3e} 1/Bavg')
             xray_cacher.cache(z_current, xray_rel_eng_box, xray_spec)
         
-        #===== calculate and save some global quantities =====
+        #===== calculate and save some quantities =====
         dE_inj_per_Bavg = dm_params.eng_per_inj * np.mean(inj_per_Bavg_box) # [eV per Bavg]
         dE_inj_per_Bavg_unclustered = dE_inj_per_Bavg / dm_params.struct_boost(1+z_current)
         
@@ -510,40 +470,3 @@ def p21c_step(perturbed_field, spin_temp, ionized_box,
     )
     
     return spin_temp, ionized_box, brightness_temp
-
-
-def debug_get_21totf_interp(fn):
-    line_arr = []
-    z_arr = []
-    e_arr = []
-    with open(fn, 'r') as f:
-        for line in f:
-            if "E_tot_ave = " in line:
-                line_arr.append(line)
-                tokens = line.split('E_tot_ave = ')
-                e_arr.append(float(tokens[-1]))
-                tokens = tokens[0].split('zp = ')
-                z_arr.append(float(tokens[1]))
-
-    # z_arr = np.array(z_arr)[1:]
-    # e_arr = np.array(e_arr)[:-1]
-    assert len(z_arr) == len(e_arr)
-    return interpolate.interp1d(z_arr, e_arr, kind='linear', bounds_error=False, fill_value='extrapolate')
-
-# def debug_get_21totf_interp(fn):
-#     line_arr = []
-#     z_arr = []
-#     e_arr = []
-#     with open(fn, 'r') as f:
-#         for line in f:
-#             if "E_(tot=heat+ion+lya)" in line:
-#                 line_arr.append(line)
-#                 tokens = line.split()
-#                 e_arr.append(float(tokens[-2]))
-#             if "TsBox.c DEBUG:  zp = " in line:
-#                 line_arr.append(line)
-#                 tokens = line.split()
-#                 z_arr.append(float(tokens[-1]))
-
-#     assert len(z_arr) == len(e_arr)
-#     return interpolate.interp1d(z_arr, e_arr, kind='linear', bounds_error=False, fill_value='extrapolate')

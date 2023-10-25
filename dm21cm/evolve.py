@@ -44,8 +44,6 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
            use_tqdm=True,
            debug_flags=[],
            debug_astro_params=None,
-           dh_bath_N_interp_func=None,
-           debug_bath_point_injection=False,
            custom_YHe=None,
            debug_turn_off_pop2ion=False,
            debug_copy_dh_init=None,
@@ -357,20 +355,6 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
             profiler.record('xray')
 
             #--- bath and homogeneous portion of xray ---
-            if debug_bath_point_injection:
-                #if np.isclose(z_current, 37.713184, rtol=1e-3): # 38.713184 test
-                if np.isclose(z_current, 4.530668e+01, rtol=1e-3):
-                    logging.warning(f'Point injecting bath at z={z_current} ---------------------')
-                    phot_bath_spec.N *= 0.
-                    phot_bath_spec.N[407] = 1e-5
-                    print(f'bath energy', phot_bath_spec.toteng())
-                    print(f'eng per inj', dm_params.inj_phot_spec.toteng())
-                    print(f'inj_per_Bavg', np.mean(inj_per_Bavg_box))
-                    print(f'inj eng', dm_params.inj_phot_spec.toteng() * np.mean(inj_per_Bavg_box))
-                    print(np.where(phot_bath_spec.N > 0))
-                    print(np.where(dm_params.inj_phot_spec.N > 0))
-            if dh_bath_N_interp_func is not None:
-                phot_bath_spec.N = dh_bath_N_interp_func(z_current)
             print_str += f' bath.toteng={phot_bath_spec.toteng():.3e} eV/Bavg'
             injected_bath_N = np.array(phot_bath_spec.N)
             tf_wrapper.inject_phot(phot_bath_spec, inject_type='bath')

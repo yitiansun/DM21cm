@@ -42,27 +42,26 @@ def evolve(run_name,
            clear_cache=False,
            use_tqdm=True,
            
-           debug_flags=[],
+           astro_xray_injection=False,
            tf_on_device=True,
            ):
     """
     Main evolution function.
 
     Args:
-        run_name (str):     Name of run. Used for cache directory.
-        z_start (float):    Starting redshift.
-        z_end (float):      Ending redshift.
-        dm_params (dm21cm.dm_params.DMParams): Dark matter (DM) parameters.
-        enable_elec (bool): Whether to enable electron injection.
-        p21c_initial_conditions (p21c.InitialConditions): Initial conditions for 21cmFAST.
-        p21c_astro_params (p21c.AstroParams): AstroParams for 21cmFAST.
-        use_DH_init (bool): Whether to use DarkHistory initial conditions.
-        rerun_DH (bool):    Whether to rerun DarkHistory to get initial values.
-        clear_cache (bool): Whether to clear cache for 21cmFAST.
-        use_tqdm (bool):    Whether to use tqdm progress bars.
+        run_name (str):      Name of run. Used for cache directory.
+        z_start (float):     Starting redshift.
+        z_end (float):       Ending redshift.
+        dm_params (dm21cm.dm_params.DMParams):             Dark matter (DM) parameters.
+        enable_elec (bool):                                Whether to enable electron injection.
+        p21c_initial_conditions (p21c.InitialConditions):  Initial conditions for 21cmFAST.
+        p21c_astro_params (p21c.AstroParams):              AstroParams for 21cmFAST.
+        use_DH_init (bool):  Whether to use DarkHistory initial conditions.
+        rerun_DH (bool):     Whether to rerun DarkHistory to get initial values.
+        clear_cache (bool):  Whether to clear cache for 21cmFAST.
+        use_tqdm (bool):     Whether to use tqdm progress bars.
 
-        debug_flags (list): List of debug flags. Can contain:
-            'xraycheck' : Xray check mode.
+        astro_xray_injection (bool): Whether to inject astrophysical xray from star formation.
         tf_on_device (bool): Whether to put transfer functions on device (GPU).
         
     Returns:
@@ -110,7 +109,7 @@ def evolve(run_name,
     xray_cacher.clear_cache()
 
     #--- xraycheck ---
-    if 'xraycheck' in debug_flags:
+    if astro_xray_injection:
 
         delta_cacher = Cacher(data_path=f"{cache_dir}/xraycheck_brightness.h5", cosmo=cosmo, N=box_dim, dx=box_len/box_dim, xraycheck=True)
         delta_cacher.clear_cache()
@@ -121,11 +120,12 @@ def evolve(run_name,
         xray_i_lo = np.searchsorted(abscs['photE'], xray_eng_lo)
         xray_i_hi = np.searchsorted(abscs['photE'], xray_eng_hi)
 
-        res_dict = np.load(f"{data_dir}/xray_tables.npz", allow_pickle=True)
-        z_range, delta_range, r_range = res_dict['SFRD_Params']
-
-        cond_sfrd_table = res_dict['Cond_SFRD_Table']
-        st_sfrd_table =  res_dict['ST_SFRD_Table']
+        hmf_tables = load_h5_dict(f"{data_dir}/hmf_tables.h5")
+        z_range = hmf_tables['z_range']
+        delta_range = hmf_tables['delta_range']
+        r_range = hmf_tables['r_range']
+        cond_sfrd_table = hmf_tables['cond_sfrd_table']
+        st_sfrd_table =  hmf_tables['st_sfrd_table']
 
         # Takes the redshift as `z`
         # The overdensity parameter smoothed on scale `R`
@@ -166,7 +166,7 @@ def evolve(run_name,
 
     #===== main loop =====
     #--- trackers ---
-    if 'xraycheck' in debug_flags:
+    if astro_xray_injection:
         i_xraycheck_loop_start = 0
     else:
         i_xray_loop_start = 0 # where we start looking for annuli
@@ -186,26 +186,29 @@ def evolve(run_name,
 
         print_str += f'i_z={i_z}/{len(z_edges)-2} z={z_edges[i_z]:.2f}'
 
+        #===== physical quantities =====
         z_current = z_edges[i_z]
         z_next = z_edges[i_z+1]
         dt = phys.dt_step(z_current, np.exp(abscs['dlnz']))
         
-        nBavg = phys.n_B * (1+z_current)**3 # [Bavg / (physical cm)^3]
+        #--- for interpolation ---
         delta_plus_one_box = 1 + np.asarray(perturbed_field.density)
-        rho_DM_box = delta_plus_one_box * phys.rho_DM * (1+z_current)**3 # [eV/(physical cm)^3]
         x_e_box = np.asarray(1 - ionized_box.xH_box)
-        inj_per_Bavg_box = phys.inj_rate(rho_DM_box, dm_params) * dt * dm_params.struct_boost(1+z_current) / nBavg # [inj/Bavg]
-        
         tf_wrapper.init_step(
             rs = 1 + z_current,
             delta_plus_one_box = delta_plus_one_box,
             x_e_box = x_e_box,
         )
+
+        #--- for dark matter ---
+        nBavg = phys.n_B * (1+z_current)**3 # [Bavg / (physical cm)^3]
+        rho_DM_box = delta_plus_one_box * phys.rho_DM * (1+z_current)**3 # [eV/(physical cm)^3]
+        inj_per_Bavg_box = phys.inj_rate(rho_DM_box, dm_params) * dt * dm_params.struct_boost(1+z_current) / nBavg # [inj/Bavg]
         
         #===== photon injection and energy deposition =====
         #--- xray ---
         profiler.start()
-        if 'xraycheck' in debug_flags:
+        if astro_xray_injection:
 
             for i_z_shell in range(i_xraycheck_loop_start, i_z):
 
@@ -222,14 +225,13 @@ def evolve(run_name,
                 if xraycheck_is_box_average:
                     i_xraycheck_loop_start = max(i_z_shell+1, i_xraycheck_loop_start)
 
-                L_X_spec_inj = L_X_spec
-
                 if ST_SFRD_Interpolator(z_donor) > 0.:
-                    tf_wrapper.inject_phot(L_X_spec_inj, inject_type='xray', weight_box=jnp.asarray(emissivity_bracket))
+                    tf_wrapper.inject_phot(L_X_spec, inject_type='xray', weight_box=jnp.asarray(emissivity_bracket))
             
-            profiler.record('xraycheck')
+            profiler.record('astro xray')
 
-        else: # regular routine
+        if not astro_xray_injection:
+            logging.warning('Not doing dark matter injections when astro xray is turned on!')
             for i_z_shell in range(i_xray_loop_start, i_z):
 
                 xray_brightness_box, xray_spec, is_box_average = xray_cacher.get_annulus_data(
@@ -274,7 +276,7 @@ def evolve(run_name,
         phot_bath_spec.redshift(1+z_next)
 
         #--- xray ---
-        if 'xraycheck' in debug_flags:
+        if astro_xray_injection:
             x_e_for_attenuation = 1 - np.mean(ionized_box.xH_box)
             attenuation_arr = np.array(tf_wrapper.attenuation_arr(rs=1+z_current, x=x_e_for_attenuation)) # convert from jax array
             delta_cacher.advance_spectrum(attenuation_arr, z_next) # can handle AttenuatedSpectrum

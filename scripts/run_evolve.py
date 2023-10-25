@@ -24,7 +24,6 @@ if __name__ == '__main__':
         run_name = run_name,
         z_start = 45.,
         z_end = 35.,
-        zplusone_step_factor = 1.01,
         dm_params = DMParams(
             mode='decay',
             primary='phot_delta',

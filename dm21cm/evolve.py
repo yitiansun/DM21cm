@@ -36,15 +36,15 @@ logging.getLogger('py21cmfast._utils').setLevel(logging.CRITICAL+1)
 logging.getLogger('py21cmfast.wrapper').setLevel(logging.CRITICAL+1)
 
 
-def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
+def evolve(run_name,
+           z_start=..., z_end=..., zplusone_step_factor=...,
            dm_params=..., enable_elec=False,
            p21c_initial_conditions=...,
            p21c_astro_params=None,
            use_DH_init=True, rerun_DH=False,
            clear_cache=False,
            use_tqdm=True,
-
-           tf_version=...,
+           
            debug_flags=[],
            tf_on_device=True,
            ):
@@ -80,10 +80,12 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
 
     logging.info(f'Using 21cmFAST version {p21c.__version__}')
 
-    #===== cache and memory =====
-    p21c.config['direc'] = f"{os.environ['P21C_CACHE_DIR']}/{run_name}"
-    logging.info(f"Cache dir: {p21c.config['direc']}")
-    os.makedirs(p21c.config['direc'], exist_ok=True)
+    #===== data and cache =====
+    data_dir = os.environ['DM21CM_DATA_DIR']
+    cache_dir = os.environ['P21C_CACHE_DIR'] + '/' + run_name
+    p21c.config['direc'] = cache_dir
+    logging.info(f"Cache dir: {cache_dir}")
+    os.makedirs(cache_dir, exist_ok=True)
     if clear_cache:
         cache_tools.clear_cache()
     gc.collect()
@@ -94,7 +96,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
     p21c.global_params.Z_HEAT_MAX = z_start + EPSILON
     p21c.global_params.ZPRIME_STEP_FACTOR = zplusone_step_factor
 
-    abscs = load_h5_dict(f"{os.environ['DM21CM_DIR']}/data/abscissas/abscs_{tf_version}.h5")
+    abscs = load_h5_dict(f"{data_dir}/abscissas.h5")
     if not np.isclose(np.log(zplusone_step_factor), abscs['dlnz']):
         raise ValueError('zplusone_step_factor and tf_version mismatch')
     dm_params.set_inj_specs(abscs)
@@ -104,23 +106,22 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
     cosmo = Planck18
 
     #--- DarkHistory and transfer functions ---
-    tf_prefix = f"{os.environ['DM21CM_DATA_DIR']}/tf/{tf_version}"
     tf_wrapper = TransferFunctionWrapper(
         box_dim = box_dim,
         abscs = abscs,
-        prefix = tf_prefix,
+        prefix = data_dir,
         enable_elec = enable_elec,
         on_device = tf_on_device,
     )
 
     #--- xray ---
-    xray_cacher = Cacher(data_path=f"{p21c.config['direc']}/xray_brightness.h5", cosmo=cosmo, N=box_dim, dx=box_len/box_dim)
+    xray_cacher = Cacher(data_path=f"{cache_dir}/xray_brightness.h5", cosmo=cosmo, N=box_dim, dx=box_len/box_dim)
     xray_cacher.clear_cache()
 
     #--- xraycheck ---
     if 'xraycheck' in debug_flags:
 
-        delta_cacher = Cacher(data_path=f"{p21c.config['direc']}/xraycheck_brightness.h5", cosmo=cosmo, N=box_dim, dx=box_len/box_dim, xraycheck=True)
+        delta_cacher = Cacher(data_path=f"{cache_dir}/xraycheck_brightness.h5", cosmo=cosmo, N=box_dim, dx=box_len/box_dim, xraycheck=True)
         delta_cacher.clear_cache()
 
         L_X_numerical_factor = 1e60 # make float happy
@@ -129,7 +130,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         xray_i_lo = np.searchsorted(abscs['photE'], xray_eng_lo)
         xray_i_hi = np.searchsorted(abscs['photE'], xray_eng_hi)
 
-        res_dict = np.load('../data/xraycheck/Interpolators_0926_2.npz', allow_pickle=True)
+        res_dict = np.load(f"{data_dir}/xray_tables.npz", allow_pickle=True)
         z_range, delta_range, r_range = res_dict['SFRD_Params']
 
         cond_sfrd_table = res_dict['Cond_SFRD_Table']
@@ -414,7 +415,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
 def get_z_edges(z_max, z_min, zplusone_step_factor):
     z_s = [z_min]
     while z_s[-1] < z_max:
-        z_s.append((z_s[-1] + 1.0) * zplusone_step_factor - 1.0)
+        z_s.append((z_s[-1] + 1.) * zplusone_step_factor - 1.)
     
     return np.clip(z_s[::-1], None, z_max)
 

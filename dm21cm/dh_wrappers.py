@@ -38,8 +38,6 @@ class DarkHistoryWrapper:
                 return self.soln
             else:
                 logging.warning('DarkHistoryWrapper: DMParams mismatch, rerunning.')
-                logging.warning('DarkHistoryWrapper: Overriding remember to turn off.')
-                return self.soln
         
         logging.info('DarkHistoryWrapper: Running DarkHistory to generate initial conditions...')
         default_kwargs = dict(
@@ -47,13 +45,8 @@ class DarkHistoryWrapper:
             primary=self.dm_params.primary,
             sigmav=self.dm_params.sigmav, lifetime=self.dm_params.lifetime,
             struct_boost=self.dm_params.struct_boost,
-            start_rs=3000, end_rs=end_rs, coarsen_factor=12, verbose=1,
-            # use fake reionization to get case-A recomb. coeff.
-            reion_switch=True, reion_rs=46.,
-            photoion_rate_func=[lambda x: 0., lambda x: 0., lambda x: 0.],
-            photoheat_rate_func=[lambda x: 0., lambda x: 0., lambda x: 0.],
-            cross_check_21cmfast=True,
-        )
+            start_rs=3000, end_rs=end_rs, coarsen_factor=10, verbose=1,
+        ) # default parameters use case B coefficients
         logging.warning('DarkHistoryWrapper: Remember to change back debug and coarsen factor!')
         default_kwargs.update(kwargs)
         self.soln = evolve_DH(**default_kwargs)
@@ -69,7 +62,7 @@ class DarkHistoryWrapper:
         x_e = np.interp(rs, self.soln['rs'][::-1], self.soln['x'][::-1, 0]) # HII
 
         spec_eng = self.soln['highengphot'][0].eng
-        spec_N_arr = np.array([s.N for s in self.soln['highengphot']]) + np.array([s.N for s in self.soln['lowengphot']]) * np.log(1.01) / 0.001
+        spec_N_arr = np.array([s.N for s in self.soln['highengphot']])
         spec_N = interpolate.interp1d(self.soln['rs'], spec_N_arr, kind='linear', axis=0, bounds_error=True)(rs) # [N / Bavg]
         spec = Spectrum(spec_eng, spec_N, rs=rs, spec_type='N')
 

@@ -13,7 +13,7 @@ WDIR = os.environ['DM21CM_DIR']
 
 if __name__ == '__main__':
 
-    os.environ['DM21CM_DATA_DIR'] = '/n/holyscratch01/iaifi_lab/yitians/dm21cm/DM21cm/data/tf/zf01/data'
+    os.environ['DM21CM_DATA_DIR'] = '/n/holyscratch01/iaifi_lab/yitians/dm21cm/DM21cm/data/tf/zf01-noHe/data'
 
     return_dict = evolve(
         run_name = f'xray_old',

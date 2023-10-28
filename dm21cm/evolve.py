@@ -86,6 +86,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
                 'xc-noredshift' : Xray check: don't redshift xrays.
                 'xc-noatten' : Xray check: no attenuation.
                 'xc-force-bath : Xray check: force inject into xray bath.
+                'xc-unif-inj' : Xray check: force uniform injection.
         debug_astro_params (AstroParams): AstroParams in p21c.
         
         DarkHistory checks:
@@ -501,10 +502,6 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
             L_X_spec = Spectrum(abscs['photE'], L_X_dNdE, spec_type='dNdE', rs=1+z_current) # [1 / Msun eV]
             L_X_spec.switch_spec_type('N') # [1 / Msun]
 
-            # below calculates injected xray energy per step assuming uniform injection
-            
-            pass
-
             if 'xc-noredshift' in debug_flags:
                 L_X_spec.rs = 1+z_next
             else:
@@ -512,7 +509,11 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
 
             if 'xc-01attenuation' in debug_flags:
                 L_X_spec = AttenuatedSpectrum(L_X_spec)
-            delta_cacher.cache(z_current, perturbed_field.density, L_X_spec)
+            if 'xc-unif-inj' in debug_flags:
+                cached_density = np.full_like(perturbed_field.density, 0.)
+            else:
+                cached_density = perturbed_field.density
+            delta_cacher.cache(z_current, cached_density, L_X_spec)
         
         else:
             x_e_for_attenuation = 1 - np.mean(ionized_box.xH_box)

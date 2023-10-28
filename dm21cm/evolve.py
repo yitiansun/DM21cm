@@ -153,7 +153,8 @@ def evolve(run_name,
         #--- for interpolation ---
         delta_plus_one_box = 1 + np.asarray(perturbed_field.density)
         x_e_box = np.asarray(1 - ionized_box.xH_box)
-        tf_wrapper.init_step(rs=1+z_current, delta_plus_one_box=delta_plus_one_box, x_e_box=x_e_box)
+        T_k_box = np.asarray(spin_temp.Tk_box)
+        tf_wrapper.init_step(rs=1+z_current, delta_plus_one_box=delta_plus_one_box, x_e_box=x_e_box, T_k_box=T_k_box)
 
         #--- for dark matter ---
         nBavg = phys.n_B * (1+z_current)**3 # [Bavg / (physical cm)^3]

@@ -108,7 +108,7 @@ class TransferFunctionWrapper:
         else:
             logging.info('TransferFunctionWrapper: Skipping electron transfer functions.')
             
-    def init_step(self, rs=..., delta_plus_one_box=..., x_e_box=...):
+    def init_step(self, rs=..., delta_plus_one_box=..., x_e_box=..., T_k_box=...):
         """Initializes parameters and receivers for injection step."""
 
         delta_plus_one_box = np.clip(delta_plus_one_box, self.nBs_lowerbound, None)
@@ -116,6 +116,7 @@ class TransferFunctionWrapper:
             rs = rs,
             nBs_box = delta_plus_one_box,
             x_e_box = x_e_box,
+            T_k_box = T_k_box,
         )
         self.tf_kwargs = dict(
             rs = rs,
@@ -203,13 +204,15 @@ class TransferFunctionWrapper:
         dep_ion_box = (self.dep_box[...,0]/phys.rydberg + self.dep_box[...,1]/phys.He_ion_eng)
         dep_lya_box = self.dep_box[...,2]
         
-        input_heating.input_heating += np.array(
-            2 / (3*phys.kB*(1+self.params['x_e_box'])) * dep_heat_box / self.params['nBs_box'] / phys.A_per_B
-        ) # [K/Bavg] / [B/Bavg] / [A/B] = [K/A]
-    
-        input_ionization.input_ionization += np.array(
+        delta_ionization_box = np.array(
             dep_ion_box / self.params['nBs_box'] / phys.A_per_B
         ) # [1/Bavg] / [B/Bavg] / [A/B] = [1/A]
+        input_ionization.input_ionization += delta_ionization_box
+
+        input_heating.input_heating += np.array(
+            2 / (3*phys.kB*(1+self.params['x_e_box'])) * dep_heat_box / self.params['nBs_box'] / phys.A_per_B # [K/Bavg] / [B/Bavg] / [A/B] = [K/A]
+            - self.params['T_k_box'] / (1+self.params['x_e_box']) * delta_ionization_box # species changing term [K] / [1] * [1/A] = [K/A]
+        )
 
         nBavg = phys.n_B * self.params['rs']**3 # [Bavg / pcm^3]
         dNlya_dVdt = dep_lya_box * nBavg / dt / phys.lya_eng # [lya pcm^-3 s^-1]

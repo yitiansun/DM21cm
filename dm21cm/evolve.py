@@ -42,6 +42,7 @@ def evolve(run_name,
            clear_cache=False,
            use_tqdm=True,
            tf_on_device=True,
+           no_injection=False,
            ):
     """
     Main evolution function.
@@ -59,6 +60,7 @@ def evolve(run_name,
         clear_cache (bool):  Whether to clear cache for 21cmFAST.
         use_tqdm (bool):     Whether to use tqdm progress bars.
         tf_on_device (bool): Whether to put transfer functions on device (GPU).
+        no_injection (bool): Whether to skip injection and energy deposition.
         
     Returns:
         dict: Dictionary of results.
@@ -162,25 +164,26 @@ def evolve(run_name,
         #--- xray ---
         profiler.start()
 
-        for i_z_shell in range(i_xray_loop_start, i_z):
-            xray_brightness_box, xray_spec, is_box_average = xray_cacher.get_annulus_data(
-                z_current, z_edges[i_z_shell], z_edges[i_z_shell+1]
-            )
-            if is_box_average:                                          # if smoothing scale > box size,
-                phot_bath_spec.N += xray_spec.N                         # then we can just dump to the global bath spectrum
-                i_xray_loop_start = max(i_z_shell+1, i_xray_loop_start) # and we will not revisit this shell
-            else:
-                tf_wrapper.inject_phot(xray_spec, inject_type='xray', weight_box=xray_brightness_box)
+        if not no_injection:
+            for i_z_shell in range(i_xray_loop_start, i_z):
+                xray_brightness_box, xray_spec, is_box_average = xray_cacher.get_annulus_data(
+                    z_current, z_edges[i_z_shell], z_edges[i_z_shell+1]
+                )
+                if is_box_average:                                          # if smoothing scale > box size,
+                    phot_bath_spec.N += xray_spec.N                         # then we can just dump to the global bath spectrum
+                    i_xray_loop_start = max(i_z_shell+1, i_xray_loop_start) # and we will not revisit this shell
+                else:
+                    tf_wrapper.inject_phot(xray_spec, inject_type='xray', weight_box=xray_brightness_box)
 
-        profiler.record('xray')
+            profiler.record('xray')
 
-        #--- bath and homogeneous portion of xray ---
-        tf_wrapper.inject_phot(phot_bath_spec, inject_type='bath')
-        
-        #--- dark matter (on-the-spot) ---
-        tf_wrapper.inject_from_dm(dm_params, inj_per_Bavg_box)
+            #--- bath and homogeneous portion of xray ---
+            tf_wrapper.inject_phot(phot_bath_spec, inject_type='bath')
+            
+            #--- dark matter (on-the-spot) ---
+            tf_wrapper.inject_from_dm(dm_params, inj_per_Bavg_box)
 
-        profiler.record('bath+dm')
+            profiler.record('bath+dm')
         
         #===== 21cmFAST step =====
         perturbed_field = p21c.perturb_field(redshift=z_next, init_boxes=p21c_initial_conditions)
@@ -216,7 +219,8 @@ def evolve(run_name,
             xray_rel_eng_box = np.zeros_like(tf_wrapper.xray_eng_box)
         else:
             xray_rel_eng_box = tf_wrapper.xray_eng_box / xray_tot_eng # [1 (relative energy)/Bavg]
-        xray_cacher.cache(z_current, xray_rel_eng_box, xray_spec)
+        if not no_injection:
+            xray_cacher.cache(z_current, xray_rel_eng_box, xray_spec)
         
         #===== calculate and save some quantities =====
         dE_inj_per_Bavg = dm_params.eng_per_inj * np.mean(inj_per_Bavg_box) # [eV/Bavg]

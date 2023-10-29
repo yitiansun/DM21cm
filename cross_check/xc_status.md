@@ -5,6 +5,12 @@ physics: YHe: ON.
 
 ## 3. Xray
 
+### 3.3 Convergence test
+
+[X] ct_xrayV21_nopop2_128
+- DC: `ct_128_64Mpc_xray_noLX_nopop2`
+- 21: `ct_128_64Mpc_nopop2`
+
 ### 3.2 With 21cmFAST
 
 [X] xc_xrayV21_nopop2_noHe_nosp_noatten_21totdep_esf

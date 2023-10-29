@@ -13,10 +13,10 @@ WDIR = os.environ['DM21CM_DIR']
 
 if __name__ == '__main__':
 
-    os.environ['DM21CM_DATA_DIR'] = '/n/holyscratch01/iaifi_lab/yitians/dm21cm/DM21cm/data/tf/zf01-noHe/data'
+    os.environ['DM21CM_DATA_DIR'] = '/n/holyscratch01/iaifi_lab/yitians/dm21cm/DM21cm/data/tf/zf01/data'
 
     return_dict = evolve(
-        run_name = f'xray_old',
+        run_name = f'ct_128_256Mpc_xray_noLX_nopop2',
         z_start = 45.,
         z_end = 5.,
         zplusone_step_factor = 1.01,
@@ -31,8 +31,8 @@ if __name__ == '__main__':
         
         p21c_initial_conditions = p21c.initial_conditions(
             user_params = p21c.UserParams(
-                HII_DIM = 32,
-                BOX_LEN = 32 * 2, # [conformal Mpc]
+                HII_DIM = 128,
+                BOX_LEN = 128*2, # [conformal Mpc]
                 N_THREADS = 32,
             ),
             cosmo_params = p21c.CosmoParams(
@@ -63,4 +63,5 @@ if __name__ == '__main__':
         #use_21totf=f"{WDIR}/outputs/stdout/xc_nopop2_noHe_nosp_noatten_esf.out",
         #debug_even_split_f = True,
         #tf_on_device = False,
+        debug_skip_dm_injection = True,
     )

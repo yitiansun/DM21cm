@@ -58,6 +58,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
            track_Tk_xe_set_tf_input=False,
            use_21totf=None,
            tf_on_device=True,
+           debug_skip_dm_injection=False,
            ):
     """
     Main evolution function.
@@ -216,39 +217,40 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         ionized_box.xH_box = 1 - spin_temp.x_e_box
 
     records = []
-    record = {
-        'z'   : z_edges[1],
-        'T_s' : np.mean(spin_temp.Ts_box), # [mK]
-        'T_b' : np.mean(brightness_temp.brightness_temp), # [K]
-        'T_k' : np.mean(spin_temp.Tk_box), # [K]
-        'x_e' : np.mean(spin_temp.x_e_box), # [1]
-        '1-x_H' : np.mean(1 - ionized_box.xH_box), # [1]
-        'E_phot' : phot_bath_spec.toteng(), # [eV/Bavg]
-        'phot_N' : phot_bath_spec.N, # [ph/Bavg]
-        #'injected_bath_N' : np.zeros_like(phot_bath_spec.N), # [ph/Bavg]
-        'dE_inj_per_B' : 0.,
-        'dE_inj_per_Bavg_unclustered' : 0.,
-        'inj_xray_eng' : 0., # [eV/Bavg]
-        'dep_ion'  : 0.,
-        'dep_exc'  : 0.,
-        'dep_heat' : 0.,
-        'x_e_slice' : np.array(spin_temp.x_e_box[0]),
-        'x_H_slice' : np.array(ionized_box.xH_box[0]),
-        'T_k_slice' : np.zeros_like(spin_temp.x_e_box[0]),
-        # temporary slices
-        # 'delta_slice' : np.zeros_like(spin_temp.x_e_box[10]),
-        # 'dep_ion_slice' : np.zeros_like(spin_temp.x_e_box[10]),
-        # 'dep_exc_slice' : np.zeros_like(spin_temp.x_e_box[10]),
-        # 'dep_heat_slice' : np.zeros_like(spin_temp.x_e_box[10]),
-    }
+    # record = {
+    #     'z'   : z_edges[1],
+    #     'T_s' : np.mean(spin_temp.Ts_box), # [mK]
+    #     'T_b' : np.mean(brightness_temp.brightness_temp), # [K]
+    #     'T_k' : np.mean(spin_temp.Tk_box), # [K]
+    #     'x_e' : np.mean(spin_temp.x_e_box), # [1]
+    #     '1-x_H' : np.mean(1 - ionized_box.xH_box), # [1]
+    #     'E_phot' : phot_bath_spec.toteng(), # [eV/Bavg]
+    #     'phot_N' : phot_bath_spec.N, # [ph/Bavg]
+    #     #'injected_bath_N' : np.zeros_like(phot_bath_spec.N), # [ph/Bavg]
+    #     'dE_inj_per_B' : 0.,
+    #     'dE_inj_per_Bavg_unclustered' : 0.,
+    #     'inj_xray_eng' : 0., # [eV/Bavg]
+    #     'dep_ion'  : 0.,
+    #     'dep_exc'  : 0.,
+    #     'dep_heat' : 0.,
+    #     'x_e_slice' : np.array(spin_temp.x_e_box[0]),
+    #     'x_H_slice' : np.array(ionized_box.xH_box[0]),
+    #     'T_k_slice' : np.zeros_like(spin_temp.x_e_box[0]),
+    #     'T_b_slice' : np.array(brightness_temp.brightness_temp[0]),
+    #     # temporary slices
+    #     # 'delta_slice' : np.zeros_like(spin_temp.x_e_box[10]),
+    #     # 'dep_ion_slice' : np.zeros_like(spin_temp.x_e_box[10]),
+    #     # 'dep_exc_slice' : np.zeros_like(spin_temp.x_e_box[10]),
+    #     # 'dep_heat_slice' : np.zeros_like(spin_temp.x_e_box[10]),
+    # }
     if track_Tk_xe:
         T_k_track = np.mean(spin_temp.Tk_box)
         x_e_track = np.mean(spin_temp.x_e_box)
-        record.update({
-            'T_k_tracker' : T_k_track, # [K]
-            'x_e_tracker' : x_e_track, # [1]
-        })
-    records.append(record)
+        # record.update({
+        #     'T_k_tracker' : T_k_track, # [K]
+        #     'x_e_tracker' : x_e_track, # [1]
+        # })
+    # records.append(record)
 
 
     #===== main loop =====
@@ -382,54 +384,52 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
             profiler.record('xraycheck')
 
         else: # regular routine
-            for i_z_shell in range(i_xray_loop_start, i_z):
+            if not debug_skip_dm_injection:
+                for i_z_shell in range(i_xray_loop_start, i_z):
 
-                xray_brightness_box, xray_spec, is_box_average = xray_cacher.get_annulus_data(
-                    z_current, z_edges[i_z_shell], z_edges[i_z_shell+1]
-                )
-                # If we are smoothing on the scale of the box then dump to the global bath spectrum.
-                # The deposition will happen with `phot_bath_spec`, and we will not revisit this shell.
-                if is_box_average or 'uniform_xray' in debug_flags:
-                    phot_bath_spec.N += xray_spec.N
-                    i_xray_loop_start = max(i_z_shell+1, i_xray_loop_start)
-                else:
-                    print(f'DEBUG uniform-xray: xray_brightness_box = {np.mean(xray_brightness_box):.3e}')
-                    tf_wrapper.inject_phot(xray_spec, inject_type='xray', weight_box=xray_brightness_box)
+                    xray_brightness_box, xray_spec, is_box_average = xray_cacher.get_annulus_data(
+                        z_current, z_edges[i_z_shell], z_edges[i_z_shell+1]
+                    )
+                    # If we are smoothing on the scale of the box then dump to the global bath spectrum.
+                    # The deposition will happen with `phot_bath_spec`, and we will not revisit this shell.
+                    if is_box_average or 'uniform_xray' in debug_flags:
+                        phot_bath_spec.N += xray_spec.N
+                        i_xray_loop_start = max(i_z_shell+1, i_xray_loop_start)
+                    else:
+                        print(f'DEBUG uniform-xray: xray_brightness_box = {np.mean(xray_brightness_box):.3e}')
+                        tf_wrapper.inject_phot(xray_spec, inject_type='xray', weight_box=xray_brightness_box)
 
-            profiler.record('xray')
+                profiler.record('xray')
 
-            #--- bath and homogeneous portion of xray ---
-            if debug_bath_point_injection:
-                #if np.isclose(z_current, 37.713184, rtol=1e-3): # 38.713184 test
-                if np.isclose(z_current, 4.530668e+01, rtol=1e-3):
-                    logging.warning(f'Point injecting bath at z={z_current} ---------------------')
-                    phot_bath_spec.N *= 0.
-                    phot_bath_spec.N[407] = 1e-5
-                    print(f'bath energy', phot_bath_spec.toteng())
-                    print(f'eng per inj', dm_params.inj_phot_spec.toteng())
-                    print(f'inj_per_Bavg', np.mean(inj_per_Bavg_box))
-                    print(f'inj eng', dm_params.inj_phot_spec.toteng() * np.mean(inj_per_Bavg_box))
-                    print(np.where(phot_bath_spec.N > 0))
-                    print(np.where(dm_params.inj_phot_spec.N > 0))
-            if dh_bath_N_interp_func is not None:
-                phot_bath_spec.N = dh_bath_N_interp_func(z_current)
-            print_str += f' bath.toteng={phot_bath_spec.toteng():.3e} eV/Bavg'
-            injected_bath_N = np.array(phot_bath_spec.N)
-            tf_wrapper.inject_phot(phot_bath_spec, inject_type='bath')
-            
-            #--- dark matter (on-the-spot) ---
-            tf_wrapper.inject_from_dm(dm_params, inj_per_Bavg_box)
+                #--- bath and homogeneous portion of xray ---
+                if debug_bath_point_injection:
+                    #if np.isclose(z_current, 37.713184, rtol=1e-3): # 38.713184 test
+                    if np.isclose(z_current, 4.530668e+01, rtol=1e-3):
+                        logging.warning(f'Point injecting bath at z={z_current} ---------------------')
+                        phot_bath_spec.N *= 0.
+                        phot_bath_spec.N[407] = 1e-5
+                        print(f'bath energy', phot_bath_spec.toteng())
+                        print(f'eng per inj', dm_params.inj_phot_spec.toteng())
+                        print(f'inj_per_Bavg', np.mean(inj_per_Bavg_box))
+                        print(f'inj eng', dm_params.inj_phot_spec.toteng() * np.mean(inj_per_Bavg_box))
+                        print(np.where(phot_bath_spec.N > 0))
+                        print(np.where(dm_params.inj_phot_spec.N > 0))
+                if dh_bath_N_interp_func is not None:
+                    phot_bath_spec.N = dh_bath_N_interp_func(z_current)
+                print_str += f' bath.toteng={phot_bath_spec.toteng():.3e} eV/Bavg'
+                injected_bath_N = np.array(phot_bath_spec.N)
+                tf_wrapper.inject_phot(phot_bath_spec, inject_type='bath')
+                
+                #--- dark matter (on-the-spot) ---
+                tf_wrapper.inject_from_dm(dm_params, inj_per_Bavg_box)
 
-            profiler.record('bath+dm')
+                profiler.record('bath+dm')
         
         #===== 21cmFAST step =====
         if i_z > 0: # TEMPORARY: catch NaNs before they go into 21cmFAST
-            if np.any(np.isnan(input_heating.input_heating)):
-                raise ValueError('input_heating.input_heating has NaNs')
-            if np.any(np.isnan(input_ionization.input_ionization)):
-                raise ValueError('input_ionization.input_ionization has NaNs')
-            if np.any(np.isnan(input_jalpha.input_jalpha)):
-                raise ValueError('input_jalpha.input_jalpha has NaNs')
+            assert not np.any(np.isnan(input_heating.input_heating)), 'input_heating has NaNs'
+            assert not np.any(np.isnan(input_ionization.input_ionization)), 'input_ionization has NaNs'
+            assert not np.any(np.isnan(input_jalpha.input_jalpha)), 'input_jalpha has NaNs'
         perturbed_field = p21c.perturb_field(redshift=z_next, init_boxes=p21c_initial_conditions)
         input_heating, input_ionization, input_jalpha = gen_injection_boxes(z_next, p21c_initial_conditions)
         if use_21totf:
@@ -554,6 +554,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
             'x_e_slice' : np.array(spin_temp.x_e_box[0]),
             'x_H_slice' : np.array(ionized_box.xH_box[0]),
             'T_k_slice' : np.array(spin_temp.Tk_box[0]),
+            'T_b_slice' : np.array(brightness_temp.brightness_temp[0]),
             # temporary slices
             # 'delta_slice' : np.array(perturbed_field.density[10]),
             # 'dep_ion_slice' : np.array(tf_wrapper.dep_box[10,:,:,0] + tf_wrapper.dep_box[10,:,:,1]),

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=zf01
+#SBATCH --job-name=zf001
 #SBATCH --array=0-9
 #SBATCH --partition=shared
 #SBATCH --ntasks=1
@@ -24,5 +24,5 @@ IEND=$((${SLURM_ARRAY_TASK_ID} + 1))
 # FASRC Cannon: 1 second doesn't work, 10 seconds works fine, use 20 to be safe.
 sleep $(($SLURM_ARRAY_TASK_ID * 20))
 
-idl -e "gettf_nbs, i_xx_st=$ISTART, i_xx_ed=$IEND, run_name='zf01', inj_mode='phot'" # full run
+idl -e "gettf_nbs, i_xx_st=$ISTART, i_xx_ed=$IEND, run_name='zf001', inj_mode='phot'" # full run
 # idl -e "gettf_nbs, i_xx_st=$ISTART, i_xx_ed=$IEND, run_name='zf001', inj_mode='phot', i_nB_st=6, i_nB_ed=7" # only nBs=1

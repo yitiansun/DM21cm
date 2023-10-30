@@ -7,9 +7,25 @@ physics: YHe: ON.
 
 ### 3.3 Convergence test
 
-[X] ct_xrayV21_nopop2_128
+sfrd: new (PS. ST)
+
+[X] ct_128_64Mpc_nopop2
 - DC: `ct_128_64Mpc_xray_noLX_nopop2`
 - 21: `ct_128_64Mpc_nopop2`
+
+[X] ct_128_256Mpc_nopop2
+- DC: `ct_128_256Mpc_xray_noLX_nopop2`
+- 21: `ct_128_256Mpc_nopop2`
+
+[X] ct_64_128Mpc_nopop2
+- DC: `ct_64_128Mpc_xray_noLX_nopop2`
+- 21: `ct_64_128Mpc_nopop2`
+
+[X] ct_32_64Mpc_nopop2
+- DC: `ct_32_64Mpc_xray_noLX_nopop2`
+- DC: `ct_32_64Mpc_xray_noLX_nopop2_newPSSFRD`
+- DC: `ct_32_64Mpc_xray_noLX_nopop2_newSFRD`
+- 21: `ct_32_64Mpc_nopop2`
 
 ### 3.2 With 21cmFAST
 

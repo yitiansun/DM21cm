@@ -1,8 +1,8 @@
 #===== This project =====
 build_tf/*.pdf
 build_tf/ionhist_outputs/
-data/tf/
 data/run_info/**
+data/sfrd
 notebooks/plots/tmp
 **/.DS_Store
 outputs/

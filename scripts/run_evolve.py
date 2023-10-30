@@ -13,13 +13,13 @@ WDIR = os.environ['DM21CM_DIR']
 
 if __name__ == '__main__':
 
-    os.environ['DM21CM_DATA_DIR'] = '/n/holyscratch01/iaifi_lab/yitians/dm21cm/DM21cm/data/tf/zf01/data'
+    os.environ['DM21CM_DATA_DIR'] = '/n/holyscratch01/iaifi_lab/yitians/dm21cm/DM21cm/data/tf/zf001/data'
 
     return_dict = evolve(
-        run_name = f'ct_128_256Mpc_nopop2',
+        run_name = f'ct_64_128Mpc_xray_noLX_nopop2',
         z_start = 45.,
         z_end = 5.,
-        zplusone_step_factor = 1.01,
+        zplusone_step_factor = 1.001,
         dm_params = DMParams(
             mode='decay',
             primary='phot_delta',
@@ -27,12 +27,11 @@ if __name__ == '__main__':
             lifetime=1e50, # [s]
         ),
         enable_elec = False,
-        tf_version = 'zf01',
         
         p21c_initial_conditions = p21c.initial_conditions(
             user_params = p21c.UserParams(
-                HII_DIM = 128,
-                BOX_LEN = 128*2, # [conformal Mpc]
+                HII_DIM = 64,
+                BOX_LEN = 64*2, # [conformal Mpc]
                 N_THREADS = 32,
             ),
             cosmo_params = p21c.CosmoParams(
@@ -52,9 +51,9 @@ if __name__ == '__main__':
         use_tqdm = True,
         #debug_flags = ['uniform_xray'], # homogeneous injection
         #debug_flags = ['xraycheck', 'xc-noatten'], # our xray noatten to compare with 21cmfast
-        #debug_flags = ['xraycheck'], # our xray ST compare with DH
+        debug_flags = ['xraycheck'], # our xray ST compare with DH
         #debug_flags = ['xraycheck', 'xc-bath', 'xc-force-bath'], # our xray ST forced to bath compare with DH
-        debug_astro_params = p21c.AstroParams(L_X = 40.), # log10 value
+        debug_astro_params = p21c.AstroParams(L_X = 0.), # log10 value
         use_DH_init = True,
         custom_YHe = 0.245, # 0.245
         debug_turn_off_pop2ion = True,

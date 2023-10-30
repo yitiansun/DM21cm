@@ -38,7 +38,7 @@ logging.getLogger('py21cmfast.wrapper').setLevel(logging.CRITICAL+1)
 
 
 def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
-           dm_params=..., enable_elec=False, tf_version=...,
+           dm_params=..., enable_elec=False,
            p21c_initial_conditions=...,
            use_DH_init=True,
            rerun_DH=False, clear_cache=False,
@@ -71,7 +71,6 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         zplusone_step_factor (float): (1+z) / (1+z_one_step_earlier). Must be greater than 1.
         dm_params (DMParams): Dark matter (DM) parameters.
         enable_elec (bool): Whether to enable electron injection.
-        tf_version (str): Version of DarkHistory transfer function to use.
         p21c_initial_conditions (InitialConditions): Initial conditions from py21cmfast.
         use_DH_init (bool): Whether to use DarkHistory initial conditions.
         
@@ -124,7 +123,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
 
     abscs = load_h5_dict(f"{data_dir}/abscissas.h5")
     if not np.isclose(np.log(zplusone_step_factor), abscs['dlnz']):
-        raise ValueError('zplusone_step_factor and tf_version mismatch')
+        raise ValueError('zplusone_step_factor and abscs mismatch')
     dm_params.set_inj_specs(abscs)
 
     box_dim = p21c_initial_conditions.user_params.HII_DIM
@@ -547,10 +546,8 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
             '1-x_H' : np.mean(1 - ionized_box.xH_box), # [1]
             'E_phot' : phot_bath_spec.toteng(), # [eV/Bavg]
             'phot_N' : phot_bath_spec.N, # [ph/Bavg]
-            #'injected_bath_N' : injected_bath_N, # [ph/Bavg]
             'dE_inj_per_B' : dE_inj_per_Bavg,
             'dE_inj_per_Bavg_unclustered' : dE_inj_per_Bavg_unclustered,
-            'inj_xray_eng' : None, # [eV/Bavg]
             'dep_ion'  : np.mean(tf_wrapper.dep_box[...,0] + tf_wrapper.dep_box[...,1]),
             'dep_exc'  : np.mean(tf_wrapper.dep_box[...,2]),
             'dep_heat' : np.mean(tf_wrapper.dep_box[...,3]),
@@ -559,9 +556,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
             'x_H_slice' : np.array(ionized_box.xH_box[0]),
             'T_k_slice' : np.array(spin_temp.Tk_box[0]),
             'T_b_slice' : np.array(brightness_temp.brightness_temp[0]),
-            'delta_box' : np.array(perturbed_field.density),
-            # temporary slices
-            # 'delta_slice' : np.array(perturbed_field.density[10]),
+            # 'delta_box' : np.array(perturbed_field.density),
             # 'dep_ion_slice' : np.array(tf_wrapper.dep_box[10,:,:,0] + tf_wrapper.dep_box[10,:,:,1]),
             # 'dep_exc_slice' : np.array(tf_wrapper.dep_box[10,:,:,2]),
             # 'dep_heat_slice' : np.array(tf_wrapper.dep_box[10,:,:,3]),

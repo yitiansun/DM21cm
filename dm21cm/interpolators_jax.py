@@ -65,6 +65,26 @@ def bound_action(v, absc, out_of_bounds_action):
         return v
 
 
+#===== SFRD interpolator =====
+
+class SFRDInterpolator:
+
+    def __init__(self, z_range, delta_range, r_range, cond_sfrd_table):
+        self.z_range = jnp.array(z_range)
+        self.delta_range = jnp.array(delta_range)
+        self.r_range = jnp.array(r_range)
+        self.cond_sfrd_table = jnp.einsum('zdr->zrd', cond_sfrd_table)
+
+    def __call__(self, z, delta, r):
+        table = interp1d(self.cond_sfrd_table, self.z_range, z)
+        table = interp1d(table, self.r_range, r)
+        
+        delta_shape = delta.shape
+        delta_in = delta.flatten()
+        out = interp1d(table, self.delta_range, delta_in)
+        return out.reshape(delta_shape)
+
+
 #===== interpolator class =====
 
 class BatchInterpolator:

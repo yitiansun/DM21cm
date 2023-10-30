@@ -29,6 +29,7 @@ from dm21cm.utils import load_h5_dict
 from dm21cm.data_cacher import Cacher
 from dm21cm.profiler import Profiler
 from dm21cm.spectrum import AttenuatedSpectrum
+from dm21cm.interpolators_jax import SFRDInterpolator
 
 logging.getLogger().setLevel(logging.INFO)
 logging.getLogger('21cmFAST').setLevel(logging.CRITICAL+1)
@@ -165,13 +166,14 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         delta_range = hmf_tables['delta_range']
         r_range = hmf_tables['r_range']
         cond_sfrd_table = hmf_tables['cond_sfrd_table']
-        st_sfrd_table =  hmf_tables['st_sfrd_table']
+        st_sfrd_table = hmf_tables['st_sfrd_table']
 
         # Takes the redshift as `z`
         # The overdensity parameter smoothed on scale `R`
         # The smoothing scale `R` in units of Mpc
         # Returns the conditional PS star formation rate density in [M_Sun / Mpc^3 / s]
-        Cond_SFRD_Interpolator = interpolate.RegularGridInterpolator((z_range, delta_range, r_range), cond_sfrd_table)
+        #Cond_SFRD_Interpolator = interpolate.RegularGridInterpolator((z_range, delta_range, r_range), cond_sfrd_table) # scipy bad
+        Cond_SFRD_Interpolator = SFRDInterpolator(z_range, delta_range, r_range, cond_sfrd_table) # jax good
 
         # Takes the redshift as `z`
         # Returns the mean ST star formation rate density star formation rate density in [M_Sun / Mpc^3 / s]
@@ -355,9 +357,10 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
                 )
                 #print(f'XCBATH-DEBUG: SHELL i_z={i_z} i_shell={i_z_shell}, raw {np.dot(L_X_spec.N, abscs["photE"]):.3e} eV/Msun')
                 delta = np.clip(delta, -1.0+EPSILON, 1.5-EPSILON)
-                delta = np.array(delta)
+                delta = jnp.array(delta)
                 print_str += f' {np.mean(delta):.3f}'
-                emissivity_bracket = Cond_SFRD_Interpolator((z_donor, delta, R2))
+                # emissivity_bracket = Cond_SFRD_Interpolator((z_donor, delta, R2)) # scipy bad
+                emissivity_bracket = Cond_SFRD_Interpolator(z_donor, delta, R2) # jax good
                 if np.mean(emissivity_bracket) > 0:
                     emissivity_bracket *= (ST_SFRD_Interpolator(z_donor) / np.mean(emissivity_bracket))
                 z_shell = z_edges[i_z_shell]
@@ -551,10 +554,12 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
             'dep_ion'  : np.mean(tf_wrapper.dep_box[...,0] + tf_wrapper.dep_box[...,1]),
             'dep_exc'  : np.mean(tf_wrapper.dep_box[...,2]),
             'dep_heat' : np.mean(tf_wrapper.dep_box[...,3]),
+            'delta_slice' : np.array(perturbed_field.density[0]),
             'x_e_slice' : np.array(spin_temp.x_e_box[0]),
             'x_H_slice' : np.array(ionized_box.xH_box[0]),
             'T_k_slice' : np.array(spin_temp.Tk_box[0]),
             'T_b_slice' : np.array(brightness_temp.brightness_temp[0]),
+            'delta_box' : np.array(perturbed_field.density),
             # temporary slices
             # 'delta_slice' : np.array(perturbed_field.density[10]),
             # 'dep_ion_slice' : np.array(tf_wrapper.dep_box[10,:,:,0] + tf_wrapper.dep_box[10,:,:,1]),

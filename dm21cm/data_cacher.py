@@ -137,7 +137,8 @@ class Cacher:
         # Get the spectrum
         spectrum = self.spectrum_cache.get_spectrum(z_donor)
         if self.xraycheck:
-            is_box_averaged = max(R1, R2) > 500. #[cfMpc]
+            is_box_averaged = max(R1, R2) > 32. #[cfMpc]
+            #is_box_averaged = max(R1, R2) > 500. #[cfMpc]
             return smoothed_box, spectrum, is_box_averaged, z_donor, min(512.-1e-6, max(R1, R2))
         else:
             return smoothed_box, spectrum, is_box_averaged

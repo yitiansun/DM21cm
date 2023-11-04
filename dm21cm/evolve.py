@@ -47,7 +47,6 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
            debug_astro_params=None,
            save_dir=None,
            debug_dhc_DH_xe_func=None,
-           debug_dhc_delta_fixed=False,
            dh_bath_N_interp_func=None,
            debug_bath_point_injection=False,
            debug_break_after_z=None,
@@ -60,6 +59,8 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
            use_21totf=None,
            tf_on_device=True,
            debug_skip_dm_injection=False,
+           debug_unif_delta_dep=False, # NOTE: currently, just affects the denom, phot_dep still delta dependent
+           debug_unif_delta_tf_param=False,
            ):
     """
     Main evolution function.
@@ -88,6 +89,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
                 'xc-noatten' : Xray check: no attenuation.
                 'xc-force-bath : Xray check: force inject into xray bath.
                 'xc-unif-inj' : Xray check: force uniform injection.
+                'xc-custom-SFRD' : Xray check: use custom SFRD.
         debug_astro_params (AstroParams): AstroParams in p21c.
         
         DarkHistory checks:
@@ -298,7 +300,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
             x_e_box_tf = jnp.full_like(x_e_box, debug_dhc_DH_xe_func(z_current))
         else:
             x_e_box_tf = x_e_box
-        if debug_dhc_delta_fixed:
+        if debug_unif_delta_tf_param:
             delta_plus_one_box_tf = jnp.full_like(delta_plus_one_box, 1.)
         else:
             delta_plus_one_box_tf = delta_plus_one_box
@@ -349,20 +351,24 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
 
             print_str += f' delta-mean='
 
+            print(i_xraycheck_loop_start, i_z, flush=True)
             for i_z_shell in range(i_xraycheck_loop_start, i_z):
 
                 delta, L_X_spec, xraycheck_is_box_average, z_donor, R2 = delta_cacher.get_annulus_data(
                     z_current, z_edges[i_z_shell], z_edges[i_z_shell+1]
                 )
-                #print(f'XCBATH-DEBUG: SHELL i_z={i_z} i_shell={i_z_shell}, raw {np.dot(L_X_spec.N, abscs["photE"]):.3e} eV/Msun')
-                delta = np.clip(delta, -1.0+EPSILON, np.max(delta_range)-EPSILON)
-                delta = jnp.array(delta)
-                print_str += f' {np.mean(delta):.3f}'
-                # emissivity_bracket = Cond_SFRD_Interpolator((z_donor, delta, R2)) # scipy bad
-                emissivity_bracket = Cond_SFRD_Interpolator(z_donor, delta, R2) # jax good
-                if np.mean(emissivity_bracket) > 0:
-                    emissivity_bracket *= (ST_SFRD_Interpolator(z_donor) / np.mean(emissivity_bracket))
-                z_shell = z_edges[i_z_shell]
+                
+                if 'xc-custom-SFRD' in debug_flags:
+                    delta = jnp.array(delta)
+                    emissivity_bracket = custom_SFRD(z_donor, delta, R2)
+                else:
+                    delta = np.clip(delta, -1.0+EPSILON, np.max(delta_range)-EPSILON)
+                    delta = jnp.array(delta)
+                    # emissivity_bracket = Cond_SFRD_Interpolator((z_donor, delta, R2)) # scipy bad
+                    emissivity_bracket = Cond_SFRD_Interpolator(z_donor, delta, R2) # jax good
+                if jnp.mean(emissivity_bracket) > 0:
+                    emissivity_bracket *= (ST_SFRD_Interpolator(z_donor) / jnp.mean(emissivity_bracket))
+
                 emissivity_bracket *= (1 + delta) / (phys.n_B * u.cm**-3).to('Mpc**-3').value * dt
                 emissivity_bracket *= L_X_numerical_factor
                 if xraycheck_is_box_average:
@@ -373,8 +379,6 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
                     print_str += f'\n    approx attenuation: {L_X_spec.approx_attentuation_arr_repr[xray_i_lo:xray_i_hi]}'
                 else:
                     L_X_spec_inj = L_X_spec
-                
-                #print(f'XCBATH-DEBUG: SHELL i_z={i_z} i_shell={i_z_shell}, inject {np.mean(emissivity_bracket)*np.dot(L_X_spec_inj.N, abscs["photE"]):.3e} eV/Bavg')
 
                 if ST_SFRD_Interpolator(z_donor) > 0.:
                     tf_wrapper.inject_phot(L_X_spec_inj, inject_type='xray', weight_box=jnp.asarray(emissivity_bracket))
@@ -443,6 +447,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
             debug_even_split_f=debug_even_split_f,
             ref_depE_per_B=ref_depE_per_B,
             debug_z = z_current,
+            debug_unif_delta_dep = debug_unif_delta_dep,
         )
         # print('before', np.mean(spin_temp.Tk_box), np.mean(spin_temp.x_e_box), flush=True)
         # print('input_heating', np.mean(input_heating.input_heating), flush=True)
@@ -699,3 +704,22 @@ def debug_get_21totf_interp(fn):
 
 #     assert len(z_arr) == len(e_arr)
 #     return interpolate.interp1d(z_arr, e_arr, kind='linear', bounds_error=False, fill_value='extrapolate')
+
+def custom_SFRD(z, delta, r):
+    return 1. + delta
+
+# def custom_SFRD(z, delta, r):
+#     rv = np.log10(r)
+#     sfrd_r_term = np.dot(
+#         np.array([r**6, r**5, r**4, r**3, r**2, r, 1.]),
+#         np.array([-4.90681604e-10, 6.03851957e-09, -1.61836168e-08,
+#                   -7.21151847e-09, 4.31479336e-08, 4.26751313e-08,
+#                   1.31003189e-08])
+#     )
+#     sfrd_d_term = 10**(3.58160894*delta-11.75674659)
+#     zv = np.log10(z)
+#     sfrd_z_term = np.dot(
+#         np.array([z**3, z**2, z, 1.]),
+#         np.array([-2.67086153, 6.54275943, -5.86166611, -5.06866749])
+#     )
+#     return sfrd_r_term * sfrd_d_term * sfrd_z_term

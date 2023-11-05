@@ -35,13 +35,14 @@ class Cacher:
         Brightness = energy per averaged baryon.
     """
 
-    def __init__(self, data_path, cosmo, N, dx, xraycheck=False):
+    def __init__(self, data_path, cosmo, N, dx, xraycheck=False, Rmax=None):
 
         self.data_path = data_path
         self.cosmo = cosmo
         self.N = N
         self.dx = dx
         self.xraycheck = xraycheck
+        self.Rmax = Rmax if Rmax is not None else 500. #[cfMpc]
 
         # Generate the k magnitudes and save them
         k = fft.fftfreq(N, d = dx)
@@ -137,9 +138,8 @@ class Cacher:
         # Get the spectrum
         spectrum = self.spectrum_cache.get_spectrum(z_donor)
         if self.xraycheck:
-            is_box_averaged = max(R1, R2) > 32. #[cfMpc]
-            #is_box_averaged = max(R1, R2) > 500. #[cfMpc]
-            return smoothed_box, spectrum, is_box_averaged, z_donor, min(512.-1e-6, max(R1, R2))
+            is_box_averaged = max(R1, R2) > self.Rmax #[cfMpc]
+            return smoothed_box, spectrum, is_box_averaged, z_donor, min(self.Rmax-1e-6, max(R1, R2))
         else:
             return smoothed_box, spectrum, is_box_averaged
 

@@ -1,7 +1,46 @@
 ## Status
 
-21cmFAST: species: ON. even-split-f: OFF. atten: ON
-physics: YHe: ON.
+21cmFAST:
+[ ] `xunif`:  fcoll modification line ~1855: `fcoll = 1.;`
+[X] `xdecaytest`: fcoll modification line ~1855: `fcoll = (1.+curr_dens) / growth_factor_z * zpp_growth[R_ct];`
+[X] `nodplus1`: line ~1862, del_fcoll_Rct[box_ct] = fcoll;
+[X] `x100`: injection multiplier 100
+[ ] `nosp`: species term OFF
+[ ] `esf`: even-split-f
+[ ] `noatten`: attenuation: OFF
+
+DM21cm:
+sfrd: zf01: `old`. zf01: `old`.
+physics: YHe: `ON`
+custom_sfrd : unif
+
+DarkHistory:
+physics: YHe: `ON`
+
+## 4. Xray spatial feature
+
+base: 32_64Mpc
+xunif: fcoll = cond_sfrd = 1.
+nodplus1: del_fcoll_Rct[box_ct] = fcoll; instead of = (1+delta_R) * fcoll;
+uddn: uniform delta (in) deposition and normalization (normalization = energy to T and ionization level conversion)
+udd: uniform delta (in) deposition
+x100: x100 injection strength
+Rmax: max smoothing radius
+
+[X] sf_xdecayx100_nodplus1_nopop2
+- DC: `sf_xdecayx100_nodplus1_dc_noLX_nopop2_uddn_zf001_Rmax32`
+- 21: `sf_xdecayx100_nodplus1_nopop2_zf001_Rmax32`
+
+[X] sf_xdecayx100test_nodplus1_nopop2
+- 21: `sf_xdecayx100test_nodplus1_nopop2`
+
+[X] sf_xdecayx100_nodplus1_nopop2
+- DC: `sf_xdecayx100_nodplus1_dc_noLX_nopop2_uddn`
+- 21: `sf_xdecayx100_nodplus1_nopop2`
+
+[X] sf_xunifx100_nodplus1_nopop2
+- DC: `sf_xunifx100_nodplus1_dc_noLX_nopop2_uddn`
+- 21: `sf_xunifx100_nodplus1_nopop2`
 
 ## 3. Xray
 

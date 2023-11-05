@@ -61,6 +61,9 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
            debug_skip_dm_injection=False,
            debug_unif_delta_dep=False, # NOTE: currently, just affects the denom, phot_dep still delta dependent
            debug_unif_delta_tf_param=False,
+           st_multiplier=1.,
+           debug_nodplus1=False,
+           debug_xray_Rmax=None,
            ):
     """
     Main evolution function.
@@ -122,6 +125,8 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         p21c.global_params.Y_He = custom_YHe
     if debug_turn_off_pop2ion:
         p21c.global_params.Pop2_ion = 0.
+    if debug_xray_Rmax is not None:
+        p21c.global_params.R_XLy_MAX = debug_xray_Rmax
 
     abscs = load_h5_dict(f"{data_dir}/abscissas.h5")
     if not np.isclose(np.log(zplusone_step_factor), abscs['dlnz']):
@@ -148,7 +153,11 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
     #--- xraycheck ---
     if 'xraycheck' in debug_flags:
 
-        delta_cacher = Cacher(data_path=f"{p21c.config['direc']}/xraycheck_brightness.h5", cosmo=cosmo, N=box_dim, dx=box_len/box_dim, xraycheck=True)
+        delta_cacher = Cacher(
+            data_path=f"{p21c.config['direc']}/xraycheck_brightness.h5",
+            cosmo=cosmo, N=box_dim, dx=box_len/box_dim,
+            xraycheck=True, Rmax=debug_xray_Rmax,
+        )
         delta_cacher.clear_cache()
 
         L_X_numerical_factor = 1e60 # make float happy
@@ -178,7 +187,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
 
         # Takes the redshift as `z`
         # Returns the mean ST star formation rate density star formation rate density in [M_Sun / Mpc^3 / s]
-        ST_SFRD_Interpolator = interpolate.interp1d(z_range, st_sfrd_table)
+        ST_SFRD_Interpolator = interpolate.interp1d(z_range, st_sfrd_table * st_multiplier)
 
     #--- redshift stepping ---
     z_edges = get_z_edges(z_start, z_end, p21c.global_params.ZPRIME_STEP_FACTOR)
@@ -367,9 +376,12 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
                     # emissivity_bracket = Cond_SFRD_Interpolator((z_donor, delta, R2)) # scipy bad
                     emissivity_bracket = Cond_SFRD_Interpolator(z_donor, delta, R2) # jax good
                 if jnp.mean(emissivity_bracket) > 0:
-                    emissivity_bracket *= (ST_SFRD_Interpolator(z_donor) / jnp.mean(emissivity_bracket))
+                    z_donor_interp = np.sqrt(z_edges[i_z_shell] * z_edges[i_z_shell+1])
+                    emissivity_bracket *= (ST_SFRD_Interpolator(z_donor_interp) / jnp.mean(emissivity_bracket))
 
-                emissivity_bracket *= (1 + delta) / (phys.n_B * u.cm**-3).to('Mpc**-3').value * dt
+                if not debug_nodplus1:
+                    emissivity_bracket *= (1 + delta)
+                emissivity_bracket *= 1 / (phys.n_B * u.cm**-3).to('Mpc**-3').value * dt
                 emissivity_bracket *= L_X_numerical_factor
                 if xraycheck_is_box_average:
                     i_xraycheck_loop_start = max(i_z_shell+1, i_xraycheck_loop_start)
@@ -704,6 +716,9 @@ def debug_get_21totf_interp(fn):
 
 #     assert len(z_arr) == len(e_arr)
 #     return interpolate.interp1d(z_arr, e_arr, kind='linear', bounds_error=False, fill_value='extrapolate')
+
+# def custom_SFRD(z, delta, r):
+#     return jnp.ones_like(delta)
 
 def custom_SFRD(z, delta, r):
     return 1. + delta

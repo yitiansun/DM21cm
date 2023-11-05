@@ -16,7 +16,7 @@ if __name__ == '__main__':
     os.environ['DM21CM_DATA_DIR'] = '/n/holyscratch01/iaifi_lab/yitians/dm21cm/DM21cm/data/tf/zf001/data'
 
     return_dict = evolve(
-        run_name = f'ctdecay_xcdecay_noLX_nopop2_uddep_udin_zf001',
+        run_name = f'sf_xdecayx100_nodplus1_dc_noLX_nopop2_uddn_zf001_Rmax32',
         z_start = 45.,
         z_end = 5.,
         zplusone_step_factor = 1.001,
@@ -66,4 +66,7 @@ if __name__ == '__main__':
         debug_skip_dm_injection = True,
         debug_unif_delta_dep = True,
         debug_unif_delta_tf_param = True,
+        st_multiplier = 100.,
+        debug_nodplus1 = True,
+        debug_xray_Rmax = 32.,
     )

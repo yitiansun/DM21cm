@@ -17,4 +17,4 @@ source /n/home07/yitians/setup_dm21cm.sh
 
 cd /n/home07/yitians/dm21cm/DM21cm/scripts
 
-python run_evolve.py > ct_64_128Mpc_xray_noLX_nopop2.out
+python run_evolve.py > sf_xdecayx100_nodplus1_dc_noLX_nopop2_uddn_xraybath_cut500_zf001.out

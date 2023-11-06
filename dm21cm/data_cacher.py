@@ -35,7 +35,7 @@ class Cacher:
         Brightness = energy per averaged baryon.
     """
 
-    def __init__(self, data_path, cosmo, N, dx, xraycheck=False, Rmax=None):
+    def __init__(self, data_path, cosmo, N, dx, xraycheck=False, Rmax=None, Ravg=None):
 
         self.data_path = data_path
         self.cosmo = cosmo
@@ -43,6 +43,7 @@ class Cacher:
         self.dx = dx
         self.xraycheck = xraycheck
         self.Rmax = Rmax if Rmax is not None else 500. #[cfMpc]
+        self.Ravg = Ravg if Ravg is not None else 64. #[cfMpc]
 
         # Generate the k magnitudes and save them
         k = fft.fftfreq(N, d = dx)
@@ -71,6 +72,7 @@ class Cacher:
                     spec.spectrum.rs = 1+z
                 else:
                     spec.rs = 1+z
+        self.spectrum_cache.cutoff()
 
     def get_smoothing_radii(self, z_receiver, z1, z2):
         """Evaluates the shell radii [cfMpc] for a receiver at `z_receiver` for emission between redshifts `z1` and `z2`."""
@@ -91,10 +93,11 @@ class Cacher:
         """
         if self.xraycheck:
             R1 = 1e-10
-        if min(R1, R2) > self.N // 2 * self.dx:
+        if max(R1, R2) > self.N // 2 * self.dx:
             box = fft.irfftn(box)
-            is_box_averaged = True
-            return jnp.mean(box) * jnp.ones_like(box), is_box_averaged
+            #is_box_averaged = True
+            #return jnp.mean(box) * jnp.ones_like(box), is_box_averaged
+            return jnp.mean(box) * jnp.ones_like(box), False
 
         # Volumetric weighting factors for combining the window functions
         R1, R2 = np.sort([R1, R2])
@@ -150,6 +153,7 @@ class SpectrumCache:
     def __init__(self):
         self.spectrum_list = []
         self.z_s = np.array([])
+        self.low_E_cutoff = 500. # [eV]
         
     def cache_spectrum(self, spec, z):
         self.spectrum_list.append(spec)
@@ -174,6 +178,12 @@ class SpectrumCache:
         for spec in self.spectrum_list:
             spec.switch_spec_type('N')
             spec.redshift(1+z_target)
+
+    def cutoff(self):
+        for spec in self.spectrum_list:
+            spec.switch_spec_type('N')
+            i_low = np.searchsorted(spec.eng, self.low_E_cutoff)
+            spec.N[:i_low] *= 0.
             
     def get_spectrum(self, z_target):
         spec_index = np.argmin(np.abs(self.z_s - z_target))

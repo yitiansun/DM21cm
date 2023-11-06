@@ -27,9 +27,13 @@ udd: uniform delta (in) deposition
 x100: x100 injection strength
 Rmax: max smoothing radius
 
-[X] sf_xdecayx100_nodplus1_nopop2
+[X] sf_xdecayx100_nodplus1_nopop2_zf001_Rmax32
 - DC: `sf_xdecayx100_nodplus1_dc_noLX_nopop2_uddn_zf001_Rmax32`
 - 21: `sf_xdecayx100_nodplus1_nopop2_zf001_Rmax32`
+
+[X] sf_xdecayx100_nodplus1_nopop2
+- DC: `sf_xdecayx100_nodplus1_dc_noLX_nopop2_uddn_Rmax32`
+- 21: `sf_xdecayx100_nodplus1_nopop2_Rmax32`
 
 [X] sf_xdecayx100test_nodplus1_nopop2
 - 21: `sf_xdecayx100test_nodplus1_nopop2`

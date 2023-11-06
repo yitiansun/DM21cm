@@ -4,6 +4,7 @@ import os
 import sys
 import logging
 import gc
+import pickle
 
 import numpy as np
 from scipy import interpolate
@@ -93,6 +94,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
                 'xc-force-bath : Xray check: force inject into xray bath.
                 'xc-unif-inj' : Xray check: force uniform injection.
                 'xc-custom-SFRD' : Xray check: use custom SFRD.
+                'xc-ots: Xray check: use on-the-spot deposition.
         debug_astro_params (AstroParams): AstroParams in p21c.
         
         DarkHistory checks:
@@ -325,8 +327,13 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         
         #===== photon injection and energy deposition =====
         #--- xray ---
+        shell_dep_ion_arr = []
+        shell_dep_heat_arr = []
+        shell_R2_arr = []
+
         profiler.start()
         if 'xraycheck' in debug_flags:
+            #----- bath -----
             if 'xc-bath' in debug_flags:
                 xraycheck_bath_N = np.zeros((500,)) # [ph / Bavg]
                 emissivity_bracket_unif = 0.
@@ -358,9 +365,12 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
             
             emissivity_bracket = 0.
 
+            shell_dep_ion_arr = []
+            shell_dep_heat_arr = []
+            shell_R2_arr = []
             print_str += f' delta-mean='
-
             print(i_xraycheck_loop_start, i_z, flush=True)
+            #----- older shells -----
             for i_z_shell in range(i_xraycheck_loop_start, i_z):
 
                 delta, L_X_spec, xraycheck_is_box_average, z_donor, R2 = delta_cacher.get_annulus_data(
@@ -392,8 +402,80 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
                 else:
                     L_X_spec_inj = L_X_spec
 
+                # record dep of each shell # H ion, He ion, exc, heat, cont
+                shell_dep_ion_before = np.mean(tf_wrapper.dep_box[...,0]) + np.mean(tf_wrapper.dep_box[...,1])
+                shell_dep_heat_before = np.mean(tf_wrapper.dep_box[...,3])
                 if ST_SFRD_Interpolator(z_donor) > 0.:
                     tf_wrapper.inject_phot(L_X_spec_inj, inject_type='xray', weight_box=jnp.asarray(emissivity_bracket))
+                shell_dep_ion = np.mean(tf_wrapper.dep_box[...,0]) + np.mean(tf_wrapper.dep_box[...,1]) - shell_dep_ion_before
+                shell_dep_heat = np.mean(tf_wrapper.dep_box[...,3]) - shell_dep_heat_before
+                shell_dep_ion_arr.append(shell_dep_ion)
+                shell_dep_heat_arr.append(shell_dep_heat)
+                shell_R2_arr.append(R2)
+
+            #----- new shell now deposits as well! -----
+            x_e_for_attenuation = 1 - np.mean(ionized_box.xH_box)
+            attenuation_arr = np.array(tf_wrapper.attenuation_arr(rs=1+z_current, x=x_e_for_attenuation)) # convert from jax array
+            if 'xc-noatten' in debug_flags: # TMP: turn off attenuation
+                attenuation_arr = np.ones_like(attenuation_arr)
+            delta_cacher.advance_spectrum(attenuation_arr, z_next, noredshift=('xc-noredshift' in debug_flags)) # can handle AttenuatedSpectrum
+
+            print_str += f" atten. mean={np.mean(attenuation_arr):.4f}"
+
+            L_X_spec_prefac = 1e40 / np.log(4) * u.erg * u.s**-1 * u.M_sun**-1 * u.yr * u.keV**-1 # value in [erg yr / s Msun keV]
+            L_X_spec_prefac /= L_X_numerical_factor
+            # L_X (E * dN/dE) \propto E^-1
+            L_X_dNdE = L_X_spec_prefac.to('1/Msun').value * (abscs['photE']/1000.)**-1 / abscs['photE'] # [1/Msun] * [1/eV] = [1/Msun eV]
+            L_X_dNdE[:xray_i_lo] *= 0.
+            L_X_dNdE[xray_i_hi:] *= 0.
+            L_X_spec = Spectrum(abscs['photE'], L_X_dNdE, spec_type='dNdE', rs=1+z_current) # [1 / Msun eV]
+            L_X_spec.switch_spec_type('N') # [1 / Msun]
+
+            if 'xc-noredshift' in debug_flags:
+                L_X_spec.rs = 1+z_next
+            else:
+                L_X_spec.redshift(1+z_next)
+            if 'xc-01attenuation' in debug_flags:
+                L_X_spec = AttenuatedSpectrum(L_X_spec)
+
+            # before saving, first ots injection
+            z_donor = z_current
+            delta = jnp.array(perturbed_field.density)
+            R2 = 0.
+
+            if 'xc-custom-SFRD' in debug_flags:
+                emissivity_bracket = custom_SFRD(z_donor, delta, R2)
+            else:
+                delta = jnp.clip(delta, -1.0+EPSILON, jnp.max(delta_range)-EPSILON)
+                # emissivity_bracket = Cond_SFRD_Interpolator((z_donor, delta, R2)) # scipy bad
+                emissivity_bracket = Cond_SFRD_Interpolator(z_donor, delta, R2) # jax good
+            if jnp.mean(emissivity_bracket) > 0:
+                z_donor_interp = z_current
+                emissivity_bracket *= (ST_SFRD_Interpolator(z_donor_interp) / jnp.mean(emissivity_bracket))
+
+            if not debug_nodplus1:
+                emissivity_bracket *= (1 + delta)
+            emissivity_bracket *= 1 / (phys.n_B * u.cm**-3).to('Mpc**-3').value * dt
+            emissivity_bracket *= L_X_numerical_factor
+
+            L_X_spec_inj = L_X_spec
+
+            if 'xc-ots' in debug_flags:
+                # record dep of each shell # H ion, He ion, exc, heat, cont
+                shell_dep_ion_before = np.mean(tf_wrapper.dep_box[...,0]) + np.mean(tf_wrapper.dep_box[...,1])
+                shell_dep_heat_before = np.mean(tf_wrapper.dep_box[...,3])
+                if ST_SFRD_Interpolator(z_donor) > 0.:
+                    tf_wrapper.inject_phot(L_X_spec_inj, inject_type='xray', weight_box=jnp.asarray(emissivity_bracket))
+                shell_dep_ion = np.mean(tf_wrapper.dep_box[...,0]) + np.mean(tf_wrapper.dep_box[...,1]) - shell_dep_ion_before
+                shell_dep_heat = np.mean(tf_wrapper.dep_box[...,3]) - shell_dep_heat_before
+                shell_dep_ion_arr.append(shell_dep_ion)
+                shell_dep_heat_arr.append(shell_dep_heat)
+                shell_R2_arr.append(0.)
+
+            #----- after ots deposition, advance and save -----
+            if 'xc-ots' in debug_flags:
+                L_X_spec_inj.N *= attenuation_arr
+            delta_cacher.cache(z_current, delta, L_X_spec_inj)
             
             print_str += f' shells:{i_xraycheck_loop_start}-{i_z}'
             if i_z > i_xraycheck_loop_start: # if shells were injected at all
@@ -401,6 +483,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
                 print_str += f' shell xray:{avg_eng:.3e} eV/Bavg'
             profiler.record('xraycheck')
 
+        #===== DM injection =====
         else: # regular routine
             if not debug_skip_dm_injection:
                 for i_z_shell in range(i_xray_loop_start, i_z):
@@ -504,35 +587,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
 
         #--- xray ---
         if 'xraycheck' in debug_flags:
-            x_e_for_attenuation = 1 - np.mean(ionized_box.xH_box)
-            attenuation_arr = np.array(tf_wrapper.attenuation_arr(rs=1+z_current, x=x_e_for_attenuation)) # convert from jax array
-            if 'xc-noatten' in debug_flags: # TMP: turn off attenuation
-                attenuation_arr = np.ones_like(attenuation_arr)
-            delta_cacher.advance_spectrum(attenuation_arr, z_next, noredshift=('xc-noredshift' in debug_flags)) # can handle AttenuatedSpectrum
-
-            print_str += f" atten. mean={np.mean(attenuation_arr):.4f}"
-
-            L_X_spec_prefac = 1e40 / np.log(4) * u.erg * u.s**-1 * u.M_sun**-1 * u.yr * u.keV**-1 # value in [erg yr / s Msun keV]
-            L_X_spec_prefac /= L_X_numerical_factor
-            # L_X (E * dN/dE) \propto E^-1
-            L_X_dNdE = L_X_spec_prefac.to('1/Msun').value * (abscs['photE']/1000.)**-1 / abscs['photE'] # [1/Msun] * [1/eV] = [1/Msun eV]
-            L_X_dNdE[:xray_i_lo] *= 0.
-            L_X_dNdE[xray_i_hi:] *= 0.
-            L_X_spec = Spectrum(abscs['photE'], L_X_dNdE, spec_type='dNdE', rs=1+z_current) # [1 / Msun eV]
-            L_X_spec.switch_spec_type('N') # [1 / Msun]
-
-            if 'xc-noredshift' in debug_flags:
-                L_X_spec.rs = 1+z_next
-            else:
-                L_X_spec.redshift(1+z_next)
-
-            if 'xc-01attenuation' in debug_flags:
-                L_X_spec = AttenuatedSpectrum(L_X_spec)
-            if 'xc-unif-inj' in debug_flags:
-                cached_density = np.full_like(perturbed_field.density, 0.)
-            else:
-                cached_density = perturbed_field.density
-            delta_cacher.cache(z_current, cached_density, L_X_spec)
+            pass
         
         else:
             x_e_for_attenuation = 1 - np.mean(ionized_box.xH_box)
@@ -577,6 +632,12 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
             # 'dep_ion_slice' : np.array(tf_wrapper.dep_box[10,:,:,0] + tf_wrapper.dep_box[10,:,:,1]),
             # 'dep_exc_slice' : np.array(tf_wrapper.dep_box[10,:,:,2]),
             # 'dep_heat_slice' : np.array(tf_wrapper.dep_box[10,:,:,3]),
+            'shell_dep_info': {
+                'ion' : np.array(shell_dep_ion_arr),
+                'heat' : np.array(shell_dep_heat_arr),
+                'R2': np.array(shell_R2_arr),
+            },
+            'pc_shell_dep_info': np.mean(spin_temp.SmoothedDelta, axis=(1, 2, 3)),
         }
         if track_Tk_xe:
             record.update({
@@ -610,6 +671,10 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
     if save_dir is None:
         save_dir = os.environ['DM21CM_DIR'] + '/outputs/dm21cm'
     np.save(f"{save_dir}/{run_name}_records", arr_records)
+
+    #===== tmp: additional save =====
+    # shellinfo = spin_temp.SmoothedDelta
+    # pickle.dump(shellinfo, open(f"{save_dir}/{run_name}_shellinfo.p", 'wb'))
 
     profiler.print_summary()
 

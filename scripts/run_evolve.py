@@ -13,13 +13,16 @@ WDIR = os.environ['DM21CM_DIR']
 
 if __name__ == '__main__':
 
-    os.environ['DM21CM_DATA_DIR'] = '/n/holyscratch01/iaifi_lab/yitians/dm21cm/DM21cm/data/tf/zf001/data'
+    os.environ['DM21CM_DATA_DIR'] = '/n/holyscratch01/iaifi_lab/yitians/dm21cm/DM21cm/data/tf/zf01/data'
+
+    # p21c.global_params.R_XLy_MAX = 500.
+    # p21c.global_params.NUM_FILTER_STEPS_FOR_Ts = 40
 
     return_dict = evolve(
-        run_name = f'sf_xdecayx100_nodplus1_dc_noLX_nopop2_uddn_xraybath_cut500_zf001',
+        run_name = f'sf_xdecayx100_nodplus1_dc_noLX_nopop2_uddn',
         z_start = 45.,
         z_end = 5.,
-        zplusone_step_factor = 1.001,
+        zplusone_step_factor = 1.01,
         dm_params = DMParams(
             mode='decay',
             primary='phot_delta',
@@ -40,33 +43,22 @@ if __name__ == '__main__':
                 OMb = Planck18.Ob0,
                 POWER_INDEX = Planck18.meta['n'],
                 SIGMA_8 = Planck18.meta['sigma8'],
-                #SIGMA_8 = 1e-6,
                 hlittle = Planck18.h,
             ),
             random_seed = 54321,
             write = True,
         ),
-        
-        rerun_DH = False,
-        clear_cache = True,
+
         use_tqdm = True,
-        #debug_flags = ['uniform_xray'], # homogeneous injection
-        #debug_flags = ['xraycheck', 'xc-noatten'], # our xray noatten to compare with 21cmfast
-        debug_flags = ['xraycheck', 'xc-custom-SFRD'], # our xray ST compare with DH
-        #debug_flags = ['xraycheck', 'xc-bath', 'xc-force-bath'], # our xray ST forced to bath compare with DH
-        debug_astro_params = p21c.AstroParams(L_X = 0.), # log10 value
-        use_DH_init = True,
-        custom_YHe = 0.245, # 0.245
+        #debug_flags = ['xc-bath', 'xc-custom-SFRD'],
+        debug_flags = ['xc-custom-SFRD'],
+        use_21cmfast_xray = False,
         debug_turn_off_pop2ion = True,
-        debug_copy_dh_init = f"{WDIR}/outputs/dh/xc_xrayST_soln.p",
-        track_Tk_xe = True,
-        # use_21totf=f"{WDIR}/outputs/stdout/xc_nopop2_noHe_nosp_noatten_esf.out",
-        # debug_even_split_f = True,
-        # tf_on_device = False,
-        debug_skip_dm_injection = True,
         debug_unif_delta_dep = True,
         debug_unif_delta_tf_param = True,
         st_multiplier = 100.,
         debug_nodplus1 = True,
-        debug_xray_Rmax = 500.,
+        debug_xray_Rmax_shell = 500.,
+        debug_xray_Rmax_bath = 500.,
+        debug_xray_Rmax_p21c = 500.,
     )

@@ -35,15 +35,14 @@ class Cacher:
         Brightness = energy per averaged baryon.
     """
 
-    def __init__(self, data_path, cosmo, N, dx, xraycheck=False, Rmax=None, Ravg=None):
+    def __init__(self, data_path, cosmo, N, dx, shell_Rmax, Rmax):
 
         self.data_path = data_path
         self.cosmo = cosmo
         self.N = N
         self.dx = dx
-        self.xraycheck = xraycheck
-        self.Rmax = Rmax if Rmax is not None else 500. #[cfMpc]
-        self.Ravg = Ravg if Ravg is not None else 64. #[cfMpc]
+        self.shell_Rmax = shell_Rmax
+        self.Rmax = Rmax
 
         # Generate the k magnitudes and save them
         k = fft.fftfreq(N, d = dx)
@@ -61,18 +60,8 @@ class Cacher:
         self.spectrum_cache.clear_cache()
         self.brightness_cache.clear_cache()
 
-    def advance_spectrum(self, attenuation_factor, z, noredshift=False):
-        self.spectrum_cache.attenuate(attenuation_factor)
-        if not noredshift:
-            self.spectrum_cache.redshift(z)
-        else:
-            for spec in self.spectrum_cache.spectrum_list:
-                spec.switch_spec_type('N')
-                if isinstance(spec, AttenuatedSpectrum):
-                    spec.spectrum.rs = 1+z
-                else:
-                    spec.rs = 1+z
-        self.spectrum_cache.cutoff()
+    def advance_spectrum(self, attenuation_factor, z):
+        self.spectrum_cache.advance_spectrum(attenuation_factor, z)
 
     def get_smoothing_radii(self, z_receiver, z1, z2):
         """Evaluates the shell radii [cfMpc] for a receiver at `z_receiver` for emission between redshifts `z1` and `z2`."""
@@ -91,13 +80,11 @@ class Cacher:
         Returns:
             (array, bool): The smoothed box, whether the whole box is averaged.
         """
-        if self.xraycheck:
-            R1 = 1e-10
-        if max(R1, R2) > self.N // 2 * self.dx:
+        R1 = 1e-10
+        if R2 > self.shell_Rmax:
             box = fft.irfftn(box)
-            #is_box_averaged = True
-            #return jnp.mean(box) * jnp.ones_like(box), is_box_averaged
-            return jnp.mean(box) * jnp.ones_like(box), False
+            is_box_averaged = True
+            return jnp.mean(box) * jnp.ones_like(box), is_box_averaged
 
         # Volumetric weighting factors for combining the window functions
         R1, R2 = np.sort([R1, R2])
@@ -140,11 +127,9 @@ class Cacher:
 
         # Get the spectrum
         spectrum = self.spectrum_cache.get_spectrum(z_donor)
-        if self.xraycheck:
-            is_box_averaged = max(R1, R2) > self.Rmax #[cfMpc]
-            return smoothed_box, spectrum, is_box_averaged, z_donor, min(self.Rmax-1e-6, max(R1, R2))
-        else:
-            return smoothed_box, spectrum, is_box_averaged
+
+        # is_box_averaged = max(R1, R2) > self.Rmax #[cfMpc]
+        return smoothed_box, spectrum, is_box_averaged, z_donor, min(self.Rmax-1e-6, max(R1, R2))
 
 
 class SpectrumCache:
@@ -184,10 +169,25 @@ class SpectrumCache:
             spec.switch_spec_type('N')
             i_low = np.searchsorted(spec.eng, self.low_E_cutoff)
             spec.N[:i_low] *= 0.
+
+    def advance_spectrum(self, attenuation_factor, z):
+        self.attenuate(attenuation_factor)
+        self.redshift(z)
+        self.cutoff()
             
     def get_spectrum(self, z_target):
         spec_index = np.argmin(np.abs(self.z_s - z_target))
         return self.spectrum_list[spec_index]
+
+    def toteng_arr(self):
+        return np.array([spec.toteng() for spec in self.spectrum_list])
+
+    def total_spec(self):
+        assert len(self.spectrum_list) > 0
+        N = np.zeros_like(self.spectrum_list[0].N)
+        for spec in self.spectrum_list:
+            N += spec.N
+        return Spectrum(self.spectrum_list[0].eng, N, spec_type='N', rs=1+np.min(self.z_s))
 
 
 class BrightnessCache:

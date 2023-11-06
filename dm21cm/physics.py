@@ -150,6 +150,18 @@ def conformal_dt_between_z(z_high, z_low):
     val, err = np.array(integrate.quad(integrand, z_high, z_low)) * norm
     return val
 
+def conformal_dx_between_z(z_high, z_low):
+    """Calculate conformal delta x [conformal Mpc] between z_high and z_low.
+
+    Args:
+        z_high (float): Higher redshift.
+        z_low (float): Lower redshift.
+
+    Returns:
+        float: Delta conformal x [conformal Mpc].
+    """
+    return np.abs(conformal_dt_between_z(z_high, z_low) * c / Mpc)
+
 def dt_step(z, zplusone_factor):
     """Calculate delta t [s] between current redshift z and next redshift step.
     Consistent with 21cmFAST's time step.

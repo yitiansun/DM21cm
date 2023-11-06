@@ -15,7 +15,7 @@ class AttenuatedSpectrum:
     def attenuate(self, attenuation_arr):
         self.attenuation_arr *= attenuation_arr
 
-    def redshift(self, rs):
+    def redshift(self, rs): # this is approximate
         self.spectrum.redshift(rs)
 
     def switch_spec_type(self, spec_type):

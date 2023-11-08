@@ -28,11 +28,21 @@ class AttenuatedSpectrum:
     @property
     def approx_attentuation_arr_repr(self):
         return ''.join([f'{a:.0f}' for a in self.approx_attenuation_arr])
+    
+    @property
+    def N(self):
+        return self.spectrum.N * self.approx_attenuation_arr
+    
+    @property
+    def eng(self):
+        return self.spectrum.eng
+    
+    def toteng(self):
+        return self.approx_attenuated_spectrum.toteng()
 
     @property
     def approx_attenuated_spectrum(self):
-        spec_N = self.spectrum.N * self.approx_attenuation_arr
-        return Spectrum(self.spectrum.eng, spec_N, spec_type='N', rs=self.spectrum.rs)
+        return Spectrum(self.spectrum.eng, self.N, spec_type='N', rs=self.spectrum.rs)
     
     @property
     def attenuated_spectrum(self):

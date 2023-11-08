@@ -59,6 +59,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
            debug_xray_Rmax_bath=None,
            debug_xray_Rmax_shell=None,
            debug_xray_Rmax_p21c=None,
+           debug_use_21_totinj=None,
            ):
     """
     Main evolution function.
@@ -178,6 +179,10 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
     #--- redshift stepping ---
     z_edges = get_z_edges(z_start, z_end, p21c.global_params.ZPRIME_STEP_FACTOR)
 
+    #--- debug ---
+    if debug_use_21_totinj is not None:
+        ref_interp = debug_get_21totf_interp(debug_use_21_totinj)
+
     #===== initial steps =====
     dh_wrapper = DarkHistoryWrapper(
         dm_params,
@@ -256,8 +261,6 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
                 print('bath:', i_xraycheck_bath_start, i_xraycheck_shell_start, flush=True)
                 
                 xraycheck_bath_N_arr = []
-                xraycheck_bath_toteng_arr = []
-
                 for i_z_bath in range(i_xraycheck_bath_start, i_xraycheck_shell_start): # uniform injection
                     z_bath = z_edges[i_z_bath]
                     shell_N = np.array(delta_cacher.spectrum_cache.get_spectrum(z_bath).N) # [ph / Msun]
@@ -305,15 +308,9 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
                     debug_nodplus1=debug_nodplus1, cond_sfrd=cond_sfrd, st_sfrd=ST_SFRD_Interpolator,
                 ) # [Msun / Bavg]
 
-                if 'xc-01attenuation' in debug_flags:
-                    L_X_spec_inj = L_X_spec.approx_attenuated_spectrum
-                    print_str += f'\n    approx attenuation: {L_X_spec.approx_attentuation_arr_repr[xray_i_lo:xray_i_hi]}'
-                else:
-                    L_X_spec_inj = L_X_spec
-
                 dep_tracker.reset(tf_wrapper.dep_box)
                 if np.mean(emissivity_bracket) != 0.:
-                    tf_wrapper.inject_phot(L_X_spec_inj, inject_type='xray', weight_box=jnp.asarray(emissivity_bracket))
+                    tf_wrapper.inject_phot(L_X_spec, inject_type='xray', weight_box=jnp.asarray(emissivity_bracket))
                 dep_tracker.record(tf_wrapper.dep_box, R=phys.conformal_dx_between_z(z_donor, z_current), from_bath=False)
 
                 if xraycheck_is_box_average:
@@ -362,7 +359,10 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
                     tf_wrapper.inject_phot(L_X_spec, inject_type='xray', weight_box=jnp.asarray(emissivity_bracket))
                 dep_tracker.record(tf_wrapper.dep_box, R=R2, from_bath=False)
 
-                L_X_spec.N *= attenuation_arr
+                if isinstance(L_X_spec, AttenuatedSpectrum):
+                    L_X_spec.attenuate(attenuation_arr)
+                else:
+                    L_X_spec.N *= attenuation_arr
 
             #----- after possible ots deposition, advance and save -----
             delta_cacher.cache(z_current, jnp.array(perturbed_field.density), L_X_spec)
@@ -374,10 +374,14 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
             assert not np.any(np.isnan(input_jalpha.input_jalpha)), 'input_jalpha has NaNs'
         perturbed_field = p21c.perturb_field(redshift=z_next, init_boxes=p21c_initial_conditions)
         input_heating, input_ionization, input_jalpha = gen_injection_boxes(z_next, p21c_initial_conditions)
+        if debug_use_21_totinj is not None:
+            ref_depE_per_B = ref_interp(z_current) * phys.A_per_B
+        else:
+            ref_depE_per_B = None
         tf_wrapper.populate_injection_boxes(
             input_heating, input_ionization, input_jalpha, dt,
             debug_even_split_f=False,
-            ref_depE_per_B=None,
+            ref_depE_per_B=ref_depE_per_B,
             debug_z = z_current,
             debug_unif_delta_dep = debug_unif_delta_dep,
         )
@@ -435,6 +439,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
                 'bath_toteng_arr' : xraycheck_bath_toteng_arr
             },
             'pc_shell_dep_info': np.mean(spin_temp.SmoothedDelta, axis=(1, 2, 3)),
+            #'pc_shell_dep': np.array(spin_temp.SmoothedDelta)
         }
         records.append(record)
         dep_tracker.clear()
@@ -453,6 +458,8 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
     if save_dir is None:
         save_dir = os.environ['DM21CM_DIR'] + '/outputs/dm21cm'
     np.save(f"{save_dir}/{run_name}_records", arr_records)
+
+    pickle.dump(delta_cacher.spectrum_cache, open(f"{p21c.config['direc']}/spec_cache.p", 'wb'))
 
 
 #===== utilities for evolve =====
@@ -519,10 +526,8 @@ def p21c_step(perturbed_field, spin_temp, ionized_box,
 
 
 def get_emissivity_bracket(z, delta, R, dt, debug_nodplus1=False, cond_sfrd=None, st_sfrd=None):
-    if cond_sfrd is None:
-        emissivity_bracket = Cond_SFRD_Interpolator(z, delta, R) # [Msun / Mpc^3 s]
-    else:
-        emissivity_bracket = cond_sfrd(z, delta, R)
+
+    emissivity_bracket = cond_sfrd(z, delta, R) # [Msun / Mpc^3 s]
     if np.mean(emissivity_bracket) != 0:
         emissivity_bracket *= (st_sfrd(z) / jnp.mean(emissivity_bracket))
     if not debug_nodplus1:
@@ -580,3 +585,31 @@ class DepTracker:
         self.dep_ion_shells = []
         self.dep_heat_shells = []
         self.R_shells = []
+
+    def get_record(self):
+        return {
+            'dep_ion_bath' : self.dep_ion_bath,
+            'dep_heat_bath' : self.dep_heat_bath,
+            'dep_ion_shells' : np.array(self.dep_ion_shells),
+            'dep_heat_shells' : np.array(self.dep_heat_shells),
+            'R_shells' : np.array(self.R_shells),
+        }
+
+
+def debug_get_21totf_interp(fn):
+    line_arr = []
+    z_arr = []
+    e_arr = []
+    with open(fn, 'r') as f:
+        for line in f:
+            if "E_tot_ave = " in line:
+                line_arr.append(line)
+                tokens = line.split('E_tot_ave = ')
+                e_arr.append(float(tokens[-1]))
+                tokens = tokens[0].split('zp = ')
+                z_arr.append(float(tokens[1]))
+
+    # z_arr = np.array(z_arr)[1:]
+    # e_arr = np.array(e_arr)[:-1]
+    assert len(z_arr) == len(e_arr)
+    return interpolate.interp1d(z_arr, e_arr, kind='linear', bounds_error=False, fill_value='extrapolate')

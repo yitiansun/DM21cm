@@ -234,22 +234,23 @@ class TransferFunctionWrapper:
     def populate_injection_boxes(self, input_heating, input_ionization, input_jalpha, dt, debug_even_split_f=False, ref_depE_per_B=None, debug_z=None, debug_unif_delta_dep=False):
         
         dep_heat_box = self.dep_box[...,3]
-        dep_ion_box = (self.dep_box[...,0]/phys.rydberg + self.dep_box[...,1]/phys.He_ion_eng)
+        dep_ion_box = self.dep_box[...,0] + self.dep_box[...,1]
         dep_lya_box = self.dep_box[...,2]
 
         if ref_depE_per_B is not None:
             dep_tot = np.mean(dep_heat_box) + np.mean(dep_ion_box) + np.mean(dep_lya_box)
-            print(f"DM21CM: z={debug_z} TOT INJ ENG {dep_tot / phys.A_per_B} eV/A")
-            print(f"DM21CM: z={debug_z} REF INJ ENG {ref_depE_per_B / phys.A_per_B} eV/A")
+            # print(f"DM21CM: z={debug_z} TOT INJ ENG {dep_tot / phys.A_per_B} eV/A")
+            # print(f"DM21CM: z={debug_z} REF INJ ENG {ref_depE_per_B / phys.A_per_B} eV/A")
             if dep_tot > 0:
-                dep_heat_box *= ref_depE_per_B / dep_tot
-                dep_ion_box *= ref_depE_per_B / dep_tot
-                dep_lya_box *= ref_depE_per_B / dep_tot
-        if debug_even_split_f:
-            dep_tot_box = dep_heat_box + dep_ion_box + dep_lya_box
-            dep_heat_box = dep_tot_box / 3
-            dep_ion_box = dep_tot_box / 3 / phys.rydberg
-            dep_lya_box = dep_tot_box / 3
+                ratio = ref_depE_per_B / dep_tot
+                dep_heat_box *= ratio
+                dep_ion_box = (self.dep_box[...,0] / phys.rydberg + self.dep_box[...,1] / phys.He_ion_eng) * ratio
+                dep_lya_box *= ratio
+        # if debug_even_split_f:
+        #     dep_tot_box = dep_heat_box + dep_ion_box + dep_lya_box
+        #     dep_heat_box = dep_tot_box / 3
+        #     dep_ion_box = dep_tot_box / 3 / phys.rydberg
+        #     dep_lya_box = dep_tot_box / 3
 
         if debug_unif_delta_dep:
             extra_factor = self.params['nBs_box']

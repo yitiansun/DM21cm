@@ -1,18 +1,23 @@
 ## Status
 
 21cmFAST:
-[ ] `xunif`:  fcoll modification line ~1855: `fcoll = 1.;`
-[X] `xdecaytest`: fcoll modification line ~1855: `fcoll = (1.+curr_dens) / growth_factor_z * zpp_growth[R_ct];`
+[ ] `xunif`:      fcoll modification line ~1855: `fcoll = 1.;`
+[ ] `xdecaytest`: fcoll modification line ~1855: `fcoll = (1.+curr_dens) / growth_factor_z * zpp_growth[R_ct];`
+[X] `xdecay`:     fcoll modification line ~1855: `fcoll = (1.+curr_dens);`
 [X] `nodplus1`: line ~1862, del_fcoll_Rct[box_ct] = fcoll;
-[X] `x100`: injection multiplier 100
+[X] `x10`: injection multiplier 10
+[X] `noxesink`: commented out `dxion_sink_dt`
+[X] `alldepion` : all deposition energy goes to ionization
 [ ] `nosp`: species term OFF
 [ ] `esf`: even-split-f
 [ ] `noatten`: attenuation: OFF
 
+
 DM21cm:
 sfrd: zf01: `old`. zf01: `old`.
 physics: YHe: `ON`
-custom_sfrd : unif
+custom_sfrd : 1+delta
+`nodplus1`: ON
 
 DarkHistory:
 physics: YHe: `ON`
@@ -26,6 +31,18 @@ uddn: uniform delta (in) deposition and normalization (normalization = energy to
 udd: uniform delta (in) deposition
 x100: x100 injection strength
 Rmax: max smoothing radius
+
+
+[X] sf_xdecayx10_nodplus1_noxesink_nopop2_alldepion_uddn_01atten_bath_ots_zf001
+- DC: `sf_xdecayx10_nodplus1_dc_noLX_noxesink_nopop2_alldepion_uddn_01atten_bath_ots_zf001`
+- 21: `sf_xdecayx10_nodplus1_noxesink_nopop2_alldepion_zf001`
+
+
+[X] sf_xdecayx10_nodplus1_noxesink_nopop2_uddn_01atten_bath_ots_zf001
+- DC: `sf_xdecayx10_nodplus1_dc_noLX_noxesink_nopop2_uddn_01atten_bath_ots_zf001`
+- 21: `sf_xdecayx10_nodplus1_noxesink_nopop2_zf001`
+
+
 
 [X] sf_xdecayx100_nodplus1_nopop2_zf001_Rmax32
 - DC: `sf_xdecayx100_nodplus1_dc_noLX_nopop2_uddn_zf001_Rmax32`

@@ -168,7 +168,12 @@ class SpectrumCache:
         for spec in self.spectrum_list:
             spec.switch_spec_type('N')
             i_low = np.searchsorted(spec.eng, self.low_E_cutoff)
-            spec.N[:i_low] *= 0.
+            if isinstance(spec, Spectrum):
+                spec.N[:i_low] *= 0.
+            elif isinstance(spec, AttenuatedSpectrum):
+                spec.spectrum.N[:i_low] *= 0.
+            else:
+                raise TypeError('Spectrum type not recognized.')
 
     def advance_spectrum(self, attenuation_factor, z):
         self.attenuate(attenuation_factor)

@@ -231,7 +231,7 @@ class TransferFunctionWrapper:
             self.inject_elec(dm_params.inj_elec_spec, weight_box=inj_per_Bavg_box)
 
 
-    def populate_injection_boxes(self, input_heating, input_ionization, input_jalpha, dt, debug_even_split_f=False, ref_depE_per_B=None, debug_z=None, debug_unif_delta_dep=False):
+    def populate_injection_boxes(self, input_heating, input_ionization, input_jalpha, dt, debug_even_split_f=False, ref_depE_per_B=None, debug_z=None, debug_unif_delta_dep=False, debug_depallion=False):
         
         dep_heat_box = self.dep_box[...,3]
         dep_ion_box = self.dep_box[...,0] + self.dep_box[...,1]
@@ -243,9 +243,17 @@ class TransferFunctionWrapper:
             # print(f"DM21CM: z={debug_z} REF INJ ENG {ref_depE_per_B / phys.A_per_B} eV/A")
             if dep_tot > 0:
                 ratio = ref_depE_per_B / dep_tot
-                dep_heat_box *= ratio
-                dep_ion_box = (self.dep_box[...,0] / phys.rydberg + self.dep_box[...,1] / phys.He_ion_eng) * ratio
-                dep_lya_box *= ratio
+                if debug_depallion:
+                    dep_ion_box = (dep_heat_box + dep_ion_box + dep_lya_box) * ratio / phys.rydberg
+                    dep_heat_box *= 0.
+                    dep_lya_box *= 0.
+                else:
+                    dep_heat_box *= ratio
+                    dep_ion_box = (self.dep_box[...,0] / phys.rydberg + self.dep_box[...,1] / phys.He_ion_eng) * ratio
+                    dep_lya_box *= ratio
+        else:
+            if debug_depallion:
+                raise NotImplementedError
         # if debug_even_split_f:
         #     dep_tot_box = dep_heat_box + dep_ion_box + dep_lya_box
         #     dep_heat_box = dep_tot_box / 3

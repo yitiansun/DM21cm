@@ -60,6 +60,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
            debug_xray_Rmax_shell=None,
            debug_xray_Rmax_p21c=None,
            debug_use_21_totinj=None,
+           debug_depallion=False,
            ):
     """
     Main evolution function.
@@ -384,6 +385,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
             ref_depE_per_B=ref_depE_per_B,
             debug_z = z_current,
             debug_unif_delta_dep = debug_unif_delta_dep,
+            debug_depallion = debug_depallion,
         )
         spin_temp, ionized_box, brightness_temp = p21c_step(
             perturbed_field, spin_temp, ionized_box,

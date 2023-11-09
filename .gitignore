@@ -1,6 +1,7 @@
 #===== This project =====
 build_tf/*.pdf
 build_tf/ionhist_outputs/
+cross_check/tmp/
 data/tf/
 data/run_info/**
 data/sfrd

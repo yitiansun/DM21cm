@@ -61,6 +61,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
            debug_xray_Rmax_p21c=None,
            debug_use_21_totinj=None,
            debug_depallion=False,
+           adaptive_shell=None,
            ):
     """
     Main evolution function.
@@ -209,6 +210,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
     ionized_box.xH_box = 1 - spin_temp.x_e_box
 
     records = []
+    records_extra = []
 
     #===== main loop =====
     #--- trackers ---
@@ -287,35 +289,93 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
                     tf_wrapper.inject_phot(L_X_bath_spec, inject_type='xray', weight_box=jnp.ones_like(delta_plus_one_box)) # inject bath
                     dep_tracker.record(tf_wrapper.dep_box, from_bath=True)
 
+            #----- older shells: dense -----
+            if adaptive_shell is None:
+                print('shell:', i_xraycheck_shell_start, i_z, flush=True)
+                for i_z_shell in range(i_xraycheck_shell_start, i_z):
 
-            print('shell:', i_xraycheck_shell_start, i_z, flush=True)
+                    delta, L_X_spec, xraycheck_is_box_average, z_donor, R2 = delta_cacher.get_annulus_data(
+                        z_current, z_edges[i_z_shell], z_edges[i_z_shell+1]
+                    )
+                    
+                    if 'xc-custom-SFRD' in debug_flags:
+                        delta = jnp.array(delta)
+                        cond_sfrd = custom_SFRD
+                    else:
+                        delta = np.clip(delta, -1.0+EPSILON, np.max(delta_range)-EPSILON)
+                        delta = jnp.array(delta)
+                        cond_sfrd = Cond_SFRD_Interpolator
+                    emissivity_bracket = get_emissivity_bracket(
+                        z=z_donor, delta=delta, R=R2, dt = dt,
+                        debug_nodplus1=debug_nodplus1, cond_sfrd=cond_sfrd, st_sfrd=ST_SFRD_Interpolator,
+                    ) # [Msun / Bavg]
 
-            #----- older shells -----
-            for i_z_shell in range(i_xraycheck_shell_start, i_z):
+                    dep_tracker.reset(tf_wrapper.dep_box)
+                    if np.mean(emissivity_bracket) != 0.:
+                        tf_wrapper.inject_phot(L_X_spec, inject_type='xray', weight_box=jnp.asarray(emissivity_bracket))
+                    dep_tracker.record(tf_wrapper.dep_box, R=phys.conformal_dx_between_z(z_donor, z_current), from_bath=False)
 
-                delta, L_X_spec, xraycheck_is_box_average, z_donor, R2 = delta_cacher.get_annulus_data(
-                    z_current, z_edges[i_z_shell], z_edges[i_z_shell+1]
-                )
-                
-                if 'xc-custom-SFRD' in debug_flags:
-                    delta = jnp.array(delta)
-                    cond_sfrd = custom_SFRD
-                else:
-                    delta = np.clip(delta, -1.0+EPSILON, np.max(delta_range)-EPSILON)
-                    delta = jnp.array(delta)
-                    cond_sfrd = Cond_SFRD_Interpolator
-                emissivity_bracket = get_emissivity_bracket(
-                    z=z_donor, delta=delta, R=R2, dt = dt,
-                    debug_nodplus1=debug_nodplus1, cond_sfrd=cond_sfrd, st_sfrd=ST_SFRD_Interpolator,
-                ) # [Msun / Bavg]
+                    if xraycheck_is_box_average:
+                        i_xraycheck_shell_start = max(i_z_shell+1, i_xraycheck_shell_start)
+            
+            #----- older shells: adaptive -----
+            else:
+                i_max = i_z - i_xraycheck_shell_start
+                inds_increasing = geom_inds(i_max=i_max, i_transition=10, n_goal=adaptive_shell)
+                inds_shell = i_z - inds_increasing
+                print('adaptive shell:', inds_shell, flush=True)
 
-                dep_tracker.reset(tf_wrapper.dep_box)
-                if np.mean(emissivity_bracket) != 0.:
-                    tf_wrapper.inject_phot(L_X_spec, inject_type='xray', weight_box=jnp.asarray(emissivity_bracket))
-                dep_tracker.record(tf_wrapper.dep_box, R=phys.conformal_dx_between_z(z_donor, z_current), from_bath=False)
+                accumulated_shell_N = np.zeros_like(abscs['photE']) # [ph / Bavg]
 
-                if xraycheck_is_box_average:
-                    i_xraycheck_shell_start = max(i_z_shell+1, i_xraycheck_shell_start)
+                for i_z_shell in range(i_xraycheck_shell_start, i_z):
+
+                    z_shell = z_edges[i_z_shell]
+
+                    #--- for all shells ---
+                    shell_N = np.array(delta_cacher.spectrum_cache.get_spectrum(z_shell).N) # [ph / Msun]
+                    if 'xc-custom-SFRD' in debug_flags:
+                        cond_sfrd = custom_SFRD
+                    else:
+                        cond_sfrd = Cond_SFRD_Interpolator
+                    emissivity_bracket = get_emissivity_bracket(
+                        z=z_shell, delta=0., R=phys.conformal_dx_between_z(z_shell, z_current), dt=dt,
+                        debug_nodplus1=debug_nodplus1, cond_sfrd=cond_sfrd, st_sfrd=ST_SFRD_Interpolator,
+                    ) # [Msun / Bavg] # get average
+
+                    accumulated_shell_N += shell_N * emissivity_bracket # [ph / Bavg]
+                    if i_z_shell not in inds_shell:
+                        continue
+
+                    #--- now, the chosen ones ---
+                    delta, L_X_spec, xraycheck_is_box_average, z_donor, R2 = delta_cacher.get_annulus_data(
+                        z_current, z_edges[i_z_shell], z_edges[i_z_shell+1]
+                    )
+                    
+                    if 'xc-custom-SFRD' in debug_flags:
+                        delta = jnp.array(delta)
+                        cond_sfrd = custom_SFRD
+                    else:
+                        delta = np.clip(delta, -1.0+EPSILON, np.max(delta_range)-EPSILON)
+                        delta = jnp.array(delta)
+                        cond_sfrd = Cond_SFRD_Interpolator
+                    emissivity_bracket = get_emissivity_bracket(
+                        z=z_donor, delta=delta, R=R2, dt=dt,
+                        debug_nodplus1=debug_nodplus1, cond_sfrd=cond_sfrd, st_sfrd=ST_SFRD_Interpolator,
+                    ) # [Msun / Bavg]
+                    # use averaged spectrum: this step already counted
+                    if np.mean(emissivity_bracket) != 0.:
+                        emissivity_bracket /= np.mean(emissivity_bracket)
+
+                    dep_tracker.reset(tf_wrapper.dep_box)
+                    if np.mean(emissivity_bracket) != 0.:
+                        inj_spec = Spectrum(abscs['photE'], accumulated_shell_N, spec_type='N', rs=1+z_current) # [ph / Bavg]
+                        tf_wrapper.inject_phot(inj_spec, inject_type='xray', weight_box=jnp.asarray(emissivity_bracket))
+                    dep_tracker.record(tf_wrapper.dep_box, R=phys.conformal_dx_between_z(z_shell, z_current), from_bath=False)
+
+                    accumulated_shell_N *= 0. # clear after injection
+
+                    if xraycheck_is_box_average:
+                        i_xraycheck_shell_start = max(i_z_shell+1, i_xraycheck_shell_start)
 
             #----- new shell can deposits as well! -----
             x_e_for_attenuation = 1 - np.mean(ionized_box.xH_box)
@@ -446,9 +506,19 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         records.append(record)
         dep_tracker.clear()
 
+        if i_z > 1999:
+            record_extra = {
+                'i_z' : i_z,
+                'x_e_box' : np.array(spin_temp.x_e_box),
+                'x_H_box' : np.array(ionized_box.xH_box),
+                'T_k_box' : np.array(spin_temp.Tk_box),
+                'dep_box' : np.array(tf_wrapper.dep_box),
+            }
+            records_extra.append(record_extra)
+
         #===== compare f =====
-        f_point = tf_wrapper.phot_dep_tf.point_interp(rs=1+z_current, nBs=1., x=np.mean(spin_temp.x_e_box))
-        inj_N = dm_params.inj_phot_spec.N / dm_params.inj_phot_spec.toteng()
+        # f_point = tf_wrapper.phot_dep_tf.point_interp(rs=1+z_current, nBs=1., x=np.mean(spin_temp.x_e_box))
+        # inj_N = dm_params.inj_phot_spec.N / dm_params.inj_phot_spec.toteng()
 
         if not use_tqdm:
             # print(print_str, flush=True)
@@ -457,9 +527,11 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         
     #===== end of loop, save results =====
     arr_records = {k: np.array([r[k] for r in records]) for k in records[0].keys()}
+    arr_records_extra = {k: np.array([r[k] for r in records_extra]) for k in records_extra[0].keys()}
     if save_dir is None:
         save_dir = os.environ['DM21CM_DIR'] + '/outputs/dm21cm'
     np.save(f"{save_dir}/{run_name}_records", arr_records)
+    np.save(f"{save_dir}/{run_name}_records_extra", arr_records_extra)
 
     pickle.dump(delta_cacher.spectrum_cache, open(f"{p21c.config['direc']}/spec_cache.p", 'wb'))
 
@@ -525,6 +597,17 @@ def p21c_step(perturbed_field, spin_temp, ionized_box,
     )
     
     return spin_temp, ionized_box, brightness_temp
+
+
+def geom_inds(i_max, i_transition, n_goal):
+    if n_goal >= i_max:
+        return np.arange(i_max)
+    if n_goal <= i_transition:
+        return np.arange(n_goal)
+    # i_transition < n_goal < i_max
+    dense_arr = np.arange(i_transition)
+    geom_arr = np.unique(np.round(np.geomspace(i_transition, i_max, n_goal-i_transition)).astype(int))
+    return np.concatenate([dense_arr, geom_arr])
 
 
 def get_emissivity_bracket(z, delta, R, dt, debug_nodplus1=False, cond_sfrd=None, st_sfrd=None):

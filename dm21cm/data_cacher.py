@@ -5,6 +5,9 @@ import sys
 import h5py
 import numpy as np
 
+from jax import config
+config.update("jax_enable_x64", True)
+
 sys.path.append("..")
 import dm21cm.physics as phys
 from dm21cm.spectrum import AttenuatedSpectrum
@@ -67,7 +70,7 @@ class Cacher:
         """Evaluates the shell radii [cfMpc] for a receiver at `z_receiver` for emission between redshifts `z1` and `z2`."""
         R1 = np.abs(phys.conformal_dt_between_z(z_receiver, z1)) * phys.c / phys.Mpc
         R2 = np.abs(phys.conformal_dt_between_z(z_receiver, z2)) * phys.c / phys.Mpc
-        return R1, R2
+        return np.sort([R1, R2])
 
     def smooth_box(self, box, R1, R2):
         """Smooths the box with a top-hat window function.

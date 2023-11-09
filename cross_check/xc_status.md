@@ -32,10 +32,17 @@ udd: uniform delta (in) deposition
 x100: x100 injection strength
 Rmax: max smoothing radius
 
+
+[X] sf_xdecayx10_nodplus1_noxesink_nopop2_alldepion_uddn_01atten_varbath_ots
+- DC: `sf_xdecayx10_nodplus1_dc_noLX_noxesink_nopop2_alldepion_uddn_01atten_bath32_ots`
+- DC: `sf_xdecayx10_nodplus1_dc_noLX_noxesink_nopop2_alldepion_uddn_01atten_bath64_ots`
+- DC: `sf_xdecayx10_nodplus1_dc_noLX_noxesink_nopop2_alldepion_uddn_01atten_bath128_ots`
+- 21: `sf_xdecayx10_nodplus1_noxesink_nopop2_alldepion`
+
 Working !!!!!!!
-[X] sf_xdecayx10_nodplus1_noxesink_nopop2_alldepion_uddn_01atten_bath_ots_zf001
-- DC: `sf_xdecayx10_nodplus1_dc_noLX_noxesink_nopop2_alldepion_uddn_01atten_bath_ots_zf001`
-- 21: `sf_xdecayx10_nodplus1_noxesink_nopop2_alldepion_zf001`
+[X] sf_xdecayx10_nodplus1_noxesink_nopop2_alldepion_uddn_01atten_bath_ots
+- DC: `sf_xdecayx10_nodplus1_dc_noLX_noxesink_nopop2_alldepion_uddn_01atten_bath_ots`
+- 21: `sf_xdecayx10_nodplus1_noxesink_nopop2_alldepion`
 
 [X] sf_xdecayx10_nodplus1_noxesink_nopop2_alldepion_uddn_01atten_bath_ots_zf001
 - DC: `sf_xdecayx10_nodplus1_dc_noLX_noxesink_nopop2_alldepion_uddn_01atten_bath_ots_zf001`

@@ -119,8 +119,7 @@ class Cacher:
     def get_annulus_data(self, z_receiver, z_donor, z_next_donor):
 
 	    # Get the donor box
-        box_index = np.argmin(np.abs(self.brightness_cache.z_s - z_donor))
-        box = self.brightness_cache.get_box(box_index)
+        box = self.brightness_cache.get_box(z_donor)
 
         # Get the smoothing radii in comoving coordinates and canonically sort them
         R1, R2 = self.get_smoothing_radii(z_receiver, z_donor, z_next_donor)

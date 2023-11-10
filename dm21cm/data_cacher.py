@@ -202,21 +202,20 @@ class BrightnessCache:
 
     Args:
         data_path (str): Path to the HDF5 cache file.
+        z_s (np.ndarray): Array of redshifts at which the boxes are cached.
 
     Notes:
         Brightness = energy per averaged baryon.
     """
 
-    def __init__(self, data_path):
+    def __init__(self, data_path, z_s=np.array([])):
         self.data_path = data_path
-        self.z_s = np.array([])
-        self.box_mean_s = np.array([])
+        self.z_s = z_s
 
     def clear_cache(self):
         if os.path.exists(self.data_path):
             os.remove(self.data_path)
         self.z_s = np.array([])
-        self.box_mean_s = np.array([])
 
     def cache_box(self, box, z):
         """Adds the X-ray box box at the specified redshift to the cache.
@@ -232,7 +231,6 @@ class BrightnessCache:
             archive.create_dataset('Box_' + str(box_index), data = fft.rfftn(box))
             
         self.z_s = np.append(self.z_s, z)
-        self.box_mean_s = np.append(self.box_mean_s, jnp.mean(box))
 
     def get_box(self, z):
         """Returns the brightness box and spectrum at the specified cached state."""

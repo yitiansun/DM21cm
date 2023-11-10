@@ -62,6 +62,8 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
            debug_use_21_totinj=None,
            debug_depallion=False,
            adaptive_shell=None,
+           debug_break_after_z=None,
+           debug_record_extra=False,
            ):
     """
     Main evolution function.
@@ -150,7 +152,8 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         shell_Rmax=debug_xray_Rmax_shell,
         Rmax=debug_xray_Rmax_bath,
     )
-    delta_cacher.clear_cache()
+    if clear_cache:
+        delta_cacher.clear_cache()
 
     
     xray_eng_lo = 0.5 * 1000 # [eV]
@@ -509,16 +512,17 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         records.append(record)
         dep_tracker.clear()
 
-        if i_z > 1999 or len(z_edges) < 500:
-            record_extra = {
-                'i_z' : i_z,
-                'x_e_box' : np.array(spin_temp.x_e_box),
-                'x_H_box' : np.array(ionized_box.xH_box),
-                'T_k_box' : np.array(spin_temp.Tk_box),
-                'dep_box' : np.array(tf_wrapper.dep_box),
-                'pc_shell_dep': np.array(spin_temp.SmoothedDelta)
-            }
-            records_extra.append(record_extra)
+        if debug_record_extra:
+            if i_z > 1999 or len(z_edges) < 500:
+                record_extra = {
+                    'i_z' : i_z,
+                    'x_e_box' : np.array(spin_temp.x_e_box),
+                    'x_H_box' : np.array(ionized_box.xH_box),
+                    'T_k_box' : np.array(spin_temp.Tk_box),
+                    'dep_box' : np.array(tf_wrapper.dep_box),
+                    'pc_shell_dep': np.array(spin_temp.SmoothedDelta)
+                }
+                records_extra.append(record_extra)
 
         #===== compare f =====
         # f_point = tf_wrapper.phot_dep_tf.point_interp(rs=1+z_current, nBs=1., x=np.mean(spin_temp.x_e_box))
@@ -528,14 +532,20 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
             # print(print_str, flush=True)
             pass
         print_str = ''
+
+        if debug_break_after_z is not None and z_next < debug_break_after_z:
+            break
         
     #===== end of loop, save results =====
     arr_records = {k: np.array([r[k] for r in records]) for k in records[0].keys()}
-    arr_records_extra = {k: np.array([r[k] for r in records_extra]) for k in records_extra[0].keys()}
+    
     if save_dir is None:
         save_dir = os.environ['DM21CM_DIR'] + '/outputs/dm21cm'
     np.save(f"{save_dir}/{run_name}_records", arr_records)
-    np.save(f"{save_dir}/{run_name}_records_extra", arr_records_extra)
+
+    if debug_record_extra:
+        arr_records_extra = {k: np.array([r[k] for r in records_extra]) for k in records_extra[0].keys()}
+        np.save(f"{save_dir}/{run_name}_records_extra", arr_records_extra)
 
     pickle.dump(delta_cacher.spectrum_cache, open(f"{p21c.config['direc']}/spec_cache.p", 'wb'))
 

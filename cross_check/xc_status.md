@@ -1,26 +1,4 @@
-## Status
 
-21cmFAST:
-[ ] `xunif`:      fcoll modification line ~1855: `fcoll = 1.;`
-[ ] `xdecaytest`: fcoll modification line ~1855: `fcoll = (1.+curr_dens) / growth_factor_z * zpp_growth[R_ct];`
-[X] `xdecay`:     fcoll modification line ~1855: `fcoll = (1.+curr_dens);`
-[X] `nodplus1`: line ~1862, del_fcoll_Rct[box_ct] = fcoll;
-[X] `x10`: injection multiplier 10
-[X] `noxesink`: commented out `dxion_sink_dt`
-[X] `alldepion` : all deposition energy goes to ionization
-[ ] `nosp`: species term OFF
-[ ] `esf`: even-split-f
-[ ] `noatten`: attenuation: OFF
-
-
-DM21cm:
-sfrd: zf01: `old`. zf01: `old`.
-physics: YHe: `ON`
-custom_sfrd : 1+delta
-`nodplus1`: ON
-
-DarkHistory:
-physics: YHe: `ON`
 
 ## 4. Xray spatial feature
 

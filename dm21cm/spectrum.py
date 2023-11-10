@@ -23,7 +23,10 @@ class AttenuatedSpectrum:
 
     @property
     def approx_attenuation_arr(self):
-        return np.where(self.attenuation_arr > np.exp(-1), 1., 0.)
+        raw_approx_attenuation_arr = np.where(self.attenuation_arr > np.exp(-1), 1., 0.)
+        soft_ind = np.argmin(np.abs(self.attenuation_arr - np.exp(-1)))
+        raw_approx_attenuation_arr[soft_ind] = self.attenuation_arr[soft_ind]
+        return raw_approx_attenuation_arr
     
     @property
     def approx_attentuation_arr_repr(self):

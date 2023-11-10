@@ -13,16 +13,16 @@ WDIR = os.environ['DM21CM_DIR']
 
 if __name__ == '__main__':
 
-    os.environ['DM21CM_DATA_DIR'] = '/n/holyscratch01/iaifi_lab/yitians/dm21cm/DM21cm/data/tf/zf001/data'
+    os.environ['DM21CM_DATA_DIR'] = '/n/holyscratch01/iaifi_lab/yitians/dm21cm/DM21cm/data/tf/zf01/data'
 
     # p21c.global_params.R_XLy_MAX = 500.
     # p21c.global_params.NUM_FILTER_STEPS_FOR_Ts = 40
 
     return_dict = evolve(
-        run_name = f'sf_xdecayx10_nodplus1_dc_noLX_noxesink_nopop2_alldepion_uddn_01atten_ots_adashell40_zf001_2',
+        run_name = f'test_shell_dc',
         z_start = 45.,
         z_end = 5.,
-        zplusone_step_factor = 1.001,
+        zplusone_step_factor = 1.01,
         dm_params = DMParams(
             mode='decay',
             primary='phot_delta',
@@ -49,7 +49,7 @@ if __name__ == '__main__':
             write = True,
         ),
 
-        clear_cache = False, # TMP!!!!!
+        clear_cache = True, # TMP!!!!!
 
         use_tqdm = True,
         #debug_flags = ['xc-bath', 'xc-custom-SFRD'],
@@ -65,7 +65,7 @@ if __name__ == '__main__':
         debug_xray_Rmax_shell = 500.,
         debug_xray_Rmax_bath = 500.,
         debug_xray_Rmax_p21c = 500.,
-        debug_use_21_totinj = "sf_xdecayx10_nodplus1_noxesink_nopop2_alldepion_zf001.out",
+        debug_use_21_totinj = "test_shell.out",
         debug_depallion = True,
-        adaptive_shell = 40,
+        # adaptive_shell = 40,
     )

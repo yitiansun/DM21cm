@@ -121,6 +121,9 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         astro_params = p21c.AstroParams(L_X = 40.) # log10 value
     else:
         astro_params = p21c.AstroParams(L_X = 0.) # log10 value
+        
+    for i in range(10):
+        print(f'astro_params.L_X = {astro_params.L_X}', flush=True)
 
     abscs = load_h5_dict(f"{data_dir}/abscissas.h5")
     if not np.isclose(np.log(zplusone_step_factor), abscs['dlnz']):
@@ -506,13 +509,14 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         records.append(record)
         dep_tracker.clear()
 
-        if i_z > 1999:
+        if i_z > 1999 or len(z_edges) < 500:
             record_extra = {
                 'i_z' : i_z,
                 'x_e_box' : np.array(spin_temp.x_e_box),
                 'x_H_box' : np.array(ionized_box.xH_box),
                 'T_k_box' : np.array(spin_temp.Tk_box),
                 'dep_box' : np.array(tf_wrapper.dep_box),
+                'pc_shell_dep': np.array(spin_temp.SmoothedDelta)
             }
             records_extra.append(record_extra)
 

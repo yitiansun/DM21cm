@@ -253,7 +253,9 @@ class TransferFunctionWrapper:
                     dep_lya_box *= ratio
         else:
             if debug_depallion:
-                raise NotImplementedError
+                dep_ion_box = (dep_heat_box + dep_ion_box + dep_lya_box) / phys.rydberg
+                dep_heat_box *= 0.
+                dep_lya_box *= 0.
         # if debug_even_split_f:
         #     dep_tot_box = dep_heat_box + dep_ion_box + dep_lya_box
         #     dep_heat_box = dep_tot_box / 3

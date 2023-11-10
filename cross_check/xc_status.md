@@ -54,7 +54,6 @@ Working !!!!!!!
 - 21: `sf_xdecayx10_nodplus1_noxesink_nopop2_zf001`
 
 
-
 [X] sf_xdecayx100_nodplus1_nopop2_zf001_Rmax32
 - DC: `sf_xdecayx100_nodplus1_dc_noLX_nopop2_uddn_zf001_Rmax32`
 - 21: `sf_xdecayx100_nodplus1_nopop2_zf001_Rmax32`

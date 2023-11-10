@@ -15,6 +15,7 @@ cross_check/xray/*.pdf
 **/slurm_outputs/
 scripts/*.txt
 scripts/*.out
+step/*.out
 
 **/__pycache__/
 #------------------------

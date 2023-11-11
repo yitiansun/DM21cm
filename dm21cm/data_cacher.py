@@ -112,7 +112,7 @@ class Cacher:
 
     def get_annulus_data(self, z_receiver, z_donor, z_next_donor):
 
-	    # Get the donor box
+        # Get the donor box
         box = self.brightness_cache.get_box(z_donor)
 
         # Get the smoothing radii in comoving coordinates and canonically sort them
@@ -124,6 +124,16 @@ class Cacher:
         # Get the spectrum
         spectrum = self.spectrum_cache.get_spectrum(z_donor)
         return smoothed_box, spectrum, is_box_averaged
+ 
+    
+    def new_smoothed_annulus(self, z, R1, R2):
+        spectrum = self.spectrum_cache.get_spectrum(z)
+
+        if z > np.amax(self.spectrum_cache.z_s):
+            return np.zeros((self.N, self.N, self.N)), spectrum
+        
+        box = self.brightness_cache.get_box(z)    
+        return self.smooth_box(box, R1, R2)[0], spectrum
 
 
 class SpectrumCache:
@@ -196,7 +206,7 @@ class BrightnessCache:
     def get_box(self, z):
         """Returns the brightness box and spectrum at the specified cached state."""
 
-	    # Get the index of the donor box
+        # Get the index of the donor box
         box_index = np.argmin(np.abs(self.z_s - z))
 
         with h5py.File(self.data_path, 'r') as archive:

@@ -187,7 +187,7 @@ def evolve(run_name,
             profiler.record('bath+dm')
 
         #===== 21cmFAST step =====
-        perturbed_field = p21c.perturb_field(redshift=z_next, init_boxes=p21c_initial_conditions, write=True)
+        perturbed_field = p21c.perturb_field(redshift=z_next, init_boxes=p21c_initial_conditions)
         input_heating, input_ionization, input_jalpha = gen_injection_boxes(z_next, p21c_initial_conditions)
         tf_wrapper.populate_injection_boxes(input_heating, input_ionization, input_jalpha, dt,)
         spin_temp, ionized_box, brightness_temp = p21c_step(

@@ -9,10 +9,11 @@ outputs/
 plots/
 cross_check/ionhist_outputs/
 cross_check/run_info/
+cross_check/tmp
 cross_check/xray/*.pdf
 **/slurm_outputs/
-scripts/*.txt
 scripts/*.out
+step/*.out
 
 **/__pycache__/
 #------------------------

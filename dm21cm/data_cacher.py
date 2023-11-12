@@ -49,9 +49,9 @@ class Cacher:
         self.spectrum_cache = SpectrumCache()
         self.brightness_cache = BrightnessCache(self.data_path)
 
-    def cache(self, z, box, spec):
+    def cache(self, z, dz, box, spec):
         self.spectrum_cache.cache_spectrum(spec, z)
-        self.brightness_cache.cache_box(box, z)
+        self.brightness_cache.cache_box(box, z, dz)
 
     def clear_cache(self):
         self.spectrum_cache.clear_cache()
@@ -61,11 +61,16 @@ class Cacher:
         self.spectrum_cache.attenuate(attenuation_factor)
         self.spectrum_cache.redshift(z)
 
-    def get_smoothing_radii(self, z_receiver, z1, z2):
-        """Evaluates the shell radii [cfMpc] for a receiver at `z_receiver` for emission between redshifts `z1` and `z2`."""
-        R1 = np.abs(phys.conformal_dt_between_z(z_receiver, z1)) * phys.c / phys.Mpc
-        R2 = np.abs(phys.conformal_dt_between_z(z_receiver, z2)) * phys.c / phys.Mpc
-        return R1, R2
+    # def get_smoothing_radii(self, z_receiver, z1, z2):
+    #     """Evaluates the shell radii [cfMpc] for a receiver at `z_receiver` for emission between redshifts `z1` and `z2`."""
+    #     R1 = np.abs(phys.conformal_dt_between_z(z_receiver, z1)) * phys.c / phys.Mpc
+    #     R2 = np.abs(phys.conformal_dt_between_z(z_receiver, z2)) * phys.c / phys.Mpc
+    #     return R1, R2
+
+    @property
+    def z_s(self):
+        return self.spectrum_cache.z_s
+    # we might want checks to make sure that the z_s are the same for both caches
 
     def smooth_box(self, box, R1, R2):
         """Smooths the box with a top-hat window function.
@@ -116,24 +121,26 @@ class Cacher:
         box = self.brightness_cache.get_box(z_donor)
 
         # Get the smoothing radii in comoving coordinates and canonically sort them
-        R1, R2 = self.get_smoothing_radii(z_receiver, z_donor, z_next_donor)
+        R1 = phys.conformal_dx_between_z(z_receiver, z_next_donor) # smaller radius
+        R2 = phys.conformal_dx_between_z(z_receiver, z_donor) # larger radius
+        #R1, R2 = self.get_smoothing_radii(z_receiver, z_donor, z_next_donor)
 
         # Perform the box smoothing operation 
         smoothed_box, is_box_averaged = self.smooth_box(box, R1, R2)
 
         # Get the spectrum
         spectrum = self.spectrum_cache.get_spectrum(z_donor)
-        return smoothed_box, spectrum, is_box_averaged
- 
-    
-    def new_smoothed_annulus(self, z, R1, R2):
-        spectrum = self.spectrum_cache.get_spectrum(z)
 
-        if z > np.amax(self.spectrum_cache.z_s):
-            return np.zeros((self.N, self.N, self.N)), spectrum
-        
-        box = self.brightness_cache.get_box(z)    
-        return self.smooth_box(box, R1, R2)[0], spectrum
+        return smoothed_box, spectrum, is_box_averaged
+    
+    def get_ftdEdz_spec(self, z):
+        """Return dE/dz and the spectrum at the specified redshift."""
+        assert z >= np.min(self.z_s) and z <= np.max(self.z_s)
+        spectrum = self.spectrum_cache.get_spectrum(z)
+        mean_eng = spectrum.toteng()
+        ftde = self.brightness_cache.get_box(z)
+        dz = self.brightness_cache.get_dz(z)
+        return ftde * mean_eng / dz, spectrum / mean_eng
 
 
 class SpectrumCache:
@@ -148,8 +155,7 @@ class SpectrumCache:
         self.z_s = np.append(self.z_s, z)
 
     def clear_cache(self):
-        self.spectrum_list = []
-        self.z_s = np.array([])
+        self.__init__()
         
     def attenuate(self, attenuation_arr):
         for spec in self.spectrum_list:
@@ -161,9 +167,9 @@ class SpectrumCache:
             spec.switch_spec_type('N')
             spec.redshift(1+z_target)
             
-    def get_spectrum(self, z_target):
-        spec_index = np.argmin(np.abs(self.z_s - z_target))
-        return self.spectrum_list[spec_index]
+    def get_spectrum(self, z):
+        assert z >= np.min(self.z_s) and z <= np.max(self.z_s)
+        return self.spectrum_list[np.argmin(np.abs(self.z_s - z))]
 
 
 class BrightnessCache:
@@ -173,43 +179,45 @@ class BrightnessCache:
         data_path (str): Path to the HDF5 cache file.
 
     Notes:
-        Brightness = energy per averaged baryon.
+        Brightness = (relative) energy per averaged baryon.
     """
 
     def __init__(self, data_path):
         self.data_path = data_path
         self.z_s = np.array([])
-        self.box_mean_s = np.array([])
+        self.dz_s = np.array([])
 
     def clear_cache(self):
         if os.path.exists(self.data_path):
             os.remove(self.data_path)
         self.z_s = np.array([])
-        self.box_mean_s = np.array([])
+        self.dz_s = np.array([])
 
-    def cache_box(self, box, z):
+    def cache_box(self, box, z, dz):
         """Adds the X-ray box box at the specified redshift to the cache.
 
         Args:
             box (np.ndarray): The X-ray brightness box to cache. (photons / Mpccm^3)
             z (float): The redshift of the box.
+            dz (float): The width of the redshift step just before z (which produced the brightness to be cached).
         """
-
         box_index = len(self.z_s)
 
         with h5py.File(self.data_path, 'a') as archive:
             archive.create_dataset('Box_' + str(box_index), data = fft.rfftn(box))
             
         self.z_s = np.append(self.z_s, z)
-        self.box_mean_s = np.append(self.box_mean_s, jnp.mean(box))
+        self.dz_s = np.append(self.dz_s, dz)
 
     def get_box(self, z):
-        """Returns the brightness box and spectrum at the specified cached state."""
-
-        # Get the index of the donor box
-        box_index = np.argmin(np.abs(self.z_s - z))
+        assert z >= np.min(self.z_s) and z <= np.max(self.z_s)
+        ind = np.argmin(np.abs(self.z_s - z))
 
         with h5py.File(self.data_path, 'r') as archive:
-            box = jnp.array(archive['Box_' + str(box_index)], dtype=jnp.complex64)
+            box = jnp.array(archive['Box_' + str(ind)][()], dtype=jnp.complex64)
         
         return box
+
+    def get_dz(self, z):
+        assert z >= np.min(self.z_s) and z <= np.max(self.z_s)
+        return self.dz_s[np.argmin(np.abs(self.z_s - z))]

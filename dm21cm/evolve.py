@@ -7,6 +7,7 @@ import gc
 
 import numpy as np
 from scipy import interpolate
+from scipy import optimize
 from astropy.cosmology import Planck18
 import astropy.units as u
 
@@ -43,6 +44,7 @@ def evolve(run_name,
            use_tqdm=True,
            tf_on_device=True,
            no_injection=False,
+           use_xray_interp_shell=True,
            ):
     """
     Main evolution function.
@@ -61,6 +63,7 @@ def evolve(run_name,
         use_tqdm (bool):     Whether to use tqdm progress bars.
         tf_on_device (bool): Whether to put transfer functions on device (GPU).
         no_injection (bool): Whether to skip injection and energy deposition.
+        use_xray_interp_shell (bool): Whether to use interpolation shell for xray injection.
 
     Returns:
         dict: Dictionary of results.
@@ -162,19 +165,63 @@ def evolve(run_name,
         inj_per_Bavg_box = phys.inj_rate(rho_DM_box, dm_params) * dt * dm_params.struct_boost(1+z_current) / nBavg # [inj/Bavg]
 
         #===== photon injection and energy deposition =====
-        #--- xray ---
+        
         profiler.start()
 
         if not no_injection:
-            for i_z_shell in range(i_xray_loop_start, i_z):
-                xray_brightness_box, xray_spec, is_box_average = xray_cacher.get_annulus_data(
-                    z_current, z_edges[i_z_shell], z_edges[i_z_shell+1]
-                )
-                if is_box_average:                                          # if smoothing scale > box size,
-                    phot_bath_spec.N += xray_spec.N                         # then we can just dump to the global bath spectrum
-                    i_xray_loop_start = max(i_z_shell+1, i_xray_loop_start) # and we will not revisit this shell
-                else:
-                    tf_wrapper.inject_phot(xray_spec, inject_type='xray', weight_box=xray_brightness_box)
+            #--- xray interpolating shell ---
+            if use_xray_interp_shell:
+                
+                z0 = z_next
+                r_from_z = np.vectorize(lambda z: phys.conformal_dx_between_z(z0, z)) # conformal distance [cMpc] of z from current shell
+                z_interp_arr = np.geomspace(z0, 1100., 1000) # up to CMB
+                r_interp_arr = r_from_z(z_interp_arr)
+                z_from_r = interpolate.interp1d(r_interp_arr, z_interp_arr, bounds_error=False, fill_value='extrapolate') # inverse of r_z
+                
+                r_shells = get_r_shells(box_dim, box_len, n_target=40) # R_a in paper
+                z_shells = z_from_r(r_shells) # z_a in paper
+                z_shell_mids = np.concatenate([[z0], (z_shells[:-1] + z_shells[1:]) / 2, [z_shells[-1]]])
+                r_shell_mids = r_from_z(z_shell_mids) # start and end for R windows
+                dz_shells = np.diff(z_shell_mids) # dz_a in paper
+
+                # inds         =   0, 1,   2,   ..., N-2, N-1    |
+                # r_shells     =   0, 1.2, 2.4, ..., 250, 256    | total=N
+                # r_shell_mids = 0, 0.6, 1.8, ..., 247, 253, 256 | total=N+1
+
+                for i, z_shell in enumerate(z_shells):
+
+                    if i == 0: # on-the-spot
+                        pass
+                    else:
+                        # z_left < z_shell < z_right
+                        i_z_right = np.searchsorted(-z_edges, -z_shell, side='right') # earlier in time
+                        z_right = z_edges[i_z_right]
+                        i_z_left = i_z_right + 1 # later in time
+                        z_left = z_edges[i_z_left]
+
+                        ftdEdz_right, rel_spec_right = xray_cacher.get_ftdEdz_spec(z_right)
+                        ftdEdz_left,  rel_spec_left  = xray_cacher.get_ftdEdz_spec(z_left)
+                        left_weight = (z_right - z_shell) / (z_right - z_left)
+                        right_weight = 1 - left_weight
+
+                        ftdEdz = left_weight * ftdEdz_left + right_weight * ftdEdz_right
+                        dEdz, _ = xray_cacher.smooth_box(ftdEdz, r_shell_mids[i], r_shell_mids[i+1]) # r_shell_mids[i] < r_shell < r_shell_mids[i+1]
+                        dE = dEdz * dz_shells[i] # [eV/Bavg]
+
+                        rel_spec = left_weight * rel_spec_left + right_weight * rel_spec_right
+                        tf_wrapper.inject_phot(rel_spec, inject_type='xray', weight_box=dE)
+
+            #--- xray (original) ---
+            else:
+                for i_z_shell in range(i_xray_loop_start, i_z):
+                    xray_brightness_box, xray_spec, is_box_average = xray_cacher.get_annulus_data(
+                        z_current, z_edges[i_z_shell], z_edges[i_z_shell+1]
+                    )
+                    if is_box_average:                                          # if smoothing scale > box size,
+                        phot_bath_spec.N += xray_spec.N                         # then we can just dump to the global bath spectrum
+                        i_xray_loop_start = max(i_z_shell+1, i_xray_loop_start) # and we will not revisit this shell
+                    else:
+                        tf_wrapper.inject_phot(xray_spec, inject_type='xray', weight_box=xray_brightness_box)
 
             profiler.record('xray')
 
@@ -256,11 +303,12 @@ def evolve(run_name,
     profiler.print_summary()
 
     res_summary = {
-	'profiler' : profiler,
+	    'profiler' : profiler,
         'records' : arr_records,
     }
 
     return brightness_temp, res_summary
+
 
 #===== utilities for evolve =====
 
@@ -323,3 +371,14 @@ def p21c_step(perturbed_field, spin_temp, ionized_box,
     )
 
     return spin_temp, ionized_box, brightness_temp
+
+def get_r_shells(box_dim, box_len, n_target=40):
+    """Generate r values for interpolation shells."""
+    L_FACTOR = 0.620350491
+    R = L_FACTOR * box_len/box_dim
+    R_factor = (p21c.global_params.R_XLy_MAX/R) ** (1/p21c.global_params.NUM_FILTER_STEPS_FOR_Ts)
+    r_s = R * R_factor**np.arange(n_target)
+    r_s = np.append(r_s, p21c.global_params.R_XLy_MAX)
+    r_s = np.insert(r_s, 0, 0.)
+    r_s = np.unique(np.minimum(r_s, box_len/2)) # smooth up to radii at half the box length
+    return r_s

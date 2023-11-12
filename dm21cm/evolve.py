@@ -172,15 +172,14 @@ def evolve(run_name,
             #--- xray interpolating shell ---
             if use_xray_interp_shell:
                 
-                z0 = z_next
-                r_from_z = np.vectorize(lambda z: phys.conformal_dx_between_z(z0, z)) # conformal distance [cMpc] of z from current shell
-                z_interp_arr = np.geomspace(z0, 1100., 1000) # up to CMB
+                r_from_z = np.vectorize(lambda z: phys.conformal_dx_between_z(z_current, z)) # conformal distance [cMpc] of z from current shell
+                z_interp_arr = np.geomspace(z_current, 1100., 1000) # up to CMB
                 r_interp_arr = r_from_z(z_interp_arr)
                 z_from_r = interpolate.interp1d(r_interp_arr, z_interp_arr, bounds_error=False, fill_value='extrapolate') # inverse of r_z
                 
                 r_shells = get_r_shells(box_dim, box_len, n_target=40) # R_a in paper
                 z_shells = z_from_r(r_shells) # z_a in paper
-                z_shell_mids = np.concatenate([[z0], (z_shells[:-1] + z_shells[1:]) / 2, [z_shells[-1]]])
+                z_shell_mids = np.concatenate([[z_current], (z_shells[:-1] + z_shells[1:]) / 2, [z_shells[-1]]])
                 r_shell_mids = r_from_z(z_shell_mids) # start and end for R windows
                 dz_shells = np.diff(z_shell_mids) # dz_a in paper
 
@@ -189,27 +188,24 @@ def evolve(run_name,
                 # r_shell_mids = 0, 0.6, 1.8, ..., 247, 253, 256 | total=N+1
 
                 for i, z_shell in enumerate(z_shells):
+                    
+                    # z_left < z_shell < z_right
+                    i_z_right = np.searchsorted(-z_edges, -z_shell, side='right')
+                    i_z_left = i_z_right + 1
+                    z_right = z_edges[i_z_right]
+                    z_left = z_edges[i_z_left]
 
-                    if i == 0: # on-the-spot
-                        pass
-                    else:
-                        # z_left < z_shell < z_right
-                        i_z_right = np.searchsorted(-z_edges, -z_shell, side='right') # earlier in time
-                        z_right = z_edges[i_z_right]
-                        i_z_left = i_z_right + 1 # later in time
-                        z_left = z_edges[i_z_left]
+                    ftdEdz_right, rel_spec_right = xray_cacher.get_ftdEdz_spec(z_right)
+                    ftdEdz_left,  rel_spec_left  = xray_cacher.get_ftdEdz_spec(z_left)
+                    left_weight = (z_right - z_shell) / (z_right - z_left)
+                    right_weight = 1 - left_weight
 
-                        ftdEdz_right, rel_spec_right = xray_cacher.get_ftdEdz_spec(z_right)
-                        ftdEdz_left,  rel_spec_left  = xray_cacher.get_ftdEdz_spec(z_left)
-                        left_weight = (z_right - z_shell) / (z_right - z_left)
-                        right_weight = 1 - left_weight
+                    ftdEdz = left_weight * ftdEdz_left + right_weight * ftdEdz_right
+                    dEdz, _ = xray_cacher.smooth_box(ftdEdz, r_shell_mids[i], r_shell_mids[i+1]) # r_shell_mids[i] < r_shell < r_shell_mids[i+1]
+                    rel_spec = left_weight * rel_spec_left + right_weight * rel_spec_right
 
-                        ftdEdz = left_weight * ftdEdz_left + right_weight * ftdEdz_right
-                        dEdz, _ = xray_cacher.smooth_box(ftdEdz, r_shell_mids[i], r_shell_mids[i+1]) # r_shell_mids[i] < r_shell < r_shell_mids[i+1]
-                        dE = dEdz * dz_shells[i] # [eV/Bavg]
-
-                        rel_spec = left_weight * rel_spec_left + right_weight * rel_spec_right
-                        tf_wrapper.inject_phot(rel_spec, inject_type='xray', weight_box=dE)
+                    dE = dEdz * dz_shells[i] # [eV/Bavg]
+                    tf_wrapper.inject_phot(rel_spec, inject_type='xray', weight_box=dE)
 
             #--- xray (original) ---
             else:

@@ -13,16 +13,16 @@ WDIR = os.environ['DM21CM_DIR']
 
 if __name__ == '__main__':
 
-    os.environ['DM21CM_DATA_DIR'] = '/n/holyscratch01/iaifi_lab/yitians/dm21cm/DM21cm/data/tf/zf001/data'
+    os.environ['DM21CM_DATA_DIR'] = '/n/holyscratch01/iaifi_lab/yitians/dm21cm/DM21cm/data/tf/zf01/data'
 
     # p21c.global_params.R_XLy_MAX = 500.
     # p21c.global_params.NUM_FILTER_STEPS_FOR_Ts = 40
 
     return_dict = evolve(
-        run_name = f'xdecay_zf001',
+        run_name = f'test_dc',
         z_start = 45.,
         z_end = 5.,
-        zplusone_step_factor = 1.001,
+        zplusone_step_factor = 1.01,
         dm_params = DMParams(
             mode='decay',
             primary='phot_delta',
@@ -55,7 +55,7 @@ if __name__ == '__main__':
         debug_record_extra = False,
         
         # 21cmFAST xray injection
-        use_21cmfast_xray = True,
+        use_21cmfast_xray = False,
         debug_turn_off_pop2ion = True,
         debug_xray_Rmax_p21c = 500.,
 

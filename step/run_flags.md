@@ -21,7 +21,7 @@ flexible flags:
 
 ### DM21cm
 [ ] `noHe`: YHe->0
-[X] sfrd: zf01: `old`. zf001: `old`.
+[X] sfrd: zf01: `1111`. zf001: `1111`.
 
 base config: 32 64Mpc zf01 Rmax500
 
@@ -34,6 +34,9 @@ flexible flags:
 `z[z]`: step init runs break at z
 
 #### runs
+
+xdecay_zf001
+
 [ ] `stepinit_xdecay_ion_z10`
 - Init: 21: xdecayx10 nodplus1 noxesink nopop2
 - 21: xdecayx10 nodplus1 noxesink nopop2 alldepion

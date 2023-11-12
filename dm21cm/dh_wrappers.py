@@ -256,6 +256,10 @@ class TransferFunctionWrapper:
                 dep_ion_box = (dep_heat_box + dep_ion_box + dep_lya_box) / phys.rydberg
                 dep_heat_box *= 0.
                 dep_lya_box *= 0.
+            else:
+                dep_heat_box = self.dep_box[...,3]
+                dep_ion_box = self.dep_box[...,0] / phys.rydberg + self.dep_box[...,1] / phys.He_ion_eng
+                dep_lya_box = self.dep_box[...,2]
         # if debug_even_split_f:
         #     dep_tot_box = dep_heat_box + dep_ion_box + dep_lya_box
         #     dep_heat_box = dep_tot_box / 3

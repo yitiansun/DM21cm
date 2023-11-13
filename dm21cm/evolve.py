@@ -180,7 +180,7 @@ def evolve(run_name,
                 if not len(xray_cacher.states)==0:
 
                     r_from_z = np.vectorize(lambda z: phys.conformal_dx_between_z(z_current, z)) # conformal distance [cMpc] of z from current shell
-                    z_interp_arr = np.geomspace(z_current, 1100., 1000) # up to CMB
+                    z_interp_arr = np.geomspace(z_current, 200., 1000) # up to matter CMB decoupling
                     r_interp_arr = r_from_z(z_interp_arr)
                     z_from_r = interpolate.interp1d(r_interp_arr, z_interp_arr, bounds_error=False, fill_value='extrapolate') # inverse of r_z
                     
@@ -275,7 +275,10 @@ def evolve(run_name,
         else:
             xray_rel_eng_box = tf_wrapper.xray_eng_box / xray_tot_eng # [1 (relative energy)/Bavg]
         if not no_injection:
-            xray_cacher.cache(z_current, xray_rel_eng_box, xray_spec)
+            if use_xray_interp_shell:
+                xray_cacher.cache(z_next, z_current, xray_spec, xray_rel_eng_box)
+            else:
+                xray_cacher.cache(z_next, xray_rel_eng_box, xray_spec)
 
         #===== calculate and save some quantities =====
         dE_inj_per_Bavg = dm_params.eng_per_inj * np.mean(inj_per_Bavg_box) # [eV/Bavg]

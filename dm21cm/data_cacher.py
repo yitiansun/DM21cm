@@ -77,7 +77,8 @@ class Cacher:
     def get_state(self, z):
         """Get the cached state with redshift closest to z."""
         z_s = self.z_s
-        if not z > np.min(z_s) - EPSILON and z < np.max(z_s) + EPSILON:
+        atol = 1e-3
+        if not z > np.min(z_s) - atol and z < np.max(z_s) + atol:
             raise ValueError(f'z={z} out of bounds {np.min(z_s)} - {np.max(z_s)}.')
         return self.state[np.argmin(np.abs(z_s - z))]
     

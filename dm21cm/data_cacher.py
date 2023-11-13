@@ -4,13 +4,6 @@ import os
 import sys
 import numpy as np
 
-sys.path.append(os.environ['DM21CM_DIR'])
-import dm21cm.physics as phys
-
-sys.path.append(os.environ['DH_DIR'])
-from darkhistory.spec.spectrum import Spectrum
-
-
 USE_JAX_FFT = True
 if USE_JAX_FFT:
     from jax.numpy import fft
@@ -53,10 +46,14 @@ class CachedState:
     
 
 class Cacher:
-    """DataCacher for xray CachedState's."""
+    """Cacher for xray states.
+    
+    Args:
+        box_dim (int): The dimension of the box.
+        dx (float): The size of each cell [cfMpc].
+    """
 
     def __init__(self, box_dim, dx):
-
         self.box_dim = box_dim
         self.dx = dx
         self.states = []
@@ -84,7 +81,8 @@ class Cacher:
             raise ValueError(f'z={z} out of bounds {np.min(z_s)} - {np.max(z_s)}.')
         return self.state[np.argmin(np.abs(z_s - z))]
     
-    def advance_spectrum(self, attenuation_arr, z_target):
+    def advance_spectra(self, attenuation_arr, z_target):
+        """Attenuate and redshift the spectra of states to the target redshift."""
         for state in self.states:
             state.attenuate(attenuation_arr)
             state.redshift(z_target)

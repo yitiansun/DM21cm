@@ -57,7 +57,7 @@ class Cacher:
         self.spectrum_cache.clear_cache()
         self.brightness_cache.clear_cache()
 
-    def advance_spectrum(self, attenuation_factor, z):
+    def advance_spectra(self, attenuation_factor, z):
         self.spectrum_cache.attenuate(attenuation_factor)
         self.spectrum_cache.redshift(z)
 

@@ -265,7 +265,7 @@ def evolve(run_name,
         #--- xray ---
         x_e_for_attenuation = 1 - np.mean(ionized_box.xH_box)
         attenuation_arr = np.array(tf_wrapper.attenuation_arr(rs=1+z_current, x=np.mean(x_e_for_attenuation))) # convert from jax array
-        xray_cacher.advance_spectrum(attenuation_arr, z_next)
+        xray_cacher.advance_spectra(attenuation_arr, z_next)
 
         xray_spec = Spectrum(abscs['photE'], emit_xray_N, rs=1+z_current, spec_type='N') # [ph/Bavg]
         xray_spec.redshift(1+z_next)

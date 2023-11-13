@@ -183,9 +183,8 @@ def evolve(run_name,
                 # first step's state and something. By doing the trapz integration, it is consistent
                 # for us to put an all zero state in this step, since there is no emission.
 
-                # zero_spectrum = Spectrum(abscs['photE'], np.zeros_like(abscs['photE']), spec_type='N', rs=1+z_current)
-                # xray_cacher.cache(z_current-1, z_current, zero_spectrum, np.zeros((box_dim, box_dim, box_dim)))
-                pass
+                zero_spectrum = Spectrum(abscs['photE'], np.zeros_like(abscs['photE']), spec_type='N', rs=1+z_current)
+                xray_cacher.cache(z_current-1, z_current, zero_spectrum, np.zeros((box_dim, box_dim, box_dim)))
 
             else:
                 # conformal distance [cMpc] of z from current shell
@@ -255,8 +254,7 @@ def evolve(run_name,
                 # print(r_shells)
                 # print('Dumping states before:', z_from_r(np.amax(r_pairs)))
                 # print('Radius of dumped states will be larger than:', np.amax(r_pairs))
-                if i_z > 0: # skip the first step
-                    phot_bath_spec += xray_cacher.release_to_bath_prior_to(z_from_r(np.amax(r_pairs)))
+                phot_bath_spec += xray_cacher.release_to_bath_prior_to(z_from_r(np.amax(r_pairs)))
 
                 ########################
                 ###   End New Code   ###
@@ -308,8 +306,8 @@ def evolve(run_name,
             xray_rel_eng_box = tf_wrapper.xray_eng_box / xray_tot_eng # [1 (relative energy)/Bavg]
         if not no_injection:
             # TMP: duplicate the first state for interpolation
-            if len(xray_cacher.states) == 0:
-                xray_cacher.cache(z_current-1, z_current, xray_spec, xray_rel_eng_box)
+            # if len(xray_cacher.states) == 0:
+            #     xray_cacher.cache(z_current-1, z_current, xray_spec, xray_rel_eng_box)
             xray_cacher.cache(z_current, z_next, xray_spec, xray_rel_eng_box)
 
         #===== calculate and save some quantities =====

@@ -203,11 +203,19 @@ def evolve(run_name,
 
                     for i, z_shell in enumerate(z_shells):
 
-                        # z_left < z_shell < z_right
-                        i_z_right = np.searchsorted(-z_edges, -z_shell, side='left')
-                        i_z_left = i_z_right + 1
-                        z_right = z_edges[i_z_right]
+                        if i == 0:
+                            i_z_left = np.argmin(np.abs(z_edges - z_shell))
+                            i_z_right = i_z_left - 1
+                        elif i == len(z_shells) - 1:
+                            i_z_right = np.argmin(np.abs(z_edges - z_shell))
+                            i_z_left = i_z_right + 1
+                        else:
+                            i_z_left = np.searchsorted(-z_edges, -z_shell, side='left')
+                            i_z_right = i_z_left - 1
                         z_left = z_edges[i_z_left]
+                        z_right = z_edges[i_z_right]
+                        atol = 1e-3
+                        assert z_left-atol <= z_shell <= z_right+atol
 
                         ftdEdz_right, rel_spec_right = xray_cacher.get_ftdEdz_spec(z_right)
                         ftdEdz_left,  rel_spec_left  = xray_cacher.get_ftdEdz_spec(z_left)

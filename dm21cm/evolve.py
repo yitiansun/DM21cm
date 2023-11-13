@@ -107,8 +107,8 @@ def evolve(run_name,
     if use_xray_interp_shell:
         xray_cacher = Cacher(box_dim=box_dim, dx=box_len/box_dim)
     else:
-        from dm21cm.data_cacher_old import Cacher
-        xray_cacher = Cacher(data_path=f"{cache_dir}/xray_brightness.h5", cosmo=cosmo, N=box_dim, dx=box_len/box_dim)
+        from dm21cm.data_cacher_old import CacherOld
+        xray_cacher = CacherOld(data_path=f"{cache_dir}/xray_brightness.h5", cosmo=cosmo, N=box_dim, dx=box_len/box_dim)
         xray_cacher.clear_cache()
 
     #--- redshift stepping ---
@@ -223,7 +223,7 @@ def evolve(run_name,
                         right_weight = 1 - left_weight
 
                         ftdEdz = left_weight * ftdEdz_left + right_weight * ftdEdz_right
-                        dEdz, _ = xray_cacher.smooth_box(ftdEdz, r_shell_mids[i], r_shell_mids[i+1]) # r_shell_mids[i] < r_shell < r_shell_mids[i+1]
+                        dEdz = xray_cacher.smooth_box(ftdEdz, r_shell_mids[i], r_shell_mids[i+1]) # r_shell_mids[i] < r_shell < r_shell_mids[i+1]
                         rel_spec = left_weight * rel_spec_left + right_weight * rel_spec_right
 
                         dE = dEdz * dz_shells[i] # [eV/Bavg]

@@ -71,14 +71,18 @@ class Cacher:
     @property
     def z_s(self):
         return np.array([state.z_end for state in self.states])
-
-    def get_state(self, z):
-        """Get the cached state with redshift closest to z."""
+    
+    def ind(self, z):
+        """Get index closest to z with bounds checking."""
         z_s = self.z_s
         atol = 1e-3
         if not z > np.min(z_s) - atol and z < np.max(z_s) + atol:
             raise ValueError(f'z={z} out of bounds {np.min(z_s)} - {np.max(z_s)}.')
-        return self.states[np.argmin(np.abs(z_s - z))]
+        return np.argmin(np.abs(z_s - z))
+
+    def get_state(self, z):
+        """Get the cached state with redshift closest to z."""
+        return self.states[self.ind(z)]
 
     def advance_spectra(self, attenuation_arr, z_target):
         """Attenuate and redshift the spectra of states to the target redshift."""
@@ -130,13 +134,18 @@ class Cacher:
         """Release the cached data prior to (not including) z to the bath."""
         to_bath_spectrum = self.states[-1].spectrum * 0.
 
+        ind_first_nonbath = self.ind(z)
+
+        for i in range(ind_first_nonbath):
+            to_bath_spectrum += self.states[i].spectrum
+            self.states[i].ftbox = 0
+        del self.states[:ind_first_nonbath]
+
         #print('Before bath dump:', self.z_s)
-
-        while self.z_s[0] > z:
-            to_bath_spectrum += self.states[0].spectrum
-            self.states[0].ftbox = 0
-            del self.states[0]
-
+        # while self.z_s[0] > z:
+        #     to_bath_spectrum += self.states[0].spectrum
+        #     self.states[0].ftbox = 0
+        #     del self.states[0]
         #print('After bath dump:', self.z_s)
         gc.collect()
 

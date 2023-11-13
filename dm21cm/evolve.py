@@ -104,12 +104,7 @@ def evolve(run_name,
     )
 
     #--- xray ---
-    if use_xray_interp_shell:
-        xray_cacher = Cacher(box_dim=box_dim, dx=box_len/box_dim)
-    else:
-        from dm21cm.data_cacher_old import Cacher
-        xray_cacher = Cacher(data_path=f"{cache_dir}/xray_brightness.h5", cosmo=cosmo, N=box_dim, dx=box_len/box_dim)
-        xray_cacher.clear_cache()
+    xray_cacher = Cacher(box_dim=box_dim, dx=box_len/box_dim)
 
     #--- redshift stepping ---
     z_edges = get_z_edges(z_start, z_end, p21c.global_params.ZPRIME_STEP_FACTOR)
@@ -169,83 +164,95 @@ def evolve(run_name,
         inj_per_Bavg_box = phys.inj_rate(rho_DM_box, dm_params) * dt * dm_params.struct_boost(1+z_current) / nBavg # [inj/Bavg]
 
         #===== photon injection and energy deposition =====
-        
+
         profiler.start()
 
         if not no_injection:
 
-            #--- xray interpolating shell ---
-            if use_xray_interp_shell:
+            ##########################
+            ###   Begin New Code   ###
+            ##########################
 
-                if len(xray_cacher.states)==0:
-                    # This is the first step. In the second step, we need to interpolate prior to the
-                    # first step's state and something. By doing the trapz integration, it is consistent
-                    # for us to put an all zero state in this step, since there is no emission.
-                    fake_spectrum = Spectrum(abscs['photE'], np.ones_like(abscs['photE']), spec_type='N', rs=1+z_current) # ones to prevent divide by zero
-                    xray_cacher.cache(z_current-1, z_current, fake_spectrum, jnp.zeros((box_dim, box_dim, box_dim)))
+            if len(xray_cacher.states)==0:
+                # This is the first step. In the second step, we need to interpolate prior to the
+                # first step's state and something. By doing the trapz integration, it is consistent
+                # for us to put an all zero state in this step, since there is no emission.
+                zero_spectrum = Spectrum(abscs['photE'], np.zeros_like(abscs['photE']), spec_type='N', rs=1+z_current)
+                xray_cacher.cache(z_current-1, z_current, zero_spectrum, np.zeros((box_dim, box_dim, box_dim)))
 
-                else:
-                    r_from_z = np.vectorize(lambda z: phys.conformal_dx_between_z(z_current, z)) # conformal distance [cMpc] of z from current shell
-                    z_interp_arr = np.geomspace(z_current, 200., 1000) # up to matter CMB decoupling
-                    r_interp_arr = r_from_z(z_interp_arr)
-                    z_from_r = interpolate.interp1d(r_interp_arr, z_interp_arr, bounds_error=False, fill_value='extrapolate') # inverse of r_z
-                    
-                    r_shells = get_r_shells(box_dim, box_len, r_cap=r_from_z(np.max(xray_cacher.z_s)), n_target=40) # R_a in paper
-                    z_shells = z_from_r(r_shells) # z_a in paper
-                    z_shell_mids = np.concatenate([[z_current], (z_shells[:-1] + z_shells[1:]) / 2, [z_shells[-1]]])
-                    r_shell_mids = r_from_z(z_shell_mids) # start and end for R windows
-                    dz_shells = np.diff(z_shell_mids) # dz_a in paper
-
-                    # Example (make a better comment later)
-                    # inds         =   0, 1,   2,   ..., N-2, N-1    |
-                    # r_shells     =   0, 1.2, 2.4, ..., 250, 256    | total=N
-                    # r_shell_mids = 0, 0.6, 1.8, ..., 247, 253, 256 | total=N+1
-
-                    for i, z_shell in enumerate(z_shells):
-
-                        if i == 0:
-                            i_z_left = np.argmin(np.abs(z_edges - z_shell))
-                            i_z_right = i_z_left - 1
-                        elif i == len(z_shells) - 1:
-                            i_z_right = np.argmin(np.abs(z_edges - z_shell))
-                            i_z_left = i_z_right + 1
-                        else:
-                            i_z_left = np.searchsorted(-z_edges, -z_shell, side='left')
-                            i_z_right = i_z_left - 1
-                        z_left = z_edges[i_z_left]
-                        z_right = z_edges[i_z_right]
-                        atol = 1e-3
-                        assert z_left-atol <= z_shell <= z_right+atol
-
-                        ftdEdz_right, rel_spec_right = xray_cacher.get_ftdEdz_spec(z_right)
-                        ftdEdz_left,  rel_spec_left  = xray_cacher.get_ftdEdz_spec(z_left)
-                        left_weight = (z_right - z_shell) / (z_right - z_left)
-                        right_weight = 1 - left_weight
-
-                        ftdEdz = left_weight * ftdEdz_left + right_weight * ftdEdz_right
-                        dEdz, _ = xray_cacher.smooth_box(ftdEdz, r_shell_mids[i], r_shell_mids[i+1]) # r_shell_mids[i] < r_shell < r_shell_mids[i+1]
-                        rel_spec = left_weight * rel_spec_left + right_weight * rel_spec_right
-
-                        dE = dEdz * dz_shells[i] # [eV/Bavg]
-                        tf_wrapper.inject_phot(rel_spec, inject_type='xray', weight_box=dE)
-
-                    # We have summed all the shells up to r_shells[-1] (precisely), and we need to release the rest to bath
-                    phot_bath_spec += xray_cacher.release_to_bath_prior_to(z_shells[-1])
-
-            #--- xray (original) ---
             else:
-                for i_z_shell in range(i_xray_loop_start, i_z):
-                    xray_brightness_box, xray_spec, is_box_average = xray_cacher.get_annulus_data(
-                        z_current, z_edges[i_z_shell], z_edges[i_z_shell+1]
-                    )
-                    if is_box_average:                                          # if smoothing scale > box size,
-                        phot_bath_spec.N += xray_spec.N                         # then we can just dump to the global bath spectrum
-                        i_xray_loop_start = max(i_z_shell+1, i_xray_loop_start) # and we will not revisit this shell
-                    else:
-                        tf_wrapper.inject_phot(xray_spec, inject_type='xray', weight_box=xray_brightness_box)
+                # conformal distance [cMpc] of z from current shell
+                r_from_z = np.vectorize(lambda z: phys.conformal_dx_between_z(z_current, z))
+
+                # inverse of r_z
+                z_from_r = interpolate.interp1d(r_from_z(np.geomspace(z_current, 200., 1000)),
+                                                np.geomspace(z_current, 200., 1000),
+                                                bounds_error=False, fill_value='extrapolate')
+
+                # Get the list of r-shells we smooth over
+                r_shells = get_r_shells(box_dim, box_len, n_target=40) # R_a in paper
+                cached_r = r_from_z(xray_cacher.z_s)
+
+                # Don't smooth farther back then we have data
+                if np.amax(cached_r) < np.amax(r_shells):
+                    r_shells = np.unique(np.minimum(np.amax(cached_r), r_shells))
+
+                # Go past box_len/2 to the next redshift cache in the interest of ending on a state
+                else:
+                    r_shells = np.union1d(r_shells, np.amin(cached_r[np.where(cached_r > np.amax(r_shells))]))
+
+                # (Min, Max) pairs of the radii on which we smooth
+                r_pairs = np.stack((r_shells[:-1], r_shells[1:]), axis = -1)
+
+                # The midpoint smoothing radius and associated redshift
+                r_mid = (r_shells[1:] + r_shells[:-1]) / 2 # The midpoint of the smoothing
+                z_mid = z_from_r(r_mid) # Z for the midpoint of the smoothing edge
+
+                # The delta-z of the smoothing interval. Used to go from dEdz -> \Delta E
+                dz = np.diff(z_from_r(r_pairs), axis = 1)
+
+                # Do the interpolated smoothing loop
+                for i in range(len(z_mid)):
+
+                    # Deciding on the interpolation nodes
+                    locs = np.where(xray_cacher.z_s <= z_mid[i])[0]
+                    left_z = np.amax(xray_cacher.z_s[locs])
+
+                    locs = np.where(xray_cacher.z_s > z_mid[i])[0]
+                    right_z =  np.amin(xray_cacher.z_s[locs])
+
+                    # Data at interpolation nodes
+                    ftdEdz_right, rel_spec_right = xray_cacher.get_ftdEdz_spec(right_z)
+                    ftdEdz_left,  rel_spec_left  = xray_cacher.get_ftdEdz_spec(left_z)
+
+                    # Linear interpolation weights
+                    left_weight = (right_z - z_mid[i]) / (right_z - left_z)
+                    right_weight = 1-left_weight
+
+                    # Weighted emissivity box
+                    ftdEdz = left_weight * ftdEdz_left + right_weight * ftdEdz_right
+                    rel_spec = left_weight * rel_spec_left + right_weight * rel_spec_right
+
+                    # Do the smoothing and injection
+                    dE = xray_cacher.smooth_box(ftdEdz, r_pairs[i, 0], r_pairs[i, 1])*dz[i]
+                    tf_wrapper.inject_phot(rel_spec, inject_type='xray', weight_box=dE)
+
+
+                    del ftdEdz_right, ftdEdz_left, ftdEdz, rel_spec_right, rel_spec_left, rel_spec
+                    gc.collect()
+
+                # We engineered our smoothing radii to end on a cached state. Now we dump everything prior
+                # to that cached state because it will never get used
+                print('Dumping states before:', z_from_r(np.amax(r_pairs)))
+                print('Radius of dumped states will be larger than:', np.amax(r_pairs))
+                phot_bath_spec += xray_cacher.release_to_bath_prior_to(z_from_r(np.amax(r_pairs)))
+
+                ########################
+                ###   End New Code   ###
+                ########################
 
             profiler.record('xray')
-            
+
             #--- bath and homogeneous portion of xray ---
             tf_wrapper.inject_phot(phot_bath_spec, inject_type='bath')
 
@@ -289,10 +296,7 @@ def evolve(run_name,
         else:
             xray_rel_eng_box = tf_wrapper.xray_eng_box / xray_tot_eng # [1 (relative energy)/Bavg]
         if not no_injection:
-            if use_xray_interp_shell:
-                xray_cacher.cache(z_current, z_next, xray_spec, xray_rel_eng_box)
-            else:
-                xray_cacher.cache(z_next, xray_rel_eng_box, xray_spec)
+            xray_cacher.cache(z_current, z_next, xray_spec, xray_rel_eng_box)
 
         #===== calculate and save some quantities =====
         dE_inj_per_Bavg = dm_params.eng_per_inj * np.mean(inj_per_Bavg_box) # [eV/Bavg]
@@ -321,6 +325,7 @@ def evolve(run_name,
 
         if not use_tqdm:
             print(print_str, flush=True)
+        gc.collect()
 
     #===== end of loop, return results =====
     arr_records = {k: np.array([r[k] for r in records]) for k in records[0].keys()}

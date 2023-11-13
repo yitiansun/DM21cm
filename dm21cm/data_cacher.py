@@ -1,5 +1,7 @@
 """Xray data cacher classes."""
 
+import os
+import sys
 import numpy as np
 
 USE_JAX_FFT = True
@@ -51,44 +53,34 @@ class Cacher:
         dx (float): The size of each cell [cfMpc].
     """
 
-    def __init__(self, box_dim, dx, abscissa = np.zeros((500))):
-        self.box_dim = box_dim    # The number of lattice sites in resolving the box
-        self.dx = dx              # The linear dimension of the box, in comoving Mpc
-        self.states = []          # A list containing our cached states
-        self.abscissa = abscissa  # The bin abcissa for the spectrum
+    def __init__(self, box_dim, dx):
+        self.box_dim = box_dim
+        self.dx = dx
+        self.states = []
 
-        # Generate the k-magnitudes for use in spectral smoothing operations
-        k = fft.fftfreq(self.box_dim, d=self.dx)
-        kReal = fft.rfftfreq(self.box_dim, d=self.dx)
+        # Generate the k magnitudes and save them
+        N = box_dim
+        k = fft.fftfreq(N, d=dx)
+        kReal = fft.rfftfreq(N, d=dx)
         self.kMag = 2*jnp.pi*jnp.sqrt(k[:, None, None]**2 + k[None, :, None]**2 + kReal[None, None, :]**2)
 
     def cache(self, z_start, z_end, spectrum, box):
         self.states.append(CachedState(z_start, z_end, spectrum, box))
-        
+
+    def clear_cache(self):
+        self.states = []
+
     @property
     def z_s(self):
         return np.array([state.z_end for state in self.states])
-
-    def get_prior_state(self, z):
-        prior_locs = np.where(self.zs > z)[0]
-        if len(prior_locs) == 0:
-
-            # Make a null state and return it 
-            null_spec = self.zeros_like(self.abscissa)
-            null_box = np.zeros((self.box_dim, self.box_dim, self.box_dim))
-            null_state = CachedState(z, z, null_spec, null_box)
-            return null_state
     
-        prior_state = self.states[prior_locs][np.argmin(self.zs[prior_locs])]
-        return prior_state
-
-    def get_later_state(self, z):
-        later_locs = np.where(self.zs < z)[0]
-        if len(later_locs) == 0:
-            raise ValueError('Asking for a state after what has been evaluated so far')
-
-        later_state= self.states[later_locs][np.argmax(self.zs[later_locs])]
-        return later_state
+    def get_state(self, z):
+        """Get the cached state with redshift closest to z."""
+        z_s = self.z_s
+        atol = 1e-3
+        if not z > np.min(z_s) - atol and z < np.max(z_s) + atol:
+            raise ValueError(f'z={z} out of bounds {np.min(z_s)} - {np.max(z_s)}.')
+        return self.state[np.argmin(np.abs(z_s - z))]
     
     def advance_spectra(self, attenuation_arr, z_target):
         """Attenuate and redshift the spectra of states to the target redshift."""
@@ -127,8 +119,8 @@ class Cacher:
 
         # Combine the window functions
         W = w2*W2 - w1*W1
+        #del W1, W2 # is this necessary?
 
-        # Perform the fourier transform and 
         return fft.irfftn(ftbox * W)
     
     def get_ftdEdz_spec(self, z):
@@ -138,14 +130,14 @@ class Cacher:
         return state.ftbox * mean_eng / state.dz, state.spectrum / mean_eng
     
     def release_to_bath_prior_to(self, z):
-        """
-        Release the cached data prior z into the bath.
-        """
-        to_bath_locs = np.sort(np.where(self.z_s > z)[0])[::-1]
-        to_bath_spectrum = np.zeros_like(self.abscissa)
+        """Release the cached data prior to (not including) z to the bath."""
+        to_bath_spectrum = self.states[0].spectrum * 0.
+        ind_first_nonbath = np.argmin(np.abs(self.z_s - z)) # no bound check since z might be very early
+        if ind_first_nonbath == 0:
+            return to_bath_spectrum
         
-        for index in to_bath_locs:
-            to_bath_spectrum += self.states[index].spectrum
-            del self.states[index]
+        for state in self.states[:ind_first_nonbath]:
+            to_bath_spectrum += state.spectrum
 
+        self.states = self.states[ind_first_nonbath:]
         return to_bath_spectrum

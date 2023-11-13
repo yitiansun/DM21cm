@@ -126,8 +126,7 @@ class Cacher:
     def get_ftdEdz_spec(self, z):
         """Return the Fourier transform of dE/dz and the spectrum at the specified redshift."""
         state = self.get_state(z)
-        mean_eng = state.spectrum.toteng()
-        return state.ftbox * mean_eng / state.dz, state.spectrum / mean_eng
+        return state.ftbox / state.dz, state.spectrum
     
     def release_to_bath_prior_to(self, z):
         """Release the cached data prior to (not including) z to the bath."""

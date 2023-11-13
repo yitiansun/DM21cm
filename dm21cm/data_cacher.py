@@ -2,7 +2,6 @@
 
 import os
 import sys
-import h5py
 import numpy as np
 
 sys.path.append(os.environ['DM21CM_DIR'])
@@ -20,76 +19,94 @@ else:
     from numpy import fft
     jnp = np
 
+EPSILON = 1e-6
 
-class Cacher:
-    """Data cacher for xray.
 
+class CachedState:
+    """Cached data for xray spectrum and emissivity.
+    
     Args:
-        data_path (str): Path to the HDF5 cache file.
-        cosmo (astropy.cosmology): Cosmology.
-        N (int): Number of grid points.
-        dx (float): Grid spacing.
-
-    Notes:
-        Brightness = energy per averaged baryon.
+        z_start (float): The starting redshift of the step that generates the emissivity data.
+        z_end (float): The redshift at the end of the step, at which the spectrum is saved.
+        spectrum (Spectrum): The X-ray spectrum.
+        box (array): The X-ray brightness box.
     """
 
-    def __init__(self, data_path, cosmo, N, dx):
+    def __init__(self, z_start, z_end, spectrum, box):
+        self.z_start = z_start
+        self.z_end = z_end
+        self.spectrum = spectrum
+        self.spectrum.switch_spec_type('N')
+        self.box = box
 
-        self.data_path = data_path
-        self.cosmo = cosmo
-        self.N = N
+        self.ftbox = fft.rfftn(box)
+
+    @property
+    def dz(self):
+        return self.z_start - self.z_end
+    
+    def attenuate(self, attenuation_arr):
+        self.spectrum.N *= attenuation_arr
+
+    def redshift(self, z_target):
+        self.spectrum.redshift(1+z_target)
+    
+
+class Cacher:
+    """DataCacher for xray CachedState's."""
+
+    def __init__(self, box_dim, dx):
+
+        self.box_dim = box_dim
         self.dx = dx
+        self.states = []
 
         # Generate the k magnitudes and save them
-        k = fft.fftfreq(N, d = dx)
-        kReal = fft.rfftfreq(N, d = dx)
+        N = box_dim
+        k = fft.fftfreq(N, d=dx)
+        kReal = fft.rfftfreq(N, d=dx)
         self.kMag = 2*jnp.pi*jnp.sqrt(k[:, None, None]**2 + k[None, :, None]**2 + kReal[None, None, :]**2)
-    
-        self.spectrum_cache = SpectrumCache()
-        self.brightness_cache = BrightnessCache(self.data_path)
 
-    def cache(self, z, box, spec):
-        self.spectrum_cache.cache_spectrum(spec, z)
-        self.brightness_cache.cache_box(box, z)
+    def cache(self, z_start, z_end, spectrum, box):
+        self.states.append(CachedState(z_start, z_end, spectrum, box))
 
     def clear_cache(self):
-        self.spectrum_cache.clear_cache()
-        self.brightness_cache.clear_cache()
+        self.states = []
 
-    def advance_spectrum(self, attenuation_factor, z):
-        self.spectrum_cache.attenuate(attenuation_factor)
-        self.spectrum_cache.redshift(z)
+    @property
+    def z_s(self):
+        return np.array([state.z_end for state in self.states])
+    
+    def get_state(self, z):
+        """Get the cached state with redshift closest to z."""
+        z_s = self.z_s
+        if not z > np.min(z_s) - EPSILON and z < np.max(z_s) + EPSILON:
+            raise ValueError(f'z={z} out of bounds {np.min(z_s)} - {np.max(z_s)}.')
+        return self.state[np.argmin(np.abs(z_s - z))]
+    
+    def advance_spectrum(self, attenuation_arr, z_target):
+        for state in self.states:
+            state.attenuate(attenuation_arr)
+            state.redshift(z_target)
 
-    def get_smoothing_radii(self, z_receiver, z1, z2):
-        """Evaluates the shell radii [cfMpc] for a receiver at `z_receiver` for emission between redshifts `z1` and `z2`."""
-        R1 = np.abs(phys.conformal_dt_between_z(z_receiver, z1)) * phys.c / phys.Mpc
-        R2 = np.abs(phys.conformal_dt_between_z(z_receiver, z2)) * phys.c / phys.Mpc
-        return R1, R2
-
-    def smooth_box(self, box, R1, R2):
-        """Smooths the box with a top-hat window function.
+    def smooth_box(self, ftbox, R1, R2):
+        """Smooths the box with a top-hat shell window function.
 
         Args:
-            box (array): The box to smooth.
+            ftbox (array): The Fourier transformed box to smooth.
             R1 (float): The inner radius of the smoothing window [cfMpc].
             R2 (float): The outer radius of the smoothing window [cfMpc].
 
         Returns:
-            (array, bool): The smoothed box, whether the whole box is averaged.
+            array: The smoothed box.
         """
-        if min(R1, R2) > self.N // 2 * self.dx:
-            box = fft.irfftn(box)
-            is_box_averaged = True
-            return jnp.mean(box) * jnp.ones_like(box), is_box_averaged
-
         # Volumetric weighting factors for combining the window functions
         R1, R2 = np.sort([R1, R2])
         w1 = R1**3 / (R2**3 - R1**3)
         w2 = R2**3 / (R2**3 - R1**3)
-        R1 = np.clip(R1, 1e-6, None)
-        R2 = np.clip(R2, 1e-6, None)
-        self.kMag = jnp.clip(self.kMag, 1e-6, None)
+        R1 = np.clip(R1, EPSILON, None)
+        R2 = np.clip(R2, EPSILON, None)
+        self.kMag = jnp.clip(self.kMag, EPSILON, None)
 
         # Construct the smoothing functions in the frequency domain
         W1 = 3*(jnp.sin(self.kMag*R1) - self.kMag*R1 * jnp.cos(self.kMag*R1)) / (self.kMag*R1)**3
@@ -103,103 +120,25 @@ class Cacher:
 
         # Combine the window functions
         W = w2*W2 - w1*W1
-        del W1, W2
+        #del W1, W2 # is this necessary?
 
-        # Multiply by flux_factor. `box` is now the equivalent universe density of photons.
-        box = fft.irfftn(box * W)
-        is_box_averaged = False
-        return box, is_box_averaged
-
-    def get_annulus_data(self, z_receiver, z_donor, z_next_donor):
-
-	    # Get the donor box
-        box = self.brightness_cache.get_box(z_donor)
-
-        # Get the smoothing radii in comoving coordinates and canonically sort them
-        R1, R2 = self.get_smoothing_radii(z_receiver, z_donor, z_next_donor)
-
-        # Perform the box smoothing operation 
-        smoothed_box, is_box_averaged = self.smooth_box(box, R1, R2)
-
-        # Get the spectrum
-        spectrum = self.spectrum_cache.get_spectrum(z_donor)
-        return smoothed_box, spectrum, is_box_averaged
-
-
-class SpectrumCache:
-    """Cache for the X-ray spectra."""
+        return fft.irfftn(ftbox * W)
     
-    def __init__(self):
-        self.spectrum_list = []
-        self.z_s = np.array([])
+    def get_ftdEdz_spec(self, z):
+        """Return the Fourier transform of dE/dz and the spectrum at the specified redshift."""
+        state = self.get_state(z)
+        mean_eng = state.spectrum.toteng()
+        return state.ftbox * mean_eng / state.dz, state.spectrum / mean_eng
+    
+    def release_to_bath_prior_to(self, z):
+        """Release the cached data prior to (not including) z to the bath."""
+        to_bath_spectrum = self.states[0].spectrum * 0.
+        ind_first_nonbath = np.argmin(np.abs(self.z_s - z)) # no bound check since z might be very early
+        if ind_first_nonbath == 0:
+            return to_bath_spectrum
         
-    def cache_spectrum(self, spec, z):
-        self.spectrum_list.append(spec)
-        self.z_s = np.append(self.z_s, z)
+        for state in self.states[:ind_first_nonbath]:
+            to_bath_spectrum += state.spectrum
 
-    def clear_cache(self):
-        self.spectrum_list = []
-        self.z_s = np.array([])
-        
-    def attenuate(self, attenuation_arr):
-        for spec in self.spectrum_list:
-            spec.switch_spec_type('N')
-            spec.N *= attenuation_arr
-            
-    def redshift(self, z_target):
-        for spec in self.spectrum_list:
-            spec.switch_spec_type('N')
-            spec.redshift(1+z_target)
-            
-    def get_spectrum(self, z_target):
-        spec_index = np.argmin(np.abs(self.z_s - z_target))
-        return self.spectrum_list[spec_index]
-
-
-class BrightnessCache:
-    """Cache for the X-ray brightness boxes.
-
-    Args:
-        data_path (str): Path to the HDF5 cache file.
-
-    Notes:
-        Brightness = energy per averaged baryon.
-    """
-
-    def __init__(self, data_path):
-        self.data_path = data_path
-        self.z_s = np.array([])
-        self.box_mean_s = np.array([])
-
-    def clear_cache(self):
-        if os.path.exists(self.data_path):
-            os.remove(self.data_path)
-        self.z_s = np.array([])
-        self.box_mean_s = np.array([])
-
-    def cache_box(self, box, z):
-        """Adds the X-ray box box at the specified redshift to the cache.
-
-        Args:
-            box (np.ndarray): The X-ray brightness box to cache. (photons / Mpccm^3)
-            z (float): The redshift of the box.
-        """
-
-        box_index = len(self.z_s)
-
-        with h5py.File(self.data_path, 'a') as archive:
-            archive.create_dataset('Box_' + str(box_index), data = fft.rfftn(box))
-            
-        self.z_s = np.append(self.z_s, z)
-        self.box_mean_s = np.append(self.box_mean_s, jnp.mean(box))
-
-    def get_box(self, z):
-        """Returns the brightness box and spectrum at the specified cached state."""
-
-	    # Get the index of the donor box
-        box_index = np.argmin(np.abs(self.z_s - z))
-
-        with h5py.File(self.data_path, 'r') as archive:
-            box = jnp.array(archive['Box_' + str(box_index)], dtype=jnp.complex64)
-        
-        return box
+        self.states = self.states[ind_first_nonbath:]
+        return to_bath_spectrum

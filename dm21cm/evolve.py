@@ -104,8 +104,12 @@ def evolve(run_name,
     )
 
     #--- xray ---
-    xray_cacher = Cacher(data_path=f"{cache_dir}/xray_brightness.h5", cosmo=cosmo, N=box_dim, dx=box_len/box_dim)
-    xray_cacher.clear_cache()
+    if use_xray_interp_shell:
+        xray_cacher = Cacher(box_dim=box_dim, dx=box_len/box_dim)
+    else:
+        from dm21cm.data_cacher_old import Cacher
+        xray_cacher = Cacher(data_path=f"{cache_dir}/xray_brightness.h5", cosmo=cosmo, N=box_dim, dx=box_len/box_dim)
+        xray_cacher.clear_cache()
 
     #--- redshift stepping ---
     z_edges = get_z_edges(z_start, z_end, p21c.global_params.ZPRIME_STEP_FACTOR)
@@ -169,43 +173,50 @@ def evolve(run_name,
         profiler.start()
 
         if not no_injection:
+
             #--- xray interpolating shell ---
             if use_xray_interp_shell:
-                
-                r_from_z = np.vectorize(lambda z: phys.conformal_dx_between_z(z_current, z)) # conformal distance [cMpc] of z from current shell
-                z_interp_arr = np.geomspace(z_current, 1100., 1000) # up to CMB
-                r_interp_arr = r_from_z(z_interp_arr)
-                z_from_r = interpolate.interp1d(r_interp_arr, z_interp_arr, bounds_error=False, fill_value='extrapolate') # inverse of r_z
-                
-                r_shells = get_r_shells(box_dim, box_len, n_target=40) # R_a in paper
-                z_shells = z_from_r(r_shells) # z_a in paper
-                z_shell_mids = np.concatenate([[z_current], (z_shells[:-1] + z_shells[1:]) / 2, [z_shells[-1]]])
-                r_shell_mids = r_from_z(z_shell_mids) # start and end for R windows
-                dz_shells = np.diff(z_shell_mids) # dz_a in paper
 
-                # inds         =   0, 1,   2,   ..., N-2, N-1    |
-                # r_shells     =   0, 1.2, 2.4, ..., 250, 256    | total=N
-                # r_shell_mids = 0, 0.6, 1.8, ..., 247, 253, 256 | total=N+1
+                if not len(xray_cacher.states)==0:
 
-                for i, z_shell in enumerate(z_shells):
+                    r_from_z = np.vectorize(lambda z: phys.conformal_dx_between_z(z_current, z)) # conformal distance [cMpc] of z from current shell
+                    z_interp_arr = np.geomspace(z_current, 1100., 1000) # up to CMB
+                    r_interp_arr = r_from_z(z_interp_arr)
+                    z_from_r = interpolate.interp1d(r_interp_arr, z_interp_arr, bounds_error=False, fill_value='extrapolate') # inverse of r_z
                     
-                    # z_left < z_shell < z_right
-                    i_z_right = np.searchsorted(-z_edges, -z_shell, side='right')
-                    i_z_left = i_z_right + 1
-                    z_right = z_edges[i_z_right]
-                    z_left = z_edges[i_z_left]
+                    r_shells = get_r_shells(box_dim, box_len, r_cap=r_from_z(np.max(xray_cacher.z_s)), n_target=40) # R_a in paper
+                    z_shells = z_from_r(r_shells) # z_a in paper
+                    z_shell_mids = np.concatenate([[z_current], (z_shells[:-1] + z_shells[1:]) / 2, [z_shells[-1]]])
+                    r_shell_mids = r_from_z(z_shell_mids) # start and end for R windows
+                    dz_shells = np.diff(z_shell_mids) # dz_a in paper
 
-                    ftdEdz_right, rel_spec_right = xray_cacher.get_ftdEdz_spec(z_right)
-                    ftdEdz_left,  rel_spec_left  = xray_cacher.get_ftdEdz_spec(z_left)
-                    left_weight = (z_right - z_shell) / (z_right - z_left)
-                    right_weight = 1 - left_weight
+                    # Example (make a better comment later)
+                    # inds         =   0, 1,   2,   ..., N-2, N-1    |
+                    # r_shells     =   0, 1.2, 2.4, ..., 250, 256    | total=N
+                    # r_shell_mids = 0, 0.6, 1.8, ..., 247, 253, 256 | total=N+1
 
-                    ftdEdz = left_weight * ftdEdz_left + right_weight * ftdEdz_right
-                    dEdz, _ = xray_cacher.smooth_box(ftdEdz, r_shell_mids[i], r_shell_mids[i+1]) # r_shell_mids[i] < r_shell < r_shell_mids[i+1]
-                    rel_spec = left_weight * rel_spec_left + right_weight * rel_spec_right
+                    for i, z_shell in enumerate(z_shells):
 
-                    dE = dEdz * dz_shells[i] # [eV/Bavg]
-                    tf_wrapper.inject_phot(rel_spec, inject_type='xray', weight_box=dE)
+                        # z_left < z_shell < z_right
+                        i_z_right = np.searchsorted(-z_edges, -z_shell, side='right')
+                        i_z_left = i_z_right + 1
+                        z_right = z_edges[i_z_right]
+                        z_left = z_edges[i_z_left]
+
+                        ftdEdz_right, rel_spec_right = xray_cacher.get_ftdEdz_spec(z_right)
+                        ftdEdz_left,  rel_spec_left  = xray_cacher.get_ftdEdz_spec(z_left)
+                        left_weight = (z_right - z_shell) / (z_right - z_left)
+                        right_weight = 1 - left_weight
+
+                        ftdEdz = left_weight * ftdEdz_left + right_weight * ftdEdz_right
+                        dEdz, _ = xray_cacher.smooth_box(ftdEdz, r_shell_mids[i], r_shell_mids[i+1]) # r_shell_mids[i] < r_shell < r_shell_mids[i+1]
+                        rel_spec = left_weight * rel_spec_left + right_weight * rel_spec_right
+
+                        dE = dEdz * dz_shells[i] # [eV/Bavg]
+                        tf_wrapper.inject_phot(rel_spec, inject_type='xray', weight_box=dE)
+
+                    # We have summed all the shells up to r_shells[-1] (precisely), and we need to release the rest to bath
+                    phot_bath_spec += xray_cacher.release_to_bath_prior_to(z_shells[-1])
 
             #--- xray (original) ---
             else:
@@ -220,7 +231,7 @@ def evolve(run_name,
                         tf_wrapper.inject_phot(xray_spec, inject_type='xray', weight_box=xray_brightness_box)
 
             profiler.record('xray')
-
+            
             #--- bath and homogeneous portion of xray ---
             tf_wrapper.inject_phot(phot_bath_spec, inject_type='bath')
 
@@ -368,7 +379,7 @@ def p21c_step(perturbed_field, spin_temp, ionized_box,
 
     return spin_temp, ionized_box, brightness_temp
 
-def get_r_shells(box_dim, box_len, n_target=40):
+def get_r_shells(box_dim, box_len, r_cap=None, n_target=40):
     """Generate r values for interpolation shells."""
     L_FACTOR = 0.620350491
     R = L_FACTOR * box_len/box_dim
@@ -376,5 +387,9 @@ def get_r_shells(box_dim, box_len, n_target=40):
     r_s = R * R_factor**np.arange(n_target)
     r_s = np.append(r_s, p21c.global_params.R_XLy_MAX)
     r_s = np.insert(r_s, 0, 0.)
-    r_s = np.unique(np.minimum(r_s, box_len/2)) # smooth up to radii at half the box length
+    if r_cap is not None:
+        r_max = np.min([r_cap, box_len/2])
+    else:
+        r_max = box_len/2
+    r_s = np.unique(np.minimum(r_s, r_max)) # smooth up to radii at half the box length
     return r_s

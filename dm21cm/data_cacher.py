@@ -74,21 +74,21 @@ class Cacher:
     def get_prior_state(self, z):
         prior_locs = np.where(self.zs > z)[0]
         if len(prior_locs) == 0:
-            raise ValueError(f'z={z} out of bounds {np.min(z_s)} - {np.max(z_s)}.')
 
+            # Make a null state and return it 
+            null_spec = self.zeros_like(self.abscissa)
+            null_box = np.zeros((self.box_dim, self.box_dim, self.box_dim))
+            null_state = CachedState(z, z, null_spec, null_box)
+            return null_state
+    
         prior_state = self.states[prior_locs][np.argmin(self.zs[prior_locs])]
         return prior_state
 
     def get_later_state(self, z):
         later_locs = np.where(self.zs < z)[0]
         if len(later_locs) == 0:
-            
-            # Make a null state and return it 
-            null_spec = self.zeros_like(self.abscissa)
-            null_box = np.zeros((self.box_dim, self.box_dim, self.box_dim))
-            null_state = CachedState(z, z, null_spec, null_box)
-            return null_state
-        
+            raise ValueError('Asking for a state after what has been evaluated so far')
+
         later_state= self.states[later_locs][np.argmax(self.zs[later_locs])]
         return later_state
     

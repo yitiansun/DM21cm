@@ -181,8 +181,8 @@ def evolve(run_name,
                     # This is the first step. In the second step, we need to interpolate prior to the
                     # first step's state and something. By doing the trapz integration, it is consistent
                     # for us to put an all zero state in this step, since there is no emission.
-                    zero_spectrum = Spectrum(abscs['photE'], np.zeros_like(abscs['photE']), spec_type='N', rs=1+z_current)
-                    xray_cacher.cache(z_current-1, z_current, zero_spectrum, np.zeros((box_dim, box_dim, box_dim)))
+                    fake_spectrum = Spectrum(abscs['photE'], np.ones_like(abscs['photE']), spec_type='N', rs=1+z_current) # ones to prevent divide by zero
+                    xray_cacher.cache(z_current-1, z_current, fake_spectrum, np.zeros((box_dim, box_dim, box_dim)))
 
                 else:
                     r_from_z = np.vectorize(lambda z: phys.conformal_dx_between_z(z_current, z)) # conformal distance [cMpc] of z from current shell
@@ -204,7 +204,7 @@ def evolve(run_name,
                     for i, z_shell in enumerate(z_shells):
 
                         # z_left < z_shell < z_right
-                        i_z_right = np.searchsorted(-z_edges, -z_shell, side='right')
+                        i_z_right = np.searchsorted(-z_edges, -z_shell, side='left')
                         i_z_left = i_z_right + 1
                         z_right = z_edges[i_z_right]
                         z_left = z_edges[i_z_left]

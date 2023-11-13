@@ -80,7 +80,7 @@ class Cacher:
         atol = 1e-3
         if not z > np.min(z_s) - atol and z < np.max(z_s) + atol:
             raise ValueError(f'z={z} out of bounds {np.min(z_s)} - {np.max(z_s)}.')
-        return self.state[np.argmin(np.abs(z_s - z))]
+        return self.states[np.argmin(np.abs(z_s - z))]
     
     def advance_spectra(self, attenuation_arr, z_target):
         """Attenuate and redshift the spectra of states to the target redshift."""

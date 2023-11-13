@@ -3,6 +3,7 @@
 import os
 import sys
 import numpy as np
+import gc
 
 USE_JAX_FFT = True
 if USE_JAX_FFT:
@@ -17,7 +18,7 @@ EPSILON = 1e-6
 
 class CachedState:
     """Cached data for xray spectrum and emissivity.
-    
+
     Args:
         z_start (float): The starting redshift of the step that generates the emissivity data.
         z_end (float): The redshift at the end of the step, at which the spectrum is saved.
@@ -26,28 +27,28 @@ class CachedState:
     """
 
     def __init__(self, z_start, z_end, spectrum, box):
+
         self.z_start = z_start
         self.z_end = z_end
         self.spectrum = spectrum
         self.spectrum.switch_spec_type('N')
-        self.box = box
 
         self.ftbox = fft.rfftn(box)
 
     @property
     def dz(self):
         return self.z_start - self.z_end
-    
+
     def attenuate(self, attenuation_arr):
         self.spectrum.N *= attenuation_arr
 
     def redshift(self, z_target):
         self.spectrum.redshift(1+z_target)
-    
+
 
 class Cacher:
     """Cacher for xray states.
-    
+
     Args:
         box_dim (int): The dimension of the box.
         dx (float): The size of each cell [cfMpc].
@@ -67,13 +68,10 @@ class Cacher:
     def cache(self, z_start, z_end, spectrum, box):
         self.states.append(CachedState(z_start, z_end, spectrum, box))
 
-    def clear_cache(self):
-        self.states = []
-
     @property
     def z_s(self):
         return np.array([state.z_end for state in self.states])
-    
+
     def get_state(self, z):
         """Get the cached state with redshift closest to z."""
         z_s = self.z_s
@@ -81,7 +79,7 @@ class Cacher:
         if not z > np.min(z_s) - atol and z < np.max(z_s) + atol:
             raise ValueError(f'z={z} out of bounds {np.min(z_s)} - {np.max(z_s)}.')
         return self.states[np.argmin(np.abs(z_s - z))]
-    
+
     def advance_spectra(self, attenuation_arr, z_target):
         """Attenuate and redshift the spectra of states to the target redshift."""
         for state in self.states:
@@ -119,24 +117,27 @@ class Cacher:
 
         # Combine the window functions
         W = w2*W2 - w1*W1
-        #del W1, W2 # is this necessary?
+        del W1, W2 # is this necessary?
 
         return fft.irfftn(ftbox * W)
-    
+
     def get_ftdEdz_spec(self, z):
         """Return the Fourier transform of dE/dz and the spectrum at the specified redshift."""
         state = self.get_state(z)
         return state.ftbox / state.dz, state.spectrum
-    
+
     def release_to_bath_prior_to(self, z):
         """Release the cached data prior to (not including) z to the bath."""
-        to_bath_spectrum = self.states[0].spectrum * 0.
-        ind_first_nonbath = np.argmin(np.abs(self.z_s - z)) # no bound check since z might be very early
-        if ind_first_nonbath == 0:
-            return to_bath_spectrum
-        
-        for state in self.states[:ind_first_nonbath]:
-            to_bath_spectrum += state.spectrum
+        to_bath_spectrum = self.states[-1].spectrum * 0.
 
-        self.states = self.states[ind_first_nonbath:]
+        print('Before bath dump:', self.z_s)
+
+        while self.z_s[0] > z:
+            to_bath_spectrum += self.states[0].spectrum
+            self.states[0].ftbox = 0
+            del self.states[0]
+
+        print('After bath dump:', self.z_s)
+        gc.collect()
+
         return to_bath_spectrum

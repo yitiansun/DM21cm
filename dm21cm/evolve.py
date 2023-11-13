@@ -61,7 +61,7 @@ def evolve(run_name,
         use_tqdm (bool):     Whether to use tqdm progress bars.
         tf_on_device (bool): Whether to put transfer functions on device (GPU).
         no_injection (bool): Whether to skip injection and energy deposition.
-        
+
     Returns:
         dict: Dictionary of results.
     """
@@ -121,7 +121,7 @@ def evolve(run_name,
     else:
         phot_bath_spec = Spectrum(abscs['photE'], np.zeros_like(abscs['photE']), spec_type='N', rs=1+z_match) # [ph / Bavg]
 
-    perturbed_field = p21c.perturb_field(redshift=z_edges[1], init_boxes=p21c_initial_conditions)
+    perturbed_field = p21c.perturb_field(redshift=z_edges[1], init_boxes=p21c_initial_conditions, write = True)
     spin_temp, ionized_box, brightness_temp = p21c_step(perturbed_field=perturbed_field, spin_temp=None, ionized_box=None, astro_params=p21c_astro_params)
     if use_DH_init:
         spin_temp.Tk_box += T_k_DH_init - np.mean(spin_temp.Tk_box)
@@ -149,7 +149,7 @@ def evolve(run_name,
         z_current = z_edges[i_z]
         z_next = z_edges[i_z+1]
         dt = phys.dt_step(z_current, np.exp(abscs['dlnz']))
-        
+
         #--- for interpolation ---
         delta_plus_one_box = 1 + np.asarray(perturbed_field.density)
         x_e_box = np.asarray(1 - ionized_box.xH_box)
@@ -160,7 +160,7 @@ def evolve(run_name,
         nBavg = phys.n_B * (1+z_current)**3 # [Bavg / (physical cm)^3]
         rho_DM_box = delta_plus_one_box * phys.rho_DM * (1+z_current)**3 # [eV/(physical cm)^3]
         inj_per_Bavg_box = phys.inj_rate(rho_DM_box, dm_params) * dt * dm_params.struct_boost(1+z_current) / nBavg # [inj/Bavg]
-        
+
         #===== photon injection and energy deposition =====
         #--- xray ---
         profiler.start()
@@ -180,12 +180,12 @@ def evolve(run_name,
 
             #--- bath and homogeneous portion of xray ---
             tf_wrapper.inject_phot(phot_bath_spec, inject_type='bath')
-            
+
             #--- dark matter (on-the-spot) ---
             tf_wrapper.inject_from_dm(dm_params, inj_per_Bavg_box)
 
             profiler.record('bath+dm')
-        
+
         #===== 21cmFAST step =====
         perturbed_field = p21c.perturb_field(redshift=z_next, init_boxes=p21c_initial_conditions)
         input_heating, input_ionization, input_jalpha = gen_injection_boxes(z_next, p21c_initial_conditions)
@@ -199,7 +199,7 @@ def evolve(run_name,
         )
 
         profiler.record('21cmFAST')
-        
+
         #===== prepare spectra for next step =====
         #--- bath (separating out xray) ---
         prop_phot_N = np.array(tf_wrapper.prop_phot_N) # propagating and emitted photons have been stored in tf_wrapper up to this point, time to get them out
@@ -222,11 +222,11 @@ def evolve(run_name,
             xray_rel_eng_box = tf_wrapper.xray_eng_box / xray_tot_eng # [1 (relative energy)/Bavg]
         if not no_injection:
             xray_cacher.cache(z_current, xray_rel_eng_box, xray_spec)
-        
+
         #===== calculate and save some quantities =====
         dE_inj_per_Bavg = dm_params.eng_per_inj * np.mean(inj_per_Bavg_box) # [eV/Bavg]
         dE_inj_per_Bavg_unclustered = dE_inj_per_Bavg / dm_params.struct_boost(1+z_current) # [eV/Bavg]
-        
+
         records.append({
             'z'   : z_next,
             'T_s' : np.mean(spin_temp.Ts_box), # [mK]
@@ -250,16 +250,17 @@ def evolve(run_name,
 
         if not use_tqdm:
             print(print_str, flush=True)
-        
+
     #===== end of loop, return results =====
     arr_records = {k: np.array([r[k] for r in records]) for k in records[0].keys()}
     profiler.print_summary()
 
-    return {
-        'profiler' : profiler,
+    res_summary = {
+	'profiler' : profiler,
         'records' : arr_records,
     }
 
+    return brightness_temp, res_summary
 
 #===== utilities for evolve =====
 
@@ -267,7 +268,7 @@ def get_z_edges(z_max, z_min, zplusone_step_factor):
     z_s = [z_min]
     while z_s[-1] < z_max:
         z_s.append((z_s[-1] + 1.) * zplusone_step_factor - 1.)
-    
+
     return np.clip(z_s[::-1], None, z_max)
 
 
@@ -283,22 +284,22 @@ def split_xray(phot_N, phot_eng):
     bath_N[ix_lo:ix_hi] *= 0
     xray_N[:ix_lo] *= 0
     xray_N[ix_hi:] *= 0
-    
+
     return bath_N, xray_N
 
 
 def gen_injection_boxes(z_next, p21c_initial_conditions):
-    
+
     input_heating = p21c.input_heating(redshift=z_next, init_boxes=p21c_initial_conditions, write=False)
     input_ionization = p21c.input_ionization(redshift=z_next, init_boxes=p21c_initial_conditions, write=False)
     input_jalpha = p21c.input_jalpha(redshift=z_next, init_boxes=p21c_initial_conditions, write=False)
-    
+
     return input_heating, input_ionization, input_jalpha
 
 
 def p21c_step(perturbed_field, spin_temp, ionized_box,
              input_heating=None, input_ionization=None, input_jalpha=None, astro_params=None):
-    
+
     spin_temp = p21c.spin_temperature(
         perturbed_field = perturbed_field,
         previous_spin_temp = spin_temp,
@@ -307,18 +308,18 @@ def p21c_step(perturbed_field, spin_temp, ionized_box,
         input_jalpha_box = input_jalpha,
         astro_params = astro_params,
     )
-    
+
     ionized_box = p21c.ionize_box(
         perturbed_field = perturbed_field,
         previous_ionize_box = ionized_box,
         spin_temp = spin_temp,
         astro_params = astro_params,
     )
-    
+
     brightness_temp = p21c.brightness_temperature(
         ionized_box = ionized_box,
         perturbed_field = perturbed_field,
         spin_temp = spin_temp,
     )
-    
+
     return spin_temp, ionized_box, brightness_temp

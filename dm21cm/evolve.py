@@ -182,7 +182,7 @@ def evolve(run_name,
                     # first step's state and something. By doing the trapz integration, it is consistent
                     # for us to put an all zero state in this step, since there is no emission.
                     fake_spectrum = Spectrum(abscs['photE'], np.ones_like(abscs['photE']), spec_type='N', rs=1+z_current) # ones to prevent divide by zero
-                    xray_cacher.cache(z_current-1, z_current, fake_spectrum, np.zeros((box_dim, box_dim, box_dim)))
+                    xray_cacher.cache(z_current-1, z_current, fake_spectrum, jnp.zeros((box_dim, box_dim, box_dim)))
 
                 else:
                     r_from_z = np.vectorize(lambda z: phys.conformal_dx_between_z(z_current, z)) # conformal distance [cMpc] of z from current shell

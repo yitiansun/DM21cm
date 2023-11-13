@@ -107,7 +107,7 @@ def evolve(run_name,
     if use_xray_interp_shell:
         xray_cacher = Cacher(box_dim=box_dim, dx=box_len/box_dim)
     else:
-        from dm21cm.data_cacher_old import CacherOld
+        from dm21cm.data_cacher_old import Cacher as CacherOld
         xray_cacher = CacherOld(data_path=f"{cache_dir}/xray_brightness.h5", cosmo=cosmo, N=box_dim, dx=box_len/box_dim)
         xray_cacher.clear_cache()
 
@@ -178,12 +178,14 @@ def evolve(run_name,
             ###   Begin New Code   ###
             ##########################
 
-            if len(xray_cacher.states)==0:
+            if len(xray_cacher.states) == 0:
                 # This is the first step. In the second step, we need to interpolate prior to the
                 # first step's state and something. By doing the trapz integration, it is consistent
                 # for us to put an all zero state in this step, since there is no emission.
-                zero_spectrum = Spectrum(abscs['photE'], np.zeros_like(abscs['photE']), spec_type='N', rs=1+z_current)
-                xray_cacher.cache(z_current-1, z_current, zero_spectrum, np.zeros((box_dim, box_dim, box_dim)))
+
+                # zero_spectrum = Spectrum(abscs['photE'], np.zeros_like(abscs['photE']), spec_type='N', rs=1+z_current)
+                # xray_cacher.cache(z_current-1, z_current, zero_spectrum, np.zeros((box_dim, box_dim, box_dim)))
+                pass
 
             else:
                 # conformal distance [cMpc] of z from current shell
@@ -197,6 +199,8 @@ def evolve(run_name,
                 # Get the list of r-shells we smooth over
                 r_shells = get_r_shells(box_dim, box_len, n_target=40) # R_a in paper
                 cached_r = r_from_z(xray_cacher.z_s)
+                # print(cached_r)
+                # print(xray_cacher.z_s)
 
                 # Don't smooth farther back then we have data
                 if np.amax(cached_r) < np.amax(r_shells):
@@ -224,7 +228,7 @@ def evolve(run_name,
                     left_z = np.amax(xray_cacher.z_s[locs])
 
                     locs = np.where(xray_cacher.z_s > z_mid[i])[0]
-                    right_z =  np.amin(xray_cacher.z_s[locs])
+                    right_z = np.amin(xray_cacher.z_s[locs])
 
                     # Data at interpolation nodes
                     ftdEdz_right, rel_spec_right = xray_cacher.get_ftdEdz_spec(right_z)
@@ -232,7 +236,7 @@ def evolve(run_name,
 
                     # Linear interpolation weights
                     left_weight = (right_z - z_mid[i]) / (right_z - left_z)
-                    right_weight = 1-left_weight
+                    right_weight = 1 - left_weight
 
                     # Weighted emissivity box
                     ftdEdz = left_weight * ftdEdz_left + right_weight * ftdEdz_right
@@ -242,15 +246,17 @@ def evolve(run_name,
                     dE = xray_cacher.smooth_box(ftdEdz, r_pairs[i, 0], r_pairs[i, 1])*dz[i]
                     tf_wrapper.inject_phot(rel_spec, inject_type='xray', weight_box=dE)
 
-
                     del ftdEdz_right, ftdEdz_left, ftdEdz, rel_spec_right, rel_spec_left, rel_spec
                     gc.collect()
 
                 # We engineered our smoothing radii to end on a cached state. Now we dump everything prior
                 # to that cached state because it will never get used
-                print('Dumping states before:', z_from_r(np.amax(r_pairs)))
-                print('Radius of dumped states will be larger than:', np.amax(r_pairs))
-                phot_bath_spec += xray_cacher.release_to_bath_prior_to(z_from_r(np.amax(r_pairs)))
+                # print(i_z, r_pairs)
+                # print(r_shells)
+                # print('Dumping states before:', z_from_r(np.amax(r_pairs)))
+                # print('Radius of dumped states will be larger than:', np.amax(r_pairs))
+                if i_z > 0: # skip the first step
+                    phot_bath_spec += xray_cacher.release_to_bath_prior_to(z_from_r(np.amax(r_pairs)))
 
                 ########################
                 ###   End New Code   ###
@@ -301,6 +307,9 @@ def evolve(run_name,
         else:
             xray_rel_eng_box = tf_wrapper.xray_eng_box / xray_tot_eng # [1 (relative energy)/Bavg]
         if not no_injection:
+            # TMP: duplicate the first state for interpolation
+            if len(xray_cacher.states) == 0:
+                xray_cacher.cache(z_current-1, z_current, xray_spec, xray_rel_eng_box)
             xray_cacher.cache(z_current, z_next, xray_spec, xray_rel_eng_box)
 
         #===== calculate and save some quantities =====
@@ -330,6 +339,7 @@ def evolve(run_name,
 
         if not use_tqdm:
             print(print_str, flush=True)
+
         gc.collect()
 
     #===== end of loop, return results =====

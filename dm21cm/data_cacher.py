@@ -130,14 +130,14 @@ class Cacher:
         """Release the cached data prior to (not including) z to the bath."""
         to_bath_spectrum = self.states[-1].spectrum * 0.
 
-        print('Before bath dump:', self.z_s)
+        #print('Before bath dump:', self.z_s)
 
         while self.z_s[0] > z:
             to_bath_spectrum += self.states[0].spectrum
             self.states[0].ftbox = 0
             del self.states[0]
 
-        print('After bath dump:', self.z_s)
+        #print('After bath dump:', self.z_s)
         gc.collect()
 
         return to_bath_spectrum

@@ -1,7 +1,5 @@
 """Xray data cacher classes."""
 
-import os
-import sys
 import numpy as np
 
 USE_JAX_FFT = True

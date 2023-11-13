@@ -276,7 +276,7 @@ def evolve(run_name,
             xray_rel_eng_box = tf_wrapper.xray_eng_box / xray_tot_eng # [1 (relative energy)/Bavg]
         if not no_injection:
             if use_xray_interp_shell:
-                xray_cacher.cache(z_next, z_current, xray_spec, xray_rel_eng_box)
+                xray_cacher.cache(z_current, z_next, xray_spec, xray_rel_eng_box)
             else:
                 xray_cacher.cache(z_next, xray_rel_eng_box, xray_spec)
 

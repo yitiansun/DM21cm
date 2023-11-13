@@ -177,8 +177,14 @@ def evolve(run_name,
             #--- xray interpolating shell ---
             if use_xray_interp_shell:
 
-                if not len(xray_cacher.states)==0:
+                if len(xray_cacher.states)==0:
+                    # This is the first step. In the second step, we need to interpolate prior to the
+                    # first step's state and something. By doing the trapz integration, it is consistent
+                    # for us to put an all zero state in this step, since there is no emission.
+                    zero_spectrum = Spectrum(abscs['photE'], np.zeros_like(abscs['photE']), spec_type='N', rs=1+z_current)
+                    xray_cacher.cache(z_current-1, z_current, zero_spectrum, np.zeros((box_dim, box_dim, box_dim)))
 
+                else:
                     r_from_z = np.vectorize(lambda z: phys.conformal_dx_between_z(z_current, z)) # conformal distance [cMpc] of z from current shell
                     z_interp_arr = np.geomspace(z_current, 200., 1000) # up to matter CMB decoupling
                     r_interp_arr = r_from_z(z_interp_arr)

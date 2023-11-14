@@ -27,13 +27,13 @@ class CachedState:
         ghost (bool): Whether this is a ghost state, i.e. used for interpolation not injection.
     """
 
-    def __init__(self, z_start, z_end, spectrum, box, ghost=False):
+    def __init__(self, z_start, z_end, spectrum, box, isdummy=False):
 
         self.z_start = z_start
         self.z_end = z_end
         self.spectrum = spectrum
         self.spectrum.switch_spec_type('N')
-        self.ghost = ghost
+        self.isdummy = isdummy
 
         self.ftbox = fft.rfftn(box)
 
@@ -67,8 +67,8 @@ class Cacher:
         kReal = fft.rfftfreq(N, d=dx)
         self.kMag = 2*jnp.pi*jnp.sqrt(k[:, None, None]**2 + k[None, :, None]**2 + kReal[None, None, :]**2)
 
-    def cache(self, z_start, z_end, spectrum, box):
-        self.states.append(CachedState(z_start, z_end, spectrum, box))
+    def cache(self, z_start, z_end, spectrum, box, isdummy=False):
+        self.states.append(CachedState(z_start, z_end, spectrum, box, isdummy))
 
     @property
     def z_s(self):
@@ -139,20 +139,12 @@ class Cacher:
         ind_first_nonbath = self.ind(z)
 
         print('Before bath dump:', self.z_s)
-
         for i in range(ind_first_nonbath):
-            if not self.states[i].ephemeral:
+            if not self.states[i].isdummy:
                 to_bath_spectrum += self.states[i].spectrum
             self.states[i].ftbox = 0
         del self.states[:ind_first_nonbath]
-
         print('After bath dump:', self.z_s)
-
-        
-        # while self.z_s[0] > z:
-        #     to_bath_spectrum += self.states[0].spectrum
-        #     self.states[0].ftbox = 0
-        #     del self.states[0]
         
         gc.collect()
 

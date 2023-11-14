@@ -45,6 +45,9 @@ def evolve(run_name,
            tf_on_device=True,
            no_injection=False,
            use_xray_interp_shell=True,
+
+           use_left_riemann=False,
+           use_dummy_init=False,
            ):
     """
     Main evolution function.
@@ -144,10 +147,6 @@ def evolve(run_name,
         z_range = tqdm(z_range)
     profiler = Profiler()
 
-    #--- trackers ---
-    i_xray_loop_start = 0 # where we start looking for annuli
-
-    #--- loop ---
     for i_z in z_range:
 
         print_str = f'i_z={i_z}/{len(z_edges)-2} z={z_edges[i_z]:.2f}'
@@ -174,52 +173,37 @@ def evolve(run_name,
 
         if not no_injection:
 
-            ##########################
-            ###   Begin New Code   ###
-            ##########################
-
             if len(xray_cacher.states) == 0:
                 # This is the first step. In the second step, we need to interpolate prior to the
                 # first step's state and something. By doing the trapz integration, it is consistent
                 # for us to put an all zero state in this step, since there is no emission.
-
-                zero_spectrum = Spectrum(abscs['photE'], np.zeros_like(abscs['photE']), spec_type='N', rs=1+z_current)
-                xray_cacher.cache(z_current-1, z_current, zero_spectrum, np.zeros((box_dim, box_dim, box_dim)))
+                if not use_dummy_init:
+                    zero_spectrum = Spectrum(abscs['photE'], np.zeros_like(abscs['photE']), spec_type='N', rs=1+z_current)
+                    xray_cacher.cache(z_current-1, z_current, zero_spectrum, np.zeros((box_dim, box_dim, box_dim)))
 
             else:
                 # conformal distance [cMpc] of z from current shell
                 r_from_z = np.vectorize(lambda z: phys.conformal_dx_between_z(z_current, z))
 
                 # inverse of r_z
-                z_from_r = interpolate.interp1d(r_from_z(np.geomspace(z_current, 200., 1000)),
-                                                np.geomspace(z_current, 200., 1000),
-                                                bounds_error=False, fill_value='extrapolate')
+                z_interp_arr = np.geomspace(z_current, 200., 1000)
+                z_from_r = interpolate.interp1d(r_from_z(z_interp_arr), z_interp_arr, bounds_error=False, fill_value='extrapolate')
 
                 # Get the list of r-shells we smooth over
                 r_shells = get_r_shells(box_dim, box_len, n_target=40) # R_a in paper
                 cached_r = r_from_z(xray_cacher.z_s)
-                # print(cached_r)
-                # print(xray_cacher.z_s)
 
                 r_max = np.min([box_len/2, np.amax(cached_r)])
                 r_shells = np.unique(np.minimum(r_shells, np.amin(cached_r[cached_r >= r_max])))
-
-                # # Don't smooth farther back then we have data
-                # if np.amax(cached_r) < np.amax(r_shells):
-                #     r_shells = np.unique(np.minimum(np.amax(cached_r), r_shells))
-
-                # # Go past box_len/2 to the next redshift cache in the interest of ending on a state
-                # else:
-                #     r_shells = np.union1d(r_shells, np.amin(cached_r[np.where(cached_r > np.amax(r_shells))]))
 
                 # (Min, Max) pairs of the radii on which we smooth
                 r_pairs = np.stack((r_shells[:-1], r_shells[1:]), axis = -1)
 
                 # The midpoint smoothing radius and associated redshift
                 r_mid = (r_shells[1:] + r_shells[:-1]) / 2 # The midpoint of the smoothing
-                z_mid = z_from_r(r_mid) # Z for the midpoint of the smoothing edge
+                z_mid = z_from_r(r_mid) # z for the midpoint of the smoothing edge
 
-                # The delta-z of the smoothing interval. Used to go from dEdz -> \Delta E
+                # The delta-z of the smoothing interval. Used to go from dEdz to dE
                 dz = np.diff(z_from_r(r_pairs), axis = 1)
 
                 # Do the interpolated smoothing loop
@@ -234,8 +218,10 @@ def evolve(run_name,
                     ftdEdz_right, rel_spec_right = xray_cacher.get_ftdEdz_spec(right_z)
                     ftdEdz_left,  rel_spec_left  = xray_cacher.get_ftdEdz_spec(left_z)
 
-                    trapz = False
-                    if trapz:
+                    if use_left_riemann: # left riemann (right if you count in time)
+                        ftdEdz = ftdEdz_left
+                        rel_spec = rel_spec_left
+                    else:
                         # Linear interpolation weights
                         left_weight = (right_z - z_mid[i]) / (right_z - left_z)
                         right_weight = 1 - left_weight
@@ -243,9 +229,7 @@ def evolve(run_name,
                         # Weighted emissivity box
                         ftdEdz = left_weight * ftdEdz_left + right_weight * ftdEdz_right
                         rel_spec = left_weight * rel_spec_left + right_weight * rel_spec_right
-                    else: # left riemann (right if you count in time)
-                        ftdEdz = ftdEdz_left
-                        rel_spec = rel_spec_left
+                        
 
                     # Do the smoothing and injection
                     dE = xray_cacher.smooth_box(ftdEdz, r_pairs[i, 0], r_pairs[i, 1])*dz[i]
@@ -256,18 +240,11 @@ def evolve(run_name,
 
                 # We engineered our smoothing radii to end on a cached state. Now we dump everything prior
                 # to that cached state because it will never get used
-                # print(i_z, r_pairs)
-                # print(r_shells)
-                # print('Dumping states before:', z_from_r(np.amax(r_pairs)))
-                # print('Radius of dumped states will be larger than:', np.amax(r_pairs))
                 phot_bath_spec += xray_cacher.release_to_bath_prior_to(z_from_r(np.amax(r_pairs)))
 
-                if not xray_cacher.states[0].ephemeral:
+                if not xray_cacher.states[0].isdummy: # inject the gap state if it is not dummy
                     tf_wrapper.inject_phot(xray_cacher.states[0].spectrum, inject_type='xray', weight_box=jnp.ones((box_dim, box_dim, box_dim)))
 
-                ########################
-                ###   End New Code   ###
-                ########################
             # if len(xray_cacher.states) > 0:
             #     phot_bath_spec += xray_cacher.release_to_bath_prior_to(-1)
 
@@ -295,31 +272,31 @@ def evolve(run_name,
 
         profiler.record('21cmFAST')
 
-        #===== prepare spectra for next step =====
-        #--- bath (separating out xray) ---
-        prop_phot_N = np.array(tf_wrapper.prop_phot_N) # propagating and emitted photons have been stored in tf_wrapper up to this point, time to get them out
-        emit_phot_N = np.array(tf_wrapper.emit_phot_N)
-        emit_bath_N, emit_xray_N = split_xray(emit_phot_N, abscs['photE'])
-        phot_bath_spec = Spectrum(abscs['photE'], prop_phot_N + emit_bath_N, rs=1+z_current, spec_type='N') # photons not emitted to the xray band are added to the bath (treated as uniform)
-        phot_bath_spec.redshift(1+z_next)
-
-        #--- xray ---
-        x_e_for_attenuation = 1 - np.mean(ionized_box.xH_box)
-        attenuation_arr = np.array(tf_wrapper.attenuation_arr(rs=1+z_current, x=np.mean(x_e_for_attenuation))) # convert from jax array
-        xray_cacher.advance_spectra(attenuation_arr, z_next)
-
-        xray_spec = Spectrum(abscs['photE'], emit_xray_N, rs=1+z_current, spec_type='N') # [ph/Bavg]
-        xray_spec.redshift(1+z_next)
-        xray_tot_eng = xray_spec.toteng()
-        if xray_tot_eng == 0.:
-            xray_rel_eng_box = np.zeros_like(tf_wrapper.xray_eng_box)
-        else:
-            xray_rel_eng_box = tf_wrapper.xray_eng_box / xray_tot_eng # [1 (relative energy)/Bavg]
         if not no_injection:
-            # TMP: duplicate the first state for interpolation
-            # if len(xray_cacher.states) == 0:
-            #     xray_cacher.cache(2*z_current-z_next, z_current, xray_spec, xray_rel_eng_box)
-            #     xray_cacher.states[0].ephemeral = True
+            #===== prepare spectra for next step =====
+            #--- bath (separating out xray) ---
+            prop_phot_N = np.array(tf_wrapper.prop_phot_N) # propagating and emitted photons have been stored in tf_wrapper up to this point, time to get them out
+            emit_phot_N = np.array(tf_wrapper.emit_phot_N)
+            emit_bath_N, emit_xray_N = split_xray(emit_phot_N, abscs['photE'])
+            phot_bath_spec = Spectrum(abscs['photE'], prop_phot_N + emit_bath_N, rs=1+z_current, spec_type='N') # photons not emitted to the xray band are added to the bath (treated as uniform)
+            phot_bath_spec.redshift(1+z_next)
+
+            #--- xray ---
+            x_e_for_attenuation = 1 - np.mean(ionized_box.xH_box)
+            attenuation_arr = np.array(tf_wrapper.attenuation_arr(rs=1+z_current, x=np.mean(x_e_for_attenuation))) # convert from jax array
+            xray_cacher.advance_spectra(attenuation_arr, z_next)
+
+            xray_spec = Spectrum(abscs['photE'], emit_xray_N, rs=1+z_current, spec_type='N') # [ph/Bavg]
+            xray_spec.redshift(1+z_next)
+            xray_tot_eng = xray_spec.toteng()
+            if xray_tot_eng == 0.:
+                xray_rel_eng_box = np.zeros_like(tf_wrapper.xray_eng_box)
+            else:
+                xray_rel_eng_box = tf_wrapper.xray_eng_box / xray_tot_eng # [1 (relative energy)/Bavg]
+            
+            if use_dummy_init and len(xray_cacher.states) == 0:
+                xray_cacher.cache(2*z_current-z_next, z_current, xray_spec, xray_rel_eng_box)
+                xray_cacher.states[0].isdummy = True
             xray_cacher.cache(z_current, z_next, xray_spec, xray_rel_eng_box)
 
         #===== calculate and save some quantities =====

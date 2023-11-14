@@ -14,7 +14,7 @@ from dm21cm.evolve import evolve
 
 if __name__ == '__main__':
 
-    run_name = 'xcis_phph_lieftime25_noLX_nopop2_leftriem_nos8'
+    run_name = 'xcis_phph_lifetime25_noLX_nopop2_leftriem'
 
     os.environ['DM21CM_DATA_DIR'] = '/n/holyscratch01/iaifi_lab/yitians/dm21cm/DM21cm/data/tf/zf01/data'
 
@@ -25,7 +25,7 @@ if __name__ == '__main__':
     _, return_dict = evolve(
         run_name = run_name,
         z_start = 45.,
-        z_end = 35.,
+        z_end = 5.,
         dm_params = DMParams(
             mode='decay',
             primary='phot_delta',
@@ -44,8 +44,8 @@ if __name__ == '__main__':
                 OMm = Planck18.Om0,
                 OMb = Planck18.Ob0,
                 POWER_INDEX = Planck18.meta['n'],
-                #SIGMA_8 = Planck18.meta['sigma8'],
-                SIGMA_8 = 1e-6,
+                SIGMA_8 = Planck18.meta['sigma8'],
+                #SIGMA_8 = 1e-6,
                 hlittle = Planck18.h,
             ),
             random_seed = 54321,
@@ -59,6 +59,7 @@ if __name__ == '__main__':
         #no_injection = True,
         #tf_on_device = False,
         use_xray_interp_shell = True,
+        use_left_riemann = True,
     )
 
     np.save(f'../outputs/dm21cm/{run_name}_records.npy', return_dict['records'])

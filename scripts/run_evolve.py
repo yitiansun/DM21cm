@@ -14,20 +14,22 @@ from dm21cm.evolve import evolve
 
 if __name__ == '__main__':
 
-    run_name = 'test'
+    run_name = 'xcis_xrayphph_lifetime26_noLX_nopop2_zf001'
+
+    os.environ['DM21CM_DATA_DIR'] = '/n/holyscratch01/iaifi_lab/yitians/dm21cm/DM21cm/data/tf/zf001/data'
 
     # set global params
     p21c.global_params.CLUMPING_FACTOR = 1.
-    #p21c.global_params.Pop2_ion = 0.
+    p21c.global_params.Pop2_ion = 0.
 
     return_dict = evolve(
         run_name = run_name,
         z_start = 45.,
-        z_end = 35.,
+        z_end = 5.,
         dm_params = DMParams(
             mode='decay',
             primary='phot_delta',
-            m_DM=1e8, # [eV]
+            m_DM=3e3, # [eV]
             lifetime=1e26, # [s]
         ),
         enable_elec = False,
@@ -51,11 +53,7 @@ if __name__ == '__main__':
         p21c_astro_params = p21c.AstroParams(L_X = 0.), # log10 value
         
         clear_cache = True,
-        #debug_flags = ['uniform_xray'], # homogeneous injection
-        #debug_flags = ['xraycheck', 'xc-noatten'], # our xray noatten to compare with 21cmfast
-        #debug_flags = ['xraycheck'], # our xray ST compare with DH
-        #debug_flags = ['xraycheck', 'xc-bath', 'xc-force-bath'], # our xray ST forced to bath compare with DH
         #tf_on_device = False,
     )
 
-    np.save(f'{run_name}_records.npy', return_dict['records'])
+    np.save(f'../outputs/dm21cm/{run_name}_records.npy', return_dict['records'])

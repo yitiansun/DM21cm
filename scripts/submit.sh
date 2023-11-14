@@ -1,7 +1,8 @@
 #!/bin/bash
 
 #SBATCH --job-name=evolvezf001
-#SBATCH --partition=shared
+#SBATCH --partition=gpu
+#SBATCH --gres=gpu:1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=32
 #SBATCH --mem=32GB

@@ -255,12 +255,13 @@ def evolve(run_name,
     arr_records = {k: np.array([r[k] for r in records]) for k in records[0].keys()}
     profiler.print_summary()
 
-    res_summary = {
-	'profiler' : profiler,
+    return_dict = {
+	    'profiler' : profiler,
         'records' : arr_records,
+        'brightness_temp' : brightness_temp,
     }
 
-    return brightness_temp, res_summary
+    return return_dict
 
 #===== utilities for evolve =====
 

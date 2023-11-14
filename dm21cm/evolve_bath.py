@@ -226,26 +226,23 @@ def evolve(run_name,
                 for i in range(len(z_mid)):
 
                     # Deciding on the interpolation nodes
-                    left_z = np.amax(xray_cacher.z_s[xray_cacher.z_s <= z_mid[i]])
-                    right_z = np.amin(xray_cacher.z_s[xray_cacher.z_s > z_mid[i]])
-                    assert left_z < z_mid[i] < right_z
+                    locs = np.where(xray_cacher.z_s <= z_mid[i])[0]
+                    left_z = np.amax(xray_cacher.z_s[locs])
+
+                    locs = np.where(xray_cacher.z_s > z_mid[i])[0]
+                    right_z = np.amin(xray_cacher.z_s[locs])
 
                     # Data at interpolation nodes
                     ftdEdz_right, rel_spec_right = xray_cacher.get_ftdEdz_spec(right_z)
                     ftdEdz_left,  rel_spec_left  = xray_cacher.get_ftdEdz_spec(left_z)
 
-                    trapz = False
-                    if trapz:
-                        # Linear interpolation weights
-                        left_weight = (right_z - z_mid[i]) / (right_z - left_z)
-                        right_weight = 1 - left_weight
+                    # Linear interpolation weights
+                    left_weight = (right_z - z_mid[i]) / (right_z - left_z)
+                    right_weight = 1 - left_weight
 
-                        # Weighted emissivity box
-                        ftdEdz = left_weight * ftdEdz_left + right_weight * ftdEdz_right
-                        rel_spec = left_weight * rel_spec_left + right_weight * rel_spec_right
-                    else: # left riemann (right if you count in time)
-                        ftdEdz = ftdEdz_left
-                        rel_spec = rel_spec_left
+                    # Weighted emissivity box
+                    ftdEdz = left_weight * ftdEdz_left + right_weight * ftdEdz_right
+                    rel_spec = left_weight * rel_spec_left + right_weight * rel_spec_right
 
                     # Do the smoothing and injection
                     dE = xray_cacher.smooth_box(ftdEdz, r_pairs[i, 0], r_pairs[i, 1])*dz[i]
@@ -262,8 +259,7 @@ def evolve(run_name,
                 # print('Radius of dumped states will be larger than:', np.amax(r_pairs))
                 phot_bath_spec += xray_cacher.release_to_bath_prior_to(z_from_r(np.amax(r_pairs)))
 
-                if not xray_cacher.states[0].ephemeral:
-                    tf_wrapper.inject_phot(xray_cacher.states[0].spectrum, inject_type='xray', weight_box=jnp.ones((box_dim, box_dim, box_dim)))
+                tf_wrapper.inject_phot(xray_cacher.states[0].spectrum, inject_type='xray', weight_box=jnp.ones((box_dim, box_dim, box_dim)))
 
                 ########################
                 ###   End New Code   ###
@@ -318,8 +314,7 @@ def evolve(run_name,
         if not no_injection:
             # TMP: duplicate the first state for interpolation
             # if len(xray_cacher.states) == 0:
-            #     xray_cacher.cache(2*z_current-z_next, z_current, xray_spec, xray_rel_eng_box)
-            #     xray_cacher.states[0].ephemeral = True
+            #     xray_cacher.cache(z_current-1, z_current, xray_spec, xray_rel_eng_box)
             xray_cacher.cache(z_current, z_next, xray_spec, xray_rel_eng_box)
 
         #===== calculate and save some quantities =====

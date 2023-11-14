@@ -16,4 +16,4 @@ source /n/home07/yitians/setup_dm21cm.sh
 
 cd /n/home07/yitians/dm21cm/DM21cm/scripts
 
-python run_evolve.py > ../outputs/stdout/xcis_phph_lieftime25_noLX_nopop2_gap.out
+python run_evolve.py > ../outputs/stdout/xcis_phph_lieftime25_noLX_nopop2_gap_nos8.out

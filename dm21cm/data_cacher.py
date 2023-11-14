@@ -24,14 +24,16 @@ class CachedState:
         z_end (float): The redshift at the end of the step, at which the spectrum is saved.
         spectrum (Spectrum): The X-ray spectrum.
         box (array): The X-ray brightness box.
+        ghost (bool): Whether this is a ghost state, i.e. used for interpolation not injection.
     """
 
-    def __init__(self, z_start, z_end, spectrum, box):
+    def __init__(self, z_start, z_end, spectrum, box, ghost=False):
 
         self.z_start = z_start
         self.z_end = z_end
         self.spectrum = spectrum
         self.spectrum.switch_spec_type('N')
+        self.ghost = ghost
 
         self.ftbox = fft.rfftn(box)
 
@@ -136,17 +138,22 @@ class Cacher:
 
         ind_first_nonbath = self.ind(z)
 
+        print('Before bath dump:', self.z_s)
+
         for i in range(ind_first_nonbath):
-            to_bath_spectrum += self.states[i].spectrum
+            if not self.states[i].ephemeral:
+                to_bath_spectrum += self.states[i].spectrum
             self.states[i].ftbox = 0
         del self.states[:ind_first_nonbath]
 
-        #print('Before bath dump:', self.z_s)
+        print('After bath dump:', self.z_s)
+
+        
         # while self.z_s[0] > z:
         #     to_bath_spectrum += self.states[0].spectrum
         #     self.states[0].ftbox = 0
         #     del self.states[0]
-        #print('After bath dump:', self.z_s)
+        
         gc.collect()
 
         return to_bath_spectrum

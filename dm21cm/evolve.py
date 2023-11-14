@@ -48,6 +48,7 @@ def evolve(run_name,
 
            use_left_riemann=False,
            use_dummy_init=False,
+           debug_all_bath=False,
            ):
     """
     Main evolution function.
@@ -173,80 +174,84 @@ def evolve(run_name,
 
         if not no_injection:
 
-            if len(xray_cacher.states) == 0:
-                # This is the first step. In the second step, we need to interpolate prior to the
-                # first step's state and something. By doing the trapz integration, it is consistent
-                # for us to put an all zero state in this step, since there is no emission.
-                if not use_dummy_init:
-                    zero_spectrum = Spectrum(abscs['photE'], np.zeros_like(abscs['photE']), spec_type='N', rs=1+z_current)
-                    xray_cacher.cache(z_current-1, z_current, zero_spectrum, np.zeros((box_dim, box_dim, box_dim)))
+            if not debug_all_bath:
+                if len(xray_cacher.states) == 0:
+                    # This is the first step. In the second step, we need to interpolate prior to the
+                    # first step's state and something. By doing the trapz integration, it is consistent
+                    # for us to put an all zero state in this step, since there is no emission.
+                    if not use_dummy_init:
+                        zero_spectrum = Spectrum(abscs['photE'], np.zeros_like(abscs['photE']), spec_type='N', rs=1+z_current)
+                        xray_cacher.cache(z_current-1, z_current, zero_spectrum, np.zeros((box_dim, box_dim, box_dim)))
 
-            else:
-                # conformal distance [cMpc] of z from current shell
-                r_from_z = np.vectorize(lambda z: phys.conformal_dx_between_z(z_current, z))
+                else:
+                    # conformal distance [cMpc] of z from current shell
+                    r_from_z = np.vectorize(lambda z: phys.conformal_dx_between_z(z_current, z))
 
-                # inverse of r_z
-                z_interp_arr = np.geomspace(z_current, 200., 1000)
-                z_from_r = interpolate.interp1d(r_from_z(z_interp_arr), z_interp_arr, bounds_error=False, fill_value='extrapolate')
+                    # inverse of r_z
+                    z_interp_arr = np.geomspace(z_current, 200., 1000)
+                    z_from_r = interpolate.interp1d(r_from_z(z_interp_arr), z_interp_arr, bounds_error=False, fill_value='extrapolate')
 
-                # Get the list of r-shells we smooth over
-                r_shells = get_r_shells(box_dim, box_len, n_target=40) # R_a in paper
-                cached_r = r_from_z(xray_cacher.z_s)
+                    # Get the list of r-shells we smooth over
+                    r_shells = get_r_shells(box_dim, box_len, n_target=40) # R_a in paper
+                    cached_r = r_from_z(xray_cacher.z_s)
 
-                r_max = np.min([box_len/2, np.amax(cached_r)])
-                r_shells = np.unique(np.minimum(r_shells, np.amin(cached_r[cached_r >= r_max])))
+                    r_max = np.min([box_len/2, np.amax(cached_r)])
+                    r_shells = np.unique(np.minimum(r_shells, np.amin(cached_r[cached_r >= r_max])))
 
-                # (Min, Max) pairs of the radii on which we smooth
-                r_pairs = np.stack((r_shells[:-1], r_shells[1:]), axis = -1)
+                    # (Min, Max) pairs of the radii on which we smooth
+                    r_pairs = np.stack((r_shells[:-1], r_shells[1:]), axis = -1)
 
-                # The midpoint smoothing radius and associated redshift
-                r_mid = (r_shells[1:] + r_shells[:-1]) / 2 # The midpoint of the smoothing
-                z_mid = z_from_r(r_mid) # z for the midpoint of the smoothing edge
+                    # The midpoint smoothing radius and associated redshift
+                    r_mid = (r_shells[1:] + r_shells[:-1]) / 2 # The midpoint of the smoothing
+                    z_mid = z_from_r(r_mid) # z for the midpoint of the smoothing edge
 
-                # The delta-z of the smoothing interval. Used to go from dEdz to dE
-                dz = np.diff(z_from_r(r_pairs), axis = 1)
+                    # The delta-z of the smoothing interval. Used to go from dEdz to dE
+                    dz = np.diff(z_from_r(r_pairs), axis = 1)
 
-                # Do the interpolated smoothing loop
-                for i in range(len(z_mid)):
+                    # Do the interpolated smoothing loop
+                    for i in range(len(z_mid)):
 
-                    # Deciding on the interpolation nodes
-                    left_z = np.amax(xray_cacher.z_s[xray_cacher.z_s <= z_mid[i]])
-                    right_z = np.amin(xray_cacher.z_s[xray_cacher.z_s > z_mid[i]])
-                    assert left_z < z_mid[i] < right_z
+                        # Deciding on the interpolation nodes
+                        left_z = np.amax(xray_cacher.z_s[xray_cacher.z_s <= z_mid[i]])
+                        right_z = np.amin(xray_cacher.z_s[xray_cacher.z_s > z_mid[i]])
+                        assert left_z < z_mid[i] < right_z
 
-                    # Data at interpolation nodes
-                    ftdEdz_right, rel_spec_right = xray_cacher.get_ftdEdz_spec(right_z)
-                    ftdEdz_left,  rel_spec_left  = xray_cacher.get_ftdEdz_spec(left_z)
+                        # Data at interpolation nodes
+                        ftdEdz_right, rel_spec_right = xray_cacher.get_ftdEdz_spec(right_z)
+                        ftdEdz_left,  rel_spec_left  = xray_cacher.get_ftdEdz_spec(left_z)
 
-                    if use_left_riemann: # left riemann (right if you count in time)
-                        ftdEdz = ftdEdz_left
-                        rel_spec = rel_spec_left
-                    else:
-                        # Linear interpolation weights
-                        left_weight = (right_z - z_mid[i]) / (right_z - left_z)
-                        right_weight = 1 - left_weight
+                        if use_left_riemann: # left riemann (right if you count in time)
+                            ftdEdz = ftdEdz_left
+                            rel_spec = rel_spec_left
+                        else:
+                            # Linear interpolation weights
+                            left_weight = (right_z - z_mid[i]) / (right_z - left_z)
+                            right_weight = 1 - left_weight
 
-                        # Weighted emissivity box
-                        ftdEdz = left_weight * ftdEdz_left + right_weight * ftdEdz_right
-                        rel_spec = left_weight * rel_spec_left + right_weight * rel_spec_right
-                        
+                            # Weighted emissivity box
+                            ftdEdz = left_weight * ftdEdz_left + right_weight * ftdEdz_right
+                            rel_spec = left_weight * rel_spec_left + right_weight * rel_spec_right
+                            
 
-                    # Do the smoothing and injection
-                    dE = xray_cacher.smooth_box(ftdEdz, r_pairs[i, 0], r_pairs[i, 1])*dz[i]
-                    tf_wrapper.inject_phot(rel_spec, inject_type='xray', weight_box=dE)
+                        # Do the smoothing and injection
+                        dE = xray_cacher.smooth_box(ftdEdz, r_pairs[i, 0], r_pairs[i, 1])*dz[i]
+                        tf_wrapper.inject_phot(rel_spec, inject_type='xray', weight_box=dE)
 
-                    del ftdEdz_right, ftdEdz_left, ftdEdz, rel_spec_right, rel_spec_left, rel_spec
-                    gc.collect()
+                        del ftdEdz_right, ftdEdz_left, ftdEdz, rel_spec_right, rel_spec_left, rel_spec
+                        gc.collect()
 
-                # We engineered our smoothing radii to end on a cached state. Now we dump everything prior
-                # to that cached state because it will never get used
-                phot_bath_spec += xray_cacher.release_to_bath_prior_to(z_from_r(np.amax(r_pairs)))
+                    # We engineered our smoothing radii to end on a cached state. Now we dump everything prior
+                    # to that cached state because it will never get used
+                    phot_bath_spec += xray_cacher.release_to_bath_prior_to(z_from_r(np.amax(r_pairs)))
 
-                if not xray_cacher.states[0].isdummy: # inject the gap state if it is not dummy
-                    tf_wrapper.inject_phot(xray_cacher.states[0].spectrum, inject_type='xray', weight_box=jnp.ones((box_dim, box_dim, box_dim)))
+                    if not xray_cacher.states[0].isdummy: # inject the gap state if it is not dummy
+                        tf_wrapper.inject_phot(xray_cacher.states[0].spectrum, inject_type='xray', weight_box=jnp.ones((box_dim, box_dim, box_dim)))
 
-            # if len(xray_cacher.states) > 0:
-            #     phot_bath_spec += xray_cacher.release_to_bath_prior_to(-1)
+            else: # debug all bath
+                if len(xray_cacher.states) > 0:
+                    for s in xray_cacher.states:
+                        phot_bath_spec += s.spectrum
+                    xray_cacher.states = []
 
             profiler.record('xray')
 

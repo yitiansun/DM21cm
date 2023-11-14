@@ -14,7 +14,7 @@ from dm21cm.evolve import evolve
 
 if __name__ == '__main__':
 
-    run_name = 'xcis_phph_lifetime25_noLX_nopop2_leftriem'
+    run_name = 'xcis_xrayphph_lifetime26_noLX_nopop2_trapz'
 
     os.environ['DM21CM_DATA_DIR'] = '/n/holyscratch01/iaifi_lab/yitians/dm21cm/DM21cm/data/tf/zf01/data'
 
@@ -29,8 +29,8 @@ if __name__ == '__main__':
         dm_params = DMParams(
             mode='decay',
             primary='phot_delta',
-            m_DM=1e8, # [eV]
-            lifetime=1e25, # [s]
+            m_DM=3e3, # [eV]
+            lifetime=1e26, # [s]
         ),
         enable_elec = False,
         
@@ -59,7 +59,8 @@ if __name__ == '__main__':
         #no_injection = True,
         #tf_on_device = False,
         use_xray_interp_shell = True,
-        use_left_riemann = True,
+        use_left_riemann = False,
+        debug_all_bath = False,
     )
 
     np.save(f'../outputs/dm21cm/{run_name}_records.npy', return_dict['records'])

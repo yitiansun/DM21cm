@@ -14,9 +14,9 @@ from dm21cm.evolve import evolve
 
 if __name__ == '__main__':
 
-    run_name = 'xcis_xrayphph_lifetime26_noLX_nopop2_zf001'
+    run_name = 'xcis_xrayphph_lifetime26_noLX_nopop2'
 
-    os.environ['DM21CM_DATA_DIR'] = '/n/holyscratch01/iaifi_lab/yitians/dm21cm/DM21cm/data/tf/zf001/data'
+    os.environ['DM21CM_DATA_DIR'] = '/n/holyscratch01/iaifi_lab/yitians/dm21cm/DM21cm/data/tf/zf01/data'
 
     # set global params
     p21c.global_params.CLUMPING_FACTOR = 1.
@@ -52,8 +52,10 @@ if __name__ == '__main__':
         ),
         p21c_astro_params = p21c.AstroParams(L_X = 0.), # log10 value
         
-        clear_cache = False,
+        clear_cache = True,
         #tf_on_device = False,
+
+        debug_all_bath = False,
     )
 
     np.save(f'../outputs/dm21cm/{run_name}_records.npy', return_dict['records'])

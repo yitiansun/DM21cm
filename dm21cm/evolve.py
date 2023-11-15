@@ -43,6 +43,8 @@ def evolve(run_name,
            use_tqdm=True,
            tf_on_device=True,
            no_injection=False,
+           
+           debug_all_bath=False,
            ):
     """
     Main evolution function.
@@ -170,6 +172,9 @@ def evolve(run_name,
                 xray_brightness_box, xray_spec, is_box_average = xray_cacher.get_annulus_data(
                     z_current, z_edges[i_z_shell], z_edges[i_z_shell+1]
                 )
+                if debug_all_bath:
+                    is_box_average = True
+                    xray_brightness_box = jnp.mean(xray_brightness_box) * jnp.ones_like(xray_brightness_box)
                 if is_box_average:                                          # if smoothing scale > box size,
                     phot_bath_spec.N += xray_spec.N                         # then we can just dump to the global bath spectrum
                     i_xray_loop_start = max(i_z_shell+1, i_xray_loop_start) # and we will not revisit this shell
@@ -200,28 +205,28 @@ def evolve(run_name,
 
         profiler.record('21cmFAST')
 
-        #===== prepare spectra for next step =====
-        #--- bath (separating out xray) ---
-        prop_phot_N = np.array(tf_wrapper.prop_phot_N) # propagating and emitted photons have been stored in tf_wrapper up to this point, time to get them out
-        emit_phot_N = np.array(tf_wrapper.emit_phot_N)
-        emit_bath_N, emit_xray_N = split_xray(emit_phot_N, abscs['photE'])
-        phot_bath_spec = Spectrum(abscs['photE'], prop_phot_N + emit_bath_N, rs=1+z_current, spec_type='N') # photons not emitted to the xray band are added to the bath (treated as uniform)
-        phot_bath_spec.redshift(1+z_next)
-
-        #--- xray ---
-        x_e_for_attenuation = 1 - np.mean(ionized_box.xH_box)
-        attenuation_arr = np.array(tf_wrapper.attenuation_arr(rs=1+z_current, x=np.mean(x_e_for_attenuation))) # convert from jax array
-        xray_cacher.advance_spectrum(attenuation_arr, z_next)
-
-        xray_spec = Spectrum(abscs['photE'], emit_xray_N, rs=1+z_current, spec_type='N') # [ph/Bavg]
-        xray_spec.redshift(1+z_next)
-        xray_tot_eng = np.dot(abscs['photE'], emit_xray_N)
-        if xray_tot_eng == 0.:
-            xray_rel_eng_box = np.zeros_like(tf_wrapper.xray_eng_box)
-        else:
-            xray_rel_eng_box = tf_wrapper.xray_eng_box / xray_tot_eng # [1 (relative energy)/Bavg]
         if not no_injection:
-            xray_cacher.cache(z_current, xray_rel_eng_box, xray_spec)
+            #===== prepare spectra for next step =====
+            #--- bath (separating out xray) ---
+            prop_phot_N = np.array(tf_wrapper.prop_phot_N) # propagating and emitted photons have been stored in tf_wrapper up to this point, time to get them out
+            emit_phot_N = np.array(tf_wrapper.emit_phot_N)
+            emit_bath_N, emit_xray_N = split_xray(emit_phot_N, abscs['photE'])
+            phot_bath_spec = Spectrum(abscs['photE'], prop_phot_N + emit_bath_N, rs=1+z_current, spec_type='N') # photons not emitted to the xray band are added to the bath (treated as uniform)
+            phot_bath_spec.redshift(1+z_next)
+
+            #--- xray ---
+            x_e_for_attenuation = 1 - np.mean(ionized_box.xH_box)
+            attenuation_arr = np.array(tf_wrapper.attenuation_arr(rs=1+z_current, x=np.mean(x_e_for_attenuation))) # convert from jax array
+            xray_cacher.advance_spectrum(attenuation_arr, z_next)
+
+            xray_spec = Spectrum(abscs['photE'], emit_xray_N, rs=1+z_current, spec_type='N') # [ph/Bavg]
+            xray_spec.redshift(1+z_next)
+            if np.mean(tf_wrapper.xray_eng_box) != 0.:
+                # dont' normalize w.r.t. to np.dot(abscs['photE'], emit_xray_N) because
+                # that contains not only the emission but propagation
+                xray_rel_eng_box = tf_wrapper.xray_eng_box / jnp.mean(tf_wrapper.xray_eng_box) # [1 (relative energy)/Bavg]
+            
+                xray_cacher.cache(z_current, xray_rel_eng_box, xray_spec)
 
         #===== calculate and save some quantities =====
         dE_inj_per_Bavg = dm_params.eng_per_inj * np.mean(inj_per_Bavg_box) # [eV/Bavg]

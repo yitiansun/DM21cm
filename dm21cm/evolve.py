@@ -226,7 +226,7 @@ def evolve(run_name,
                 # that contains not only the emission but propagation
                 xray_rel_eng_box = tf_wrapper.xray_eng_box / jnp.mean(tf_wrapper.xray_eng_box) # [1 (relative energy)/Bavg]
             
-                xray_cacher.cache(z_current, xray_rel_eng_box, xray_spec)
+            xray_cacher.cache(z_current, xray_rel_eng_box, xray_spec)
 
         #===== calculate and save some quantities =====
         dE_inj_per_Bavg = dm_params.eng_per_inj * np.mean(inj_per_Bavg_box) # [eV/Bavg]

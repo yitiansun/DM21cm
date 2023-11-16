@@ -235,6 +235,32 @@ class TransferFunctionWrapper:
         self.inject_phot(dm_params.inj_phot_spec, inject_type='ots', weight_box=inj_per_Bavg_box)
         if self.enable_elec:
             self.inject_elec(dm_params.inj_elec_spec, weight_box=inj_per_Bavg_box)
+
+
+    def d_x_e_box(self, debug_unif_delta_dep=False):
+
+        dep_ion_box = self.dep_box[...,0] / phys.rydberg + self.dep_box[...,1] / phys.He_ion_eng
+
+        if debug_unif_delta_dep:
+            extra_factor = self.params['nBs_box']
+        else:
+            extra_factor = 1.
+        return np.array(
+            dep_ion_box / self.params['nBs_box'] / phys.A_per_B * extra_factor
+        ) # [1/Bavg] / [B/Bavg] / [A/B] = [1/A]
+    
+    def d_T_k_box(self, debug_unif_delta_dep=False):
+
+        dep_heat_box = self.dep_box[...,3]
+
+        if debug_unif_delta_dep:
+            extra_factor = self.params['nBs_box']
+        else:
+            extra_factor = 1.
+        
+        return np.array(
+            2 / (3*phys.kB*(1+self.params['x_e_box'])) * dep_heat_box / self.params['nBs_box'] / phys.A_per_B * extra_factor
+        ) # [K/Bavg] / [B/Bavg] / [A/B] = [K/A]
         
 
     def populate_injection_boxes(self, input_heating, input_ionization, input_jalpha, dt, debug_even_split_f=False, ref_depE_per_B=None, debug_z=None, debug_unif_delta_dep=False, debug_depallion=False):

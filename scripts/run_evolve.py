@@ -19,7 +19,7 @@ if __name__ == '__main__':
     # p21c.global_params.NUM_FILTER_STEPS_FOR_Ts = 40
 
     return_dict = evolve(
-        run_name = f'xdecay_dc_zf001_scf10',
+        run_name = f'xdecay_dc_zf001_scf10_subdelta',
         z_start = 45.,
         z_end = 5.,
         dm_params = DMParams(
@@ -69,4 +69,5 @@ if __name__ == '__main__':
         adaptive_shell = 40,
 
         subcycle_factor = 10,
+        subcycle_evolve_delta = True,
     )

@@ -65,7 +65,8 @@ def evolve(run_name, z_start=..., z_end=...,
            debug_break_after_z=None,
            debug_record_extra=False,
 
-           subcycle_factor=10,
+           subcycle_factor=1,
+           subcycle_evolve_delta=False,
            ):
     """
     Main evolution function.
@@ -258,7 +259,7 @@ def evolve(run_name, z_start=..., z_end=...,
             delta_plus_one_box_tf = jnp.full_like(delta_plus_one_box, 1.)
         else:
             delta_plus_one_box_tf = delta_plus_one_box
-        tf_wrapper.set_params(rs=1+z_current, delta_plus_one_box=delta_plus_one_box_tf, x_e_box=x_e_box_tf+us)
+        tf_wrapper.set_params(rs=1+z_current, delta_plus_one_box=delta_plus_one_box_tf, x_e_box=x_e_box_tf)
         tf_wrapper.reset_phot() # reset photon each step, but deposition is reset only after populating boxes
         
         #===== photon injection and energy deposition =====
@@ -436,7 +437,12 @@ def evolve(run_name, z_start=..., z_end=...,
                     L_X_spec.N *= attenuation_arr
 
             #----- after possible ots deposition, advance and save -----
+            tmp_delta_var = np.std(perturbed_field.density)
             delta_cacher.cache(z_current, jnp.array(perturbed_field.density), L_X_spec)
+            if subcycle_evolve_delta:
+                perturbed_field = p21c.perturb_field(redshift=z_next, init_boxes=p21c_initial_conditions, write=False)
+            tmp_new_delta_var = np.std(perturbed_field.density)
+            print(tmp_new_delta_var/tmp_delta_var, flush=True)
 
             #===== prepare spectra for next step =====
             #--- bath (separating out xray) ---

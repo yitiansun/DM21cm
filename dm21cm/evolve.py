@@ -228,7 +228,7 @@ def evolve(run_name,
             else:
                 xray_rel_eng_box = np.zeros_like(tf_wrapper.xray_eng_box) # [1 (relative energy)/Bavg]
             
-            xray_cacher.cache(z_next, xray_rel_eng_box, xray_spec)
+            xray_cacher.cache(z_current, xray_rel_eng_box, xray_spec)
 
         #===== calculate and save some quantities =====
         dE_inj_per_Bavg = dm_params.eng_per_inj * np.mean(inj_per_Bavg_box) # [eV/Bavg]

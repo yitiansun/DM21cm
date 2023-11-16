@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=fix
+#SBATCH --job-name=xdecay_zf001
 #SBATCH --partition=iaifi_gpu
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks=1
@@ -17,4 +17,4 @@ source /n/home07/yitians/setup_dm21cm.sh
 
 cd /n/home07/yitians/dm21cm/DM21cm/scripts
 
-python run_evolve.py > sf_xdecayx10_nodplus1_dc_noLX_noxesink_nopop2_alldepion_uddn_01atten_bath_ots_zf001_fix.out
+python run_evolve.py > xdecay_zf001.out

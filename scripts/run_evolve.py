@@ -55,7 +55,7 @@ if __name__ == '__main__':
         
         clear_cache = True,
         #tf_on_device = False,
-        no_injection = True,
+        no_injection = False,
         use_DH_init = False,
 
         debug_all_bath = False,

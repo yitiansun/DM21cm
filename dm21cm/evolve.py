@@ -293,12 +293,13 @@ def evolve(run_name,
 
             xray_spec = Spectrum(abscs['photE'], emit_xray_N, rs=1+z_current, spec_type='N') # [ph/Bavg]
             xray_spec.redshift(1+z_next)
-            xray_tot_eng = xray_spec.toteng()
-            if xray_tot_eng == 0.:
-                xray_rel_eng_box = np.zeros_like(tf_wrapper.xray_eng_box)
+            if np.mean(tf_wrapper.xray_eng_box) != 0.:
+                # dont' normalize w.r.t. to np.dot(abscs['photE'], emit_xray_N) because
+                # that contains not only the emission but propagation
+                xray_rel_eng_box = tf_wrapper.xray_eng_box / jnp.mean(tf_wrapper.xray_eng_box) # [1 (relative energy)/Bavg]
             else:
-                xray_rel_eng_box = tf_wrapper.xray_eng_box / xray_tot_eng # [1 (relative energy)/Bavg]
-            
+                xray_rel_eng_box = np.zeros_like(tf_wrapper.xray_eng_box) # [1 (relative energy)/Bavg]
+
             if use_dummy_init and len(xray_cacher.states) == 0:
                 xray_cacher.cache(2*z_current-z_next, z_current, xray_spec, xray_rel_eng_box)
                 xray_cacher.states[0].isdummy = True

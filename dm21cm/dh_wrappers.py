@@ -90,6 +90,8 @@ class TransferFunctionWrapper:
 
         self.nBs_lowerbound = (1 + EPSILON) * np.min(self.abscs['nBs']) # [Bavg]
         self.load_tfs()
+        self.reset_phot()
+        self.reset_dep()
             
     def load_tfs(self):
         """Initialize transfer functions."""
@@ -108,9 +110,8 @@ class TransferFunctionWrapper:
         else:
             logging.info('TransferFunctionWrapper: Skipping electron transfer functions.')
             
-    def init_step(self, rs=..., delta_plus_one_box=..., x_e_box=..., T_k_box=...):
+    def set_params(self, rs=..., delta_plus_one_box=..., x_e_box=..., T_k_box=...):
         """Initializes parameters and receivers for injection step."""
-
         delta_plus_one_box = np.clip(delta_plus_one_box, self.nBs_lowerbound, None)
         self.params = dict(
             rs = rs,
@@ -124,8 +125,12 @@ class TransferFunctionWrapper:
             x_s = x_e_box.ravel(),
             out_of_bounds_action = 'clip',
         )
+
+    def reset_phot(self):
         self.prop_phot_N = np.zeros_like(self.abscs['photE']) # [N / Bavg]
         self.emit_phot_N = np.zeros_like(self.abscs['photE']) # [N / Bavg]
+
+    def reset_dep(self):
         self.dep_box = np.zeros((self.box_dim, self.box_dim, self.box_dim, len(self.abscs['dep_c']))) # [eV / Bavg]
 
     def inject_phot(self, in_spec, inject_type=..., weight_box=...):
@@ -225,8 +230,10 @@ class TransferFunctionWrapper:
         assert not np.any(np.isnan(input_ionization.input_ionization)), 'input_ionization has NaNs'
         assert not np.any(np.isnan(input_jalpha.input_jalpha)), 'input_jalpha has NaNs'
 
-        self.params = None # invalidate parameters
-        self.tf_kwargs = None # invalidate parameters
+        self.reset_dep()
+
+        # self.params = None # invalidate parameters
+        # self.tf_kwargs = None # invalidate parameters
 
     @property
     def xray_eng_box(self):

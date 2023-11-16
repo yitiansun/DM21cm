@@ -19,7 +19,7 @@ if __name__ == '__main__':
     # p21c.global_params.NUM_FILTER_STEPS_FOR_Ts = 40
 
     return_dict = evolve(
-        run_name = f'sf_xdecayx10_nodplus1_dc_noLX_noxesink_nopop2_alldepion_uddn_01atten_ots_fix',
+        run_name = f'xdecay_dc',
         z_start = 45.,
         z_end = 5.,
         zplusone_step_factor = 1.01,
@@ -51,21 +51,21 @@ if __name__ == '__main__':
 
         clear_cache = True,
         use_tqdm = True,
-        #debug_flags = ['xc-bath', 'xc-custom-SFRD'],
-        debug_flags = ['xc-ots', 'xc-custom-SFRD', 'xc-01attenuation'],
-        #debug_flags = ['xc-ots', 'xc-custom-SFRD', 'xc-01attenuation'],
-        #debug_flags = ['xc-custom-SFRD'],
+        debug_break_after_z = None,
+        debug_record_extra = False,
+        
+        # 21cmFAST xray injection
         use_21cmfast_xray = False,
         debug_turn_off_pop2ion = True,
+        debug_xray_Rmax_p21c = 500.,
+
+        # DM21cm xray injection
+        debug_flags = ['xc-custom-SFRD', 'xc-01attenuation'],
         debug_unif_delta_dep = True,
         debug_unif_delta_tf_param = True,
-        st_multiplier = 10.,
+        st_multiplier = 1.,
         debug_nodplus1 = True,
-        debug_xray_Rmax_shell = 500.,
-        debug_xray_Rmax_bath = 500.,
-        debug_xray_Rmax_p21c = 500.,
-        #debug_use_21_totinj = "test_shell.out",
-        debug_depallion = True,
-        # adaptive_shell = 40,
-        debug_record_extra = True,
+        debug_xray_Rmax_shell = 430.,
+        debug_xray_Rmax_bath = 430.,
+        adaptive_shell = 40,
     )

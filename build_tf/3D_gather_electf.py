@@ -17,18 +17,18 @@ if __name__ == '__main__':
     run_name = args.name
     data_dir = f"{os.environ['DM21CM_DATA_DIR']}/tf/{run_name}/elec"
 
-    abscs = load_h5_dict(f"{os.environ['DM21CM_DIR']}/data/abscissas/abscs_{run_name}e.h5")
+    abscs = load_h5_dict(f"{os.environ['DM21CM_DIR']}/data/abscissas/abscs_{run_name}.h5")
 
     tfgv = np.zeros(( # rxneo. in: elec, out: phot
         len(abscs['rs']),
-        len(abscs['x']),
+        len(abscs['x_elec']),
         len(abscs['nBs']),
         len(abscs['elecEk']),
         len(abscs['photE'])
     ))
     depgv = np.zeros(( # rxneo. in: elec, out: dep_c
         len(abscs['rs']),
-        len(abscs['x']),
+        len(abscs['x_elec']),
         len(abscs['nBs']),
         len(abscs['elecEk']),
         len(abscs['dep_c'])

@@ -1,7 +1,7 @@
 #!/bin/bash
 
-#SBATCH --job-name=3C_zf01
-#SBATCH --partition=iaifi_gpu_mig
+#SBATCH --job-name=3C_zf001
+#SBATCH --partition=shared
 #SBATCH --array=0-9
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
@@ -17,4 +17,4 @@ source /n/home07/yitians/setup_dm21cm.sh
 
 cd /n/home07/yitians/dm21cm/DM21cm/build_tf
 
-python 3C_make_electf.py -n zf01 -i $SLURM_ARRAY_TASK_ID
+python 3C_make_electf.py -n zf001 -i $SLURM_ARRAY_TASK_ID

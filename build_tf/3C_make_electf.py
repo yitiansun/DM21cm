@@ -45,7 +45,7 @@ if __name__ == '__main__':
     stop_after_n = np.inf
 
     #===== Initialize =====
-    abscs = load_h5_dict(f"{WDIR}/data/abscissas/abscs_{run_name}e.h5")
+    abscs = load_h5_dict(f"{WDIR}/data/abscissas/abscs_{run_name}.h5")
     dlnz = abscs['dlnz']
     inj_abscs = abscs['elecEk'] + dh_phys.me
     i_xray_fm = np.searchsorted(abscs['photE'], xray_eng_range[0])
@@ -56,13 +56,13 @@ if __name__ == '__main__':
 
     tfgv = np.zeros(( # rxeo. in: elec, out: phot
         len(abscs['rs']),
-        len(abscs['x']),
+        len(abscs['x_elec']),
         len(abscs['elecEk']),
         len(abscs['photE'])
     ))
     depgv = np.zeros(( # rxeo. in: elec, out: dep_c
         len(abscs['rs']),
-        len(abscs['x']),
+        len(abscs['x_elec']),
         len(abscs['elecEk']),
         len(abscs['dep_c'])
     )) # channels: {H ionization, He ionization, excitation, heat, continuum, xray}
@@ -79,7 +79,7 @@ if __name__ == '__main__':
     n_run = -1
 
     if use_tqdm:
-        pbar = tqdm( total = len(abscs['rs'])*len(abscs['x']) )
+        pbar = tqdm( total = len(abscs['rs'])*len(abscs['x_elec']) )
 
     i_nBs = args.i_nBs
     nBs = abscs['nBs'][i_nBs]
@@ -98,7 +98,7 @@ if __name__ == '__main__':
         # dt = dlnz / dh_phys.hubble(rs) # DH dt
         # dt = dts[i_rs, 1] # (rs, step) # IDL dt
         
-        for i_x, x in enumerate(abscs['x']):
+        for i_x, x in enumerate(abscs['x_elec']):
 
             #===== Get electron cooling tfs =====
             xHII_elec_cooling  = x
@@ -263,8 +263,8 @@ if __name__ == '__main__':
                 #===== Dependent variables (Xray) =====
                 if include_f_xray:
                     f_xray = np.dot(abscs['photE'][i_xray_fm:i_xray_to], phot_spec_N[i_xray_fm:i_xray_to]) / injE
-                    # if i_xray_fm <= i_injE and i_injE < i_xray_to:
-                    #     f_xray -= phot_spec_N[i_injE] # ignore diagonal for now # NEED TO EXTRACT PROP
+                    if i_xray_fm <= i_injE and i_injE < i_xray_to:
+                        f_xray -= phot_spec_N[i_injE] # ignore diagonal for now # NEED TO EXTRACT PROP
                     f_dep = np.append(f_dep, f_xray)
 
                 #===== Populate transfer functions =====

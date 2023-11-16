@@ -18,7 +18,7 @@ if __name__ == "__main__":
     #===== Config =====
     parser = argparse.ArgumentParser()
     parser.add_argument('-n', '--name', type=str, help='run name')
-    parser.add_argument('-t', '--type', type=str, help="{'phot', 'elec'}")
+    parser.add_argument('-t', '--type', type=str, help="{'phot'}") # elec discontinued
     args = parser.parse_args()
 
     run_name = args.name

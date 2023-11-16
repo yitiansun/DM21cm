@@ -187,8 +187,8 @@ if __name__ == '__main__':
                     #===== Dependent variables (Xray) =====
                     if include_f_xray:
                         f_xray = np.dot(abscs['photE'][i_xray_fm:i_xray_to], phot_spec_N[i_xray_fm:i_xray_to]) / injE
-                        # if i_xray_fm <= i_injE and i_injE < i_xray_to:
-                        #     f_xray -= phot_spec_N[i_injE] # ignore diagonal for now # NEED TO EXTRACT PROP
+                        if i_xray_fm <= i_injE and i_injE < i_xray_to:
+                            f_xray -= phot_spec_N[i_injE] # ignore diagonal for now # NEED TO EXTRACT PROP
                         f_dep = np.append(f_dep, f_xray)
 
                     #===== Populate transfer functions =====

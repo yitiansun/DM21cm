@@ -2,9 +2,9 @@
 | name          | 0 | 1 | 2 | 3A | 3B | 3C | 3D | 4 phot | 4 elec | 3B DH |
 |---------------|---|---|---|----|----|----|----|--------|--------|-------|
 | zf01          | V | V | V | V  | V  | V  | V  |   V    |   V    |   V   |
-| zf01-noHe     | / | / | B | B  | B  | B  | B  |   B    |   B    |   /   |
-| zf001         | V | V | V | V  |    |    |    |   V    |        |   B   |
-| zf001-noHe    | / | / | B | B  | B  | B  | B  |   B    |   B    |   /   |
+| zf002         | V | V | V | V  |    |    |    |   V    |        |       |
+| zf005         | V | V | V | V  |    |    |    |   V    |        |       |
+| zf001         | V | V | V | V  | V  | V  | V  |   V    |   V    |       |
 
 - _: next
 - R: running

@@ -45,6 +45,7 @@ def evolve(run_name,
            no_injection=False,
            
            debug_all_bath=False,
+           subcycle_factor=10,
            ):
     """
     Main evolution function.
@@ -87,7 +88,7 @@ def evolve(run_name,
 
     EPSILON = 1e-6
     p21c.global_params.Z_HEAT_MAX = z_start + EPSILON
-    p21c.global_params.ZPRIME_STEP_FACTOR = abscs['zplusone_step_factor']
+    p21c.global_params.ZPRIME_STEP_FACTOR = abscs['zplusone_step_factor'] ** subcycle_factor
 
     box_dim = p21c_initial_conditions.user_params.HII_DIM
     box_len = p21c_initial_conditions.user_params.BOX_LEN
@@ -107,7 +108,8 @@ def evolve(run_name,
     xray_cacher.clear_cache()
 
     #--- redshift stepping ---
-    z_edges = get_z_edges(z_start, z_end, p21c.global_params.ZPRIME_STEP_FACTOR)
+    z_edges = get_z_edges(z_start, z_end, abscs['zplusone_step_factor'])
+    z_edges_coarse = get_z_edges(z_start, z_end, p21c.global_params.ZPRIME_STEP_FACTOR)
 
     #===== initial steps =====
     dh_wrapper = DarkHistoryWrapper(dm_params, prefix=p21c.config[f'direc'])
@@ -116,7 +118,7 @@ def evolve(run_name,
     # - global_params.TK_at_Z_HEAT_MAX is not set correctly (it is probably set and evolved for a step)
     # - global_params.XION_at_Z_HEAT_MAX is not set correctly (it is probably set and evolved for a step)
     # - first step ignores any values added to spin_temp.Tk_box and spin_temp.x_e_box
-    z_match = z_edges[1]
+    z_match = z_edges_coarse[1]
     if use_DH_init:
         dh_wrapper.evolve(end_rs=(1+z_match)*0.9, rerun=rerun_DH)
         T_k_DH_init, x_e_DH_init, phot_bath_spec = dh_wrapper.get_init_cond(rs=1+z_match)
@@ -131,7 +133,10 @@ def evolve(run_name,
         ionized_box.xH_box = 1 - spin_temp.x_e_box
 
     #===== main loop =====
-    z_edges = z_edges[1:] # Maybe fix this later
+    # advance z_edges to start with z_match
+    while not np.isclose(z_edges[0], z_match):
+        z_edges = z_edges[1:]
+    z_edges_coarse = z_edges_coarse[1:]
     z_range = range(len(z_edges)-1)
     records = []
     if use_tqdm:
@@ -146,6 +151,7 @@ def evolve(run_name,
     for i_z in z_range:
 
         print_str = f'i_z={i_z}/{len(z_edges)-2} z={z_edges[i_z]:.2f}'
+        i_z_coarse = i_z // subcycle_factor
 
         #===== physical quantities =====
         z_current = z_edges[i_z]
@@ -156,7 +162,8 @@ def evolve(run_name,
         delta_plus_one_box = 1 + np.asarray(perturbed_field.density)
         x_e_box = np.asarray(1 - ionized_box.xH_box)
         T_k_box = np.asarray(spin_temp.Tk_box)
-        tf_wrapper.init_step(rs=1+z_current, delta_plus_one_box=delta_plus_one_box, x_e_box=x_e_box, T_k_box=T_k_box)
+        tf_wrapper.set_params(rs=1+z_current, delta_plus_one_box=delta_plus_one_box, x_e_box=x_e_box, T_k_box=T_k_box)
+        tf_wrapper.reset_phot() # reset photon each step, but deposition is reset only after populating boxes
 
         #--- for dark matter ---
         nBavg = phys.n_B * (1+z_current)**3 # [Bavg / (physical cm)^3]
@@ -191,21 +198,6 @@ def evolve(run_name,
 
             profiler.record('bath+dm')
 
-        #===== 21cmFAST step =====
-        perturbed_field = p21c.perturb_field(redshift=z_next, init_boxes=p21c_initial_conditions)
-        input_heating, input_ionization, input_jalpha = gen_injection_boxes(z_next, p21c_initial_conditions)
-        tf_wrapper.populate_injection_boxes(input_heating, input_ionization, input_jalpha, dt,)
-        spin_temp, ionized_box, brightness_temp = p21c_step(
-            perturbed_field, spin_temp, ionized_box,
-            input_heating = input_heating,
-            input_ionization = input_ionization,
-            input_jalpha = input_jalpha,
-            astro_params = p21c_astro_params
-        )
-
-        profiler.record('21cmFAST')
-
-        if not no_injection:
             #===== prepare spectra for next step =====
             #--- bath (separating out xray) ---
             prop_phot_N = np.array(tf_wrapper.prop_phot_N) # propagating and emitted photons have been stored in tf_wrapper up to this point, time to get them out
@@ -230,30 +222,50 @@ def evolve(run_name,
             
             xray_cacher.cache(z_current, xray_rel_eng_box, xray_spec)
 
-        #===== calculate and save some quantities =====
-        dE_inj_per_Bavg = dm_params.eng_per_inj * np.mean(inj_per_Bavg_box) # [eV/Bavg]
-        dE_inj_per_Bavg_unclustered = dE_inj_per_Bavg / dm_params.struct_boost(1+z_current) # [eV/Bavg]
+            profiler.record('prep_next')
 
-        records.append({
-            'z'   : z_next,
-            'T_s' : np.mean(spin_temp.Ts_box), # [mK]
-            'T_b' : np.mean(brightness_temp.brightness_temp), # [K]
-            'T_k' : np.mean(spin_temp.Tk_box), # [K]
-            'x_e' : np.mean(spin_temp.x_e_box), # [1]
-            '1-x_H' : np.mean(1 - ionized_box.xH_box), # [1]
-            'E_phot' : phot_bath_spec.toteng(), # [eV/Bavg]
-            'phot_N' : phot_bath_spec.N, # [ph/Bavg]
-            'dE_inj_per_B' : dE_inj_per_Bavg, # [eV/Bavg]
-            'dE_inj_per_Bavg_unclustered' : dE_inj_per_Bavg_unclustered, # [eV/Bavg]
-            'dep_ion'  : np.mean(tf_wrapper.dep_box[...,0] + tf_wrapper.dep_box[...,1]), # [eV/Bavg]
-            'dep_exc'  : np.mean(tf_wrapper.dep_box[...,2]), # [eV/Bavg]
-            'dep_heat' : np.mean(tf_wrapper.dep_box[...,3]), # [eV/Bavg]
-            'x_e_slice' : np.array(spin_temp.x_e_box[0]), # [1]
-            'x_H_slice' : np.array(ionized_box.xH_box[0]), # [1]
-            'T_k_slice' : np.array(spin_temp.Tk_box[0]), # [K]
-        })
+        #===== 21cmFAST step =====
+        # check if z_next matches
+        if (i_z_coarse + 1) * subcycle_factor == (i_z + 1):
 
-        profiler.record('prep_next')
+            #print(f'evolves 21cmFAST at i_z={i_z}, i_z_coarse={i_z_coarse}, z_next={z_next:.2f}={z_edges_coarse[i_z_coarse+1]:.2f}')
+            assert np.isclose(z_next, z_edges_coarse[i_z_coarse+1]) # cross check remove later
+
+            perturbed_field = p21c.perturb_field(redshift=z_next, init_boxes=p21c_initial_conditions)
+            input_heating, input_ionization, input_jalpha = gen_injection_boxes(z_next, p21c_initial_conditions)
+            tf_wrapper.populate_injection_boxes(input_heating, input_ionization, input_jalpha, dt,)
+            spin_temp, ionized_box, brightness_temp = p21c_step(
+                perturbed_field, spin_temp, ionized_box,
+                input_heating = input_heating,
+                input_ionization = input_ionization,
+                input_jalpha = input_jalpha,
+                astro_params = p21c_astro_params
+            )
+
+            profiler.record('21cmFAST')
+
+            #===== calculate and save some quantities =====
+            dE_inj_per_Bavg = dm_params.eng_per_inj * np.mean(inj_per_Bavg_box) # [eV/Bavg]
+            dE_inj_per_Bavg_unclustered = dE_inj_per_Bavg / dm_params.struct_boost(1+z_current) # [eV/Bavg]
+
+            records.append({
+                'z'   : z_next,
+                'T_s' : np.mean(spin_temp.Ts_box), # [mK]
+                'T_b' : np.mean(brightness_temp.brightness_temp), # [K]
+                'T_k' : np.mean(spin_temp.Tk_box), # [K]
+                'x_e' : np.mean(spin_temp.x_e_box), # [1]
+                '1-x_H' : np.mean(1 - ionized_box.xH_box), # [1]
+                'E_phot' : phot_bath_spec.toteng(), # [eV/Bavg]
+                'phot_N' : phot_bath_spec.N, # [ph/Bavg]
+                'dE_inj_per_B' : dE_inj_per_Bavg, # [eV/Bavg]
+                'dE_inj_per_Bavg_unclustered' : dE_inj_per_Bavg_unclustered, # [eV/Bavg]
+                'dep_ion'  : np.mean(tf_wrapper.dep_box[...,0] + tf_wrapper.dep_box[...,1]), # [eV/Bavg]
+                'dep_exc'  : np.mean(tf_wrapper.dep_box[...,2]), # [eV/Bavg]
+                'dep_heat' : np.mean(tf_wrapper.dep_box[...,3]), # [eV/Bavg]
+                'x_e_slice' : np.array(spin_temp.x_e_box[0]), # [1]
+                'x_H_slice' : np.array(ionized_box.xH_box[0]), # [1]
+                'T_k_slice' : np.array(spin_temp.Tk_box[0]), # [K]
+            })
 
         if not use_tqdm:
             print(print_str, flush=True)

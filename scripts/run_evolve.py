@@ -14,14 +14,13 @@ from dm21cm.evolve import evolve
 
 if __name__ == '__main__':
 
-    run_name = 'test'
+    run_name = 'xcis_xrayphph_lifetime26_noLX_nopop2_zf002'
 
-    os.environ['DM21CM_DATA_DIR'] = '/n/holyscratch01/iaifi_lab/yitians/dm21cm/DM21cm/data/tf/zf01/data'
+    os.environ['DM21CM_DATA_DIR'] = '/n/holyscratch01/iaifi_lab/yitians/dm21cm/DM21cm/data/tf/zf002/data'
 
     # set global params
     p21c.global_params.CLUMPING_FACTOR = 1.
-    #p21c.global_params.Pop2_ion = 0.
-    p21c.global_params.FAST_FCOLL_TABLE = True
+    p21c.global_params.Pop2_ion = 0.
 
     return_dict = evolve(
         run_name = run_name,
@@ -31,7 +30,7 @@ if __name__ == '__main__':
             mode='decay',
             primary='phot_delta',
             m_DM=3e3, # [eV]
-            lifetime=1e50, # [s]
+            lifetime=1e26, # [s]
         ),
         enable_elec = False,
         
@@ -51,13 +50,12 @@ if __name__ == '__main__':
             random_seed = 54321,
             write = True,
         ),
-        p21c_astro_params = p21c.AstroParams(L_X = 40.), # log10 value
+        p21c_astro_params = p21c.AstroParams(L_X = 0.), # log10 value
         
         clear_cache = True,
         #tf_on_device = False,
-        no_injection = False,
-        use_DH_init = False,
-
+        #no_injection = False,
+        #use_DH_init = False,
         debug_all_bath = False,
     )
 

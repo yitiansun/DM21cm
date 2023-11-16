@@ -225,6 +225,8 @@ def evolve(run_name,
                 # dont' normalize w.r.t. to np.dot(abscs['photE'], emit_xray_N) because
                 # that contains not only the emission but propagation
                 xray_rel_eng_box = tf_wrapper.xray_eng_box / jnp.mean(tf_wrapper.xray_eng_box) # [1 (relative energy)/Bavg]
+            else:
+                xray_rel_eng_box = np.zeros_like(tf_wrapper.xray_eng_box) # [1 (relative energy)/Bavg]
             
             xray_cacher.cache(z_current, xray_rel_eng_box, xray_spec)
 

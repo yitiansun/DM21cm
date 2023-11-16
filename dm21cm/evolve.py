@@ -41,7 +41,7 @@ logging.getLogger('py21cmfast.wrapper').setLevel(logging.CRITICAL+1)
 
 L_X_numerical_factor = 1e60 # make float happy
 
-def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
+def evolve(run_name, z_start=..., z_end=...,
            dm_params=..., enable_elec=False,
            p21c_initial_conditions=...,
            clear_cache=True,
@@ -64,6 +64,8 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
            adaptive_shell=None,
            debug_break_after_z=None,
            debug_record_extra=False,
+
+           subcycle_factor=10,
            ):
     """
     Main evolution function.
@@ -72,7 +74,6 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
         run_name (str): Name of run. Used for cache directory.
         z_start (float): Starting redshift.
         z_end (float): Ending redshift.
-        zplusone_step_factor (float): (1+z) / (1+z_one_step_earlier). Must be greater than 1.
         dm_params (DMParams): Dark matter (DM) parameters.
         enable_elec (bool): Whether to enable electron injection.
         p21c_initial_conditions (InitialConditions): Initial conditions from py21cmfast.
@@ -112,8 +113,11 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
     #===== initialize =====
     #--- physics parameters ---
     EPSILON = 1e-6
+
+    abscs = load_h5_dict(f"{data_dir}/abscissas.h5")
+
     p21c.global_params.Z_HEAT_MAX = z_start + EPSILON
-    p21c.global_params.ZPRIME_STEP_FACTOR = zplusone_step_factor
+    p21c.global_params.ZPRIME_STEP_FACTOR = abscs['zplusone_step_factor'] ** subcycle_factor
     p21c.global_params.CLUMPING_FACTOR = 1.
     if debug_turn_off_pop2ion:
         p21c.global_params.Pop2_ion = 0.
@@ -127,9 +131,6 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
     for i in range(10):
         print(f'astro_params.L_X = {astro_params.L_X}', flush=True)
 
-    abscs = load_h5_dict(f"{data_dir}/abscissas.h5")
-    if not np.isclose(np.log(zplusone_step_factor), abscs['dlnz']):
-        raise ValueError('zplusone_step_factor and abscs mismatch')
     dm_params.set_inj_specs(abscs)
 
     box_dim = p21c_initial_conditions.user_params.HII_DIM
@@ -185,7 +186,8 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
     ST_SFRD_Interpolator = interpolate.interp1d(z_range, st_sfrd_table * st_multiplier)
 
     #--- redshift stepping ---
-    z_edges = get_z_edges(z_start, z_end, p21c.global_params.ZPRIME_STEP_FACTOR)
+    z_edges = get_z_edges(z_start, z_end, abscs['zplusone_step_factor'])
+    z_edges_coarse = get_z_edges(z_start, z_end, p21c.global_params.ZPRIME_STEP_FACTOR)
 
     #--- debug ---
     if debug_use_21_totinj is not None:
@@ -205,7 +207,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
     # - global_params.TK_at_Z_HEAT_MAX is not set correctly (it is probably set and evolved for a step)
     # - global_params.XION_at_Z_HEAT_MAX is not set correctly (it is probably set and evolved for a step)
     # - first step ignores any values added to spin_temp.Tk_box and spin_temp.x_e_box
-    z_match = z_edges[1]
+    z_match = z_edges_coarse[1]
     dh_wrapper.evolve(end_rs=(1+z_match)*0.9, rerun=False)
     T_k_DH_init, x_e_DH_init, phot_bath_spec = dh_wrapper.get_init_cond(rs=1+z_match)
 
@@ -219,11 +221,15 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
     records_extra = []
 
     #===== main loop =====
+    # advance z_edges to start with z_match
+    while not np.isclose(z_edges[0], z_match):
+        z_edges = z_edges[1:]
+    z_edges_coarse = z_edges_coarse[1:]
+
     #--- trackers ---
     i_xraycheck_shell_start = 0
     i_xraycheck_bath_start = 0
 
-    z_edges = z_edges[1:] # Maybe fix this later
     z_range = range(len(z_edges)-1)
     if use_tqdm:
         from tqdm import tqdm
@@ -235,6 +241,7 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
     for i_z in z_range:
 
         print_str += f'i_z={i_z}/{len(z_edges)-2} z={z_edges[i_z]:.2f}'
+        i_z_coarse = i_z // subcycle_factor
 
         z_current = z_edges[i_z]
         z_next = z_edges[i_z+1]
@@ -251,11 +258,8 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
             delta_plus_one_box_tf = jnp.full_like(delta_plus_one_box, 1.)
         else:
             delta_plus_one_box_tf = delta_plus_one_box
-        tf_wrapper.init_step(
-            rs = 1 + z_current,
-            delta_plus_one_box = delta_plus_one_box_tf,
-            x_e_box = x_e_box_tf,
-        )
+        tf_wrapper.set_params(rs=1+z_current, delta_plus_one_box=delta_plus_one_box_tf, x_e_box=x_e_box_tf+us)
+        tf_wrapper.reset_phot() # reset photon each step, but deposition is reset only after populating boxes
         
         #===== photon injection and energy deposition =====
         xraycheck_bath_toteng_arr = []
@@ -433,96 +437,95 @@ def evolve(run_name, z_start=..., z_end=..., zplusone_step_factor=...,
 
             #----- after possible ots deposition, advance and save -----
             delta_cacher.cache(z_current, jnp.array(perturbed_field.density), L_X_spec)
-        
+
+            #===== prepare spectra for next step =====
+            #--- bath (separating out xray) ---
+            prop_phot_N, emit_phot_N = tf_wrapper.prop_phot_N, tf_wrapper.emit_phot_N # propagating and emitted photons have been stored in tf_wrapper up to this point, time to get them out
+            # tmp fix 10.2 eV double counting
+            prop_phot_N = np.array(prop_phot_N)
+            emit_phot_N = np.array(emit_phot_N)
+            prop_phot_N[149] = 0.
+            emit_bath_N, emit_xray_N = split_xray(emit_phot_N, abscs['photE'])
+            phot_bath_spec = Spectrum(abscs['photE'], prop_phot_N + emit_bath_N, rs=1+z_current, spec_type='N') # photons not emitted to the xray band are added to the bath (treated as uniform)
+            phot_bath_spec.redshift(1+z_next)
+
         #===== 21cmFAST step =====
-        if i_z > 0: # TEMPORARY: catch NaNs before they go into 21cmFAST
-            assert not np.any(np.isnan(input_heating.input_heating)), 'input_heating has NaNs'
-            assert not np.any(np.isnan(input_ionization.input_ionization)), 'input_ionization has NaNs'
-            assert not np.any(np.isnan(input_jalpha.input_jalpha)), 'input_jalpha has NaNs'
-        perturbed_field = p21c.perturb_field(redshift=z_next, init_boxes=p21c_initial_conditions)
-        input_heating, input_ionization, input_jalpha = gen_injection_boxes(z_next, p21c_initial_conditions)
-        if debug_use_21_totinj is not None:
-            ref_depE_per_B = ref_interp(z_current) * phys.A_per_B
-        else:
-            ref_depE_per_B = None
-        tf_wrapper.populate_injection_boxes(
-            input_heating, input_ionization, input_jalpha, dt,
-            debug_even_split_f=False,
-            ref_depE_per_B=ref_depE_per_B,
-            debug_z = z_current,
-            debug_unif_delta_dep = debug_unif_delta_dep,
-            debug_depallion = debug_depallion,
-        )
-        spin_temp, ionized_box, brightness_temp = p21c_step(
-            perturbed_field, spin_temp, ionized_box,
-            input_heating = input_heating,
-            input_ionization = input_ionization,
-            input_jalpha = input_jalpha,
-            astro_params=astro_params
-        )
-        
-        #===== prepare spectra for next step =====
-        #--- bath (separating out xray) ---
-        prop_phot_N, emit_phot_N = tf_wrapper.prop_phot_N, tf_wrapper.emit_phot_N # propagating and emitted photons have been stored in tf_wrapper up to this point, time to get them out
-        # tmp fix 10.2 eV double counting
-        prop_phot_N = np.array(prop_phot_N)
-        emit_phot_N = np.array(emit_phot_N)
-        prop_phot_N[149] = 0.
-        emit_bath_N, emit_xray_N = split_xray(emit_phot_N, abscs['photE'])
-        phot_bath_spec = Spectrum(abscs['photE'], prop_phot_N + emit_bath_N, rs=1+z_current, spec_type='N') # photons not emitted to the xray band are added to the bath (treated as uniform)
-        phot_bath_spec.redshift(1+z_next)
+        # check if z_next matches
+        if (i_z_coarse + 1) * subcycle_factor == (i_z + 1):
 
-        #--- xray ---
-        pass
-        
-        #===== calculate and save some global quantities =====
-        dE_inj_per_Bavg = dm_params.eng_per_inj * np.mean(inj_per_Bavg_box) # [eV per Bavg]
-        dE_inj_per_Bavg_unclustered = dE_inj_per_Bavg / dm_params.struct_boost(1+z_current)
-        
-        record = {
-            'z'   : z_next,
-            'T_s' : np.mean(spin_temp.Ts_box), # [mK]
-            'T_b' : np.mean(brightness_temp.brightness_temp), # [K]
-            'T_k' : np.mean(spin_temp.Tk_box), # [K]
-            'x_e' : np.mean(spin_temp.x_e_box), # [1]
-            '1-x_H' : np.mean(1 - ionized_box.xH_box), # [1]
-            'E_phot' : phot_bath_spec.toteng(), # [eV/Bavg]
-            'phot_N' : phot_bath_spec.N, # [ph/Bavg]
-            'dE_inj_per_B' : dE_inj_per_Bavg,
-            'dE_inj_per_Bavg_unclustered' : dE_inj_per_Bavg_unclustered,
-            'dep_ion'  : np.mean(tf_wrapper.dep_box[...,0] + tf_wrapper.dep_box[...,1]),
-            'dep_exc'  : np.mean(tf_wrapper.dep_box[...,2]),
-            'dep_heat' : np.mean(tf_wrapper.dep_box[...,3]),
-            'delta_slice' : np.array(perturbed_field.density[0]),
-            'x_e_slice' : np.array(spin_temp.x_e_box[0]),
-            'x_H_slice' : np.array(ionized_box.xH_box[0]),
-            'T_k_slice' : np.array(spin_temp.Tk_box[0]),
-            'T_b_slice' : np.array(brightness_temp.brightness_temp[0]),
-            'dep_tracker' : {
-                'dep_ion_bath' : dep_tracker.dep_ion_bath,
-                'dep_heat_bath' : dep_tracker.dep_heat_bath,
-                'dep_ion_shells' : np.array(dep_tracker.dep_ion_shells),
-                'dep_heat_shells' : np.array(dep_tracker.dep_heat_shells),
-                'R_shells' : np.array(dep_tracker.R_shells),
-                'bath_toteng_arr' : xraycheck_bath_toteng_arr
-            },
-            'pc_shell_dep_info': np.mean(spin_temp.SmoothedDelta, axis=(1, 2, 3)),
-            #'pc_shell_dep': np.array(spin_temp.SmoothedDelta)
-        }
-        records.append(record)
-        dep_tracker.clear()
+            #print(f'evolves 21cmFAST at i_z={i_z}, i_z_coarse={i_z_coarse}, z_next={z_next:.2f}={z_edges_coarse[i_z_coarse+1]:.2f}')
+            assert np.isclose(z_next, z_edges_coarse[i_z_coarse+1]) # cross check remove later
 
-        if debug_record_extra:
-            if i_z > 1999 or len(z_edges) < 500:
-                record_extra = {
-                    'i_z' : i_z,
-                    'x_e_box' : np.array(spin_temp.x_e_box),
-                    'x_H_box' : np.array(ionized_box.xH_box),
-                    'T_k_box' : np.array(spin_temp.Tk_box),
-                    'dep_box' : np.array(tf_wrapper.dep_box),
-                    'pc_shell_dep': np.array(spin_temp.SmoothedDelta)
-                }
-                records_extra.append(record_extra)
+            perturbed_field = p21c.perturb_field(redshift=z_next, init_boxes=p21c_initial_conditions)
+            input_heating, input_ionization, input_jalpha = gen_injection_boxes(z_next, p21c_initial_conditions)
+            if debug_use_21_totinj is not None:
+                ref_depE_per_B = ref_interp(z_current) * phys.A_per_B
+            else:
+                ref_depE_per_B = None
+            tf_wrapper.populate_injection_boxes(
+                input_heating, input_ionization, input_jalpha, dt,
+                debug_even_split_f=False,
+                ref_depE_per_B=ref_depE_per_B,
+                debug_z = z_current,
+                debug_unif_delta_dep = debug_unif_delta_dep,
+                debug_depallion = debug_depallion,
+            )
+            spin_temp, ionized_box, brightness_temp = p21c_step(
+                perturbed_field, spin_temp, ionized_box,
+                input_heating = input_heating,
+                input_ionization = input_ionization,
+                input_jalpha = input_jalpha,
+                astro_params=astro_params
+            )
+        
+            #===== calculate and save some global quantities =====
+            dE_inj_per_Bavg = dm_params.eng_per_inj * np.mean(inj_per_Bavg_box) # [eV per Bavg]
+            dE_inj_per_Bavg_unclustered = dE_inj_per_Bavg / dm_params.struct_boost(1+z_current)
+            
+            record = {
+                'z'   : z_next,
+                'T_s' : np.mean(spin_temp.Ts_box), # [mK]
+                'T_b' : np.mean(brightness_temp.brightness_temp), # [K]
+                'T_k' : np.mean(spin_temp.Tk_box), # [K]
+                'x_e' : np.mean(spin_temp.x_e_box), # [1]
+                '1-x_H' : np.mean(1 - ionized_box.xH_box), # [1]
+                'E_phot' : phot_bath_spec.toteng(), # [eV/Bavg]
+                'phot_N' : phot_bath_spec.N, # [ph/Bavg]
+                'dE_inj_per_B' : dE_inj_per_Bavg,
+                'dE_inj_per_Bavg_unclustered' : dE_inj_per_Bavg_unclustered,
+                'dep_ion'  : np.mean(tf_wrapper.dep_box[...,0] + tf_wrapper.dep_box[...,1]),
+                'dep_exc'  : np.mean(tf_wrapper.dep_box[...,2]),
+                'dep_heat' : np.mean(tf_wrapper.dep_box[...,3]),
+                'delta_slice' : np.array(perturbed_field.density[0]),
+                'x_e_slice' : np.array(spin_temp.x_e_box[0]),
+                'x_H_slice' : np.array(ionized_box.xH_box[0]),
+                'T_k_slice' : np.array(spin_temp.Tk_box[0]),
+                'T_b_slice' : np.array(brightness_temp.brightness_temp[0]),
+                'dep_tracker' : {
+                    'dep_ion_bath' : dep_tracker.dep_ion_bath,
+                    'dep_heat_bath' : dep_tracker.dep_heat_bath,
+                    'dep_ion_shells' : np.array(dep_tracker.dep_ion_shells),
+                    'dep_heat_shells' : np.array(dep_tracker.dep_heat_shells),
+                    'R_shells' : np.array(dep_tracker.R_shells),
+                    'bath_toteng_arr' : xraycheck_bath_toteng_arr
+                },
+                'pc_shell_dep_info': np.mean(spin_temp.SmoothedDelta, axis=(1, 2, 3)),
+                #'pc_shell_dep': np.array(spin_temp.SmoothedDelta)
+            }
+            records.append(record)
+            dep_tracker.clear()
+
+            if debug_record_extra:
+                if i_z > 1999 or len(z_edges) < 500:
+                    record_extra = {
+                        'i_z' : i_z,
+                        'x_e_box' : np.array(spin_temp.x_e_box),
+                        'x_H_box' : np.array(ionized_box.xH_box),
+                        'T_k_box' : np.array(spin_temp.Tk_box),
+                        'dep_box' : np.array(tf_wrapper.dep_box),
+                        'pc_shell_dep': np.array(spin_temp.SmoothedDelta)
+                    }
+                    records_extra.append(record_extra)
 
         #===== compare f =====
         # f_point = tf_wrapper.phot_dep_tf.point_interp(rs=1+z_current, nBs=1., x=np.mean(spin_temp.x_e_box))

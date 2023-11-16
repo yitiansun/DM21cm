@@ -126,6 +126,8 @@ class TransferFunctionWrapper:
 
         self.nBs_lowerbound = (1 + EPSILON) * np.min(self.abscs['nBs']) # [Bavg]
         self.load_tfs()
+        self.reset_phot()
+        self.reset_dep()
             
     def load_tfs(self):
         """Initialize transfer functions."""
@@ -142,7 +144,7 @@ class TransferFunctionWrapper:
             self.elec_dep_tf  = BatchInterpolator(f'{self.prefix}/elec_dep.h5', self.on_device)
             logging.info('TransferFunctionWrapper: Loaded electron transfer functions.')
             
-    def init_step(self, rs=..., delta_plus_one_box=..., x_e_box=...):
+    def set_params(self, rs=..., delta_plus_one_box=..., x_e_box=...):
         """Initializes parameters and receivers for injection step."""
 
         delta_plus_one_box = np.clip(delta_plus_one_box, self.nBs_lowerbound, None)
@@ -157,8 +159,12 @@ class TransferFunctionWrapper:
             x_s = x_e_box.ravel(),
             out_of_bounds_action = 'clip',
         )
+
+    def reset_phot(self):
         self.prop_phot_N = np.zeros_like(self.abscs['photE']) # [N / Bavg]
         self.emit_phot_N = np.zeros_like(self.abscs['photE']) # [N / Bavg]
+    
+    def reset_dep(self):
         self.dep_box = np.zeros((self.box_dim, self.box_dim, self.box_dim, len(self.abscs['dep_c']))) # [eV / Bavg]
 
     def inject_phot(self, in_spec, inject_type=..., weight_box=...):
@@ -229,7 +235,7 @@ class TransferFunctionWrapper:
         self.inject_phot(dm_params.inj_phot_spec, inject_type='ots', weight_box=inj_per_Bavg_box)
         if self.enable_elec:
             self.inject_elec(dm_params.inj_elec_spec, weight_box=inj_per_Bavg_box)
-
+        
 
     def populate_injection_boxes(self, input_heating, input_ionization, input_jalpha, dt, debug_even_split_f=False, ref_depE_per_B=None, debug_z=None, debug_unif_delta_dep=False, debug_depallion=False):
         
@@ -286,8 +292,10 @@ class TransferFunctionWrapper:
         # hubble might be inconsistent with 1 / ((1+z) * dtdz)
         input_jalpha.input_jalpha += np.array(J_lya)
 
-        self.params = None # invalidate parameters
-        self.tf_kwargs = None # invalidate parameters
+        self.reset_dep()
+
+        # self.params = None # invalidate parameters
+        # self.tf_kwargs = None # invalidate parameters
 
     @property
     def xray_eng_box(self):

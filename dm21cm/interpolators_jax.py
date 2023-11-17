@@ -86,7 +86,10 @@ class BatchInterpolator:
             self.axes = hf['axes'][:]
             self.abscs = {}
             for k, item in hf['abscs'].items():
-                self.abscs[k] = item[:]
+                if k == 'out':
+                    self.abscs[k] = item[:]
+                else:
+                    self.abscs[k] = jnp.array(item[:])
             self.data = jnp.array(hf['data'][:]) # load into memory
 
         self.on_device = on_device
@@ -132,27 +135,25 @@ class BatchInterpolator:
         x_s = bound_action(x_s, self.abscs['x'], out_of_bounds_action)
         nBs_s = bound_action(nBs_s, self.abscs['nBs'], out_of_bounds_action)
         
-        # 1. in_spec sum
+        # 1. rs interp and in_spec sum
         if jnp.all(in_spec == self.fixed_in_spec):
-            in_spec_data = self.fixed_in_spec_data
+            data_at_spec = self.fixed_in_spec_data # rnxo
+            data_at_spec_at_rs = interp1d(data_at_spec, self.abscs['rs'], rs) # nxo
         else:
-            in_spec_data = jnp.einsum('e,renxo->rnxo', in_spec, self.data)
+            data_at_rs = interp1d(self.data, self.abscs['rs'], rs) # enxo
+            data_at_spec_at_rs = jnp.tensordot(in_spec, data_at_rs, axes=(0, 0)) # nxo
         
-        # 2. rs interpolation
-        data_at_rs = interp1d(in_spec_data, jnp.array(self.abscs['rs']), rs)
-        
+        # 2. (nBs) x interpolation (and sum)
         if not sum_result:
-            # 3. (nBs) x interpolation
+            
             nBs_x_in = jnp.stack([nBs_s, x_s], axis=-1)
             return interp2d(
-                data_at_rs,
+                data_at_spec_at_rs,
                 jnp.array(self.abscs['nBs']),
                 jnp.array(self.abscs['x']),
                 nBs_x_in
             )
-            
         else:
-            ## 3. (nBs) x sum
             split_n = int(jnp.ceil( len(x_s)/sum_batch_size ))
             if sum_weight is not None:
                 sum_weight_batches = jnp.array_split(sum_weight, split_n)
@@ -164,7 +165,7 @@ class BatchInterpolator:
 
             for i_batch, nBs_x_in_batch in enumerate(nBs_x_in_batches):
                 interp_result = interp2d(
-                    data_at_rs,
+                    data_at_spec_at_rs,
                     self.abscs['nBs'],
                     self.abscs['x'],
                     nBs_x_in_batch

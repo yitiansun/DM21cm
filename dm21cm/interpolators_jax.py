@@ -138,17 +138,17 @@ class BatchInterpolator:
         # 1. rs interp and in_spec sum
         if jnp.all(in_spec == self.fixed_in_spec):
             data_at_spec = self.fixed_in_spec_data # rnxo
-            data_at_spec_at_rs = interp1d(data_at_spec, self.abscs['rs'], rs) # nxo
+            data_at_rs_at_spec = interp1d(data_at_spec, self.abscs['rs'], rs) # nxo
         else:
             data_at_rs = interp1d(self.data, self.abscs['rs'], rs) # enxo
-            data_at_spec_at_rs = jnp.tensordot(in_spec, data_at_rs, axes=(0, 0)) # nxo
+            data_at_rs_at_spec = jnp.tensordot(in_spec, data_at_rs, axes=(0, 0)) # nxo
         
         # 2. (nBs) x interpolation (and sum)
         if not sum_result:
             
             nBs_x_in = jnp.stack([nBs_s, x_s], axis=-1)
             return interp2d(
-                data_at_spec_at_rs,
+                data_at_rs_at_spec,
                 jnp.array(self.abscs['nBs']),
                 jnp.array(self.abscs['x']),
                 nBs_x_in
@@ -165,7 +165,7 @@ class BatchInterpolator:
 
             for i_batch, nBs_x_in_batch in enumerate(nBs_x_in_batches):
                 interp_result = interp2d(
-                    data_at_spec_at_rs,
+                    data_at_rs_at_spec,
                     self.abscs['nBs'],
                     self.abscs['x'],
                     nBs_x_in_batch

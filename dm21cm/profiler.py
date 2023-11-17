@@ -38,8 +38,11 @@ class Profiler:
             print(f'{name}: {t_list[-1]:.4f} s')
 
     def print_summary(self, ignore_first_n=1):
-        for name, t_list in self.t_dict.items():
-            print(f'{name}: {np.mean(t_list[ignore_first_n:]):.4f} +/- {np.std(t_list[ignore_first_n:]):.4f} s')
+        try:
+            for name, t_list in self.t_dict.items():
+                print(f'{name}: {np.mean(t_list[ignore_first_n:]):.4f} +/- {np.std(t_list[ignore_first_n:]):.4f} s')
+        except:
+            print('Error printing summary.')
 
     def plot(self, ax=None, **kwargs):
 

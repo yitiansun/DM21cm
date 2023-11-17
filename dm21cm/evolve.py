@@ -213,7 +213,7 @@ def evolve(run_name,
                 xray_spec += accumulated_shell_spec
                 tf_wrapper.inject_phot(xray_spec, inject_type='xray', weight_box=xray_brightness_box)
 
-                accumulated_shell_spec_N *= 0.
+                accumulated_shell_spec *= 0.
 
             profiler.record('xray')
 

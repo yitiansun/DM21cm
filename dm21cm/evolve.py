@@ -43,27 +43,28 @@ def evolve(run_name,
            use_tqdm=True,
            tf_on_device=True,
            no_injection=False,
-           
-           debug_all_bath=False,
-           subcycle_factor=10,
+           subcycle_factor=1,
+           max_n_shell=None,
            ):
     """
     Main evolution function.
 
     Args:
-        run_name (str):      Name of run. Used for cache directory.
-        z_start (float):     Starting redshift.
-        z_end (float):       Ending redshift.
+        run_name (str):             Name of run. Used for cache directory.
+        z_start (float):            Starting redshift.
+        z_end (float):              Ending redshift.
+        subcycle_factor (int):      Number of subcycles per 21cmFAST step.
+        max_n_shell (int or None):  Number total shells used in xray injection. If None, use all shells smaller than the box size.
         dm_params (dm21cm.dm_params.DMParams):             Dark matter (DM) parameters.
         enable_elec (bool):                                Whether to enable electron injection.
         p21c_initial_conditions (p21c.InitialConditions):  Initial conditions for 21cmFAST.
         p21c_astro_params (p21c.AstroParams):              AstroParams for 21cmFAST.
-        use_DH_init (bool):  Whether to use DarkHistory initial conditions.
-        rerun_DH (bool):     Whether to rerun DarkHistory to get initial values.
-        clear_cache (bool):  Whether to clear cache for 21cmFAST.
-        use_tqdm (bool):     Whether to use tqdm progress bars.
-        tf_on_device (bool): Whether to put transfer functions on device (GPU).
-        no_injection (bool): Whether to skip injection and energy deposition.
+        use_DH_init (bool):         Whether to use DarkHistory initial conditions.
+        rerun_DH (bool):            Whether to rerun DarkHistory to get initial values.
+        clear_cache (bool):         Whether to clear cache for 21cmFAST.
+        use_tqdm (bool):            Whether to use tqdm progress bars.
+        tf_on_device (bool):        Whether to put transfer functions on device (GPU).
+        no_injection (bool):        Whether to skip injection and energy deposition.
 
     Returns:
         dict: Dictionary of results.
@@ -150,6 +151,7 @@ def evolve(run_name,
     #--- loop ---
     for i_z in z_range:
 
+        profiler.start()
         print_str = f'i_z={i_z}/{len(z_edges)-2} z={z_edges[i_z]:.2f}'
         i_z_coarse = i_z // subcycle_factor
 
@@ -170,23 +172,48 @@ def evolve(run_name,
         rho_DM_box = delta_plus_one_box * phys.rho_DM * (1+z_current)**3 # [eV/(physical cm)^3]
         inj_per_Bavg_box = phys.inj_rate(rho_DM_box, dm_params) * dt * dm_params.struct_boost(1+z_current) / nBavg # [inj/Bavg]
 
-        #===== photon injection and energy deposition =====
-        #--- xray ---
-        profiler.start()
-
+        
         if not no_injection:
-            for i_z_shell in range(i_xray_loop_start, i_z):
-                xray_brightness_box, xray_spec, is_box_average = xray_cacher.get_annulus_data(
-                    z_current, z_edges[i_z_shell], z_edges[i_z_shell+1]
-                )
-                if debug_all_bath:
-                    is_box_average = True
-                    xray_brightness_box = jnp.mean(xray_brightness_box) * jnp.ones_like(xray_brightness_box)
-                if is_box_average:                                          # if smoothing scale > box size,
-                    phot_bath_spec.N += xray_spec.N                         # then we can just dump to the global bath spectrum
-                    i_xray_loop_start = max(i_z_shell+1, i_xray_loop_start) # and we will not revisit this shell
+
+            #===== photon injection and energy deposition =====
+            #--- xray ---
+            # First we dump to bath all spectra whose corresponding shells are larger than the box size.
+            while i_xray_loop_start < i_z:
+                z_shell_start = z_edges[i_xray_loop_start]
+                z_shell_end = z_edges[i_xray_loop_start+1]
+                r_start = phys.conformal_dx_between_z(z_current, z_shell_start) # [cMpc]
+                r_end = phys.conformal_dx_between_z(z_current, z_shell_end) # [cMpc]
+                
+                if min(r_start, r_end) > box_len/2: # if the shell is larger than the box size
+                    phot_bath_spec.N += xray_spec.N
+                    i_xray_loop_start += 1
                 else:
-                    tf_wrapper.inject_phot(xray_spec, inject_type='xray', weight_box=xray_brightness_box)
+                    break
+
+            # Then we select the chosen shell indices for deposition
+            if max_n_shell is not None:
+                i_max = i_z - i_xray_loop_start
+                inds_increasing = geom_inds(i_max=i_max, i_transition=10, n_goal=max_n_shell)
+                inds_chosen_shells = i_z - inds_increasing
+            else:
+                inds_chosen_shells = list(range(i_xray_loop_start, i_z)) # all shells smaller than the box size are chosen
+
+            # Finally, we accumulate spectra from the non-chosen shells and deposit only on the chosen shells
+            accumulated_shell_spec = Spectrum(abscs['photE'], np.zeros_like(abscs['photE']), spec_type='N', rs=1+z_current) # [ph/Bavg]
+
+            for i_z_shell in range(i_xray_loop_start, i_z):
+                z_shell_start = z_edges[i_z_shell]
+                z_shell_end = z_edges[i_z_shell+1]
+
+                if i_z_shell not in inds_chosen_shells:
+                    accumulated_shell_spec += xray_cacher.spectrum_cache.get_spectrum(z_shell_start)
+                    continue
+
+                xray_brightness_box, xray_spec, _ = xray_cacher.get_annulus_data(z_current, z_shell_start, z_shell_end)
+                xray_spec += accumulated_shell_spec
+                tf_wrapper.inject_phot(xray_spec, inject_type='xray', weight_box=xray_brightness_box)
+
+                accumulated_shell_spec_N *= 0.
 
             profiler.record('xray')
 
@@ -343,3 +370,24 @@ def p21c_step(perturbed_field, spin_temp, ionized_box,
     )
 
     return spin_temp, ionized_box, brightness_temp
+
+
+def geom_inds(i_max, i_transition, n_goal):
+    """Return a geometrically spaced index array with a dense start.
+
+    Args:
+        i_max (int):        Maximum available index.
+        i_transition (int): Index where the geometric spacing starts.
+        n_goal (int):       Target number of indices in the output array (actual number may vary slightly).
+
+    Returns:
+        np.array: Geometrically spaced index array.
+    """
+    if n_goal >= i_max:
+        return np.arange(i_max)
+    if n_goal <= i_transition:
+        return np.arange(n_goal)
+    # after this, i_transition < n_goal < i_max
+    dense_arr = np.arange(i_transition)
+    geom_arr = np.unique(np.round(np.geomspace(i_transition, i_max, n_goal-i_transition)).astype(int))
+    return np.concatenate([dense_arr, geom_arr])

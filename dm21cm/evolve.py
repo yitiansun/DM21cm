@@ -185,7 +185,7 @@ def evolve(run_name,
                 r_end = phys.conformal_dx_between_z(z_current, z_shell_end) # [cMpc]
                 
                 if min(r_start, r_end) > box_len/2: # if the shell is larger than the box size
-                    phot_bath_spec.N += xray_spec.N
+                    phot_bath_spec += xray_cacher.spectrum_cache.get_spectrum(z_shell_start)
                     i_xray_loop_start += 1
                 else:
                     break

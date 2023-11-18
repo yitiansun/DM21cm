@@ -57,7 +57,7 @@ if __name__ == '__main__':
         #no_injection = False,
         #use_DH_init = False,
         subcycle_factor = 10,
-        max_n_shell = 40,
+        max_n_shell = None,
     )
 
     np.save(f'../outputs/dm21cm/{run_name}_records.npy', return_dict['records'])

@@ -35,6 +35,8 @@ logging.getLogger('py21cmfast.wrapper').setLevel(logging.CRITICAL+1)
 
 def evolve(run_name,
            z_start=..., z_end=...,
+           subcycle_factor=1,
+           max_n_shell=None,
            dm_params=..., enable_elec=False,
            p21c_initial_conditions=...,
            p21c_astro_params=None,
@@ -43,8 +45,6 @@ def evolve(run_name,
            use_tqdm=True,
            tf_on_device=True,
            no_injection=False,
-           subcycle_factor=1,
-           max_n_shell=None,
            ):
     """
     Main evolution function.

@@ -18,11 +18,12 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--generate', action='store_true', default=False)
+    parser.add_argument('-n', '--name', type=str, default=f'{time.time():.0f}')
     args = parser.parse_args()
 
     generate = args.generate
 
-    run_name = f'test_{time.time():.0f}'
+    run_name = f'test_{args.name}'
     ref_name = f'test'
 
     os.environ['DM21CM_DATA_DIR'] = '/n/holyscratch01/iaifi_lab/yitians/dm21cm/DM21cm/data/tf/zf001/data'
@@ -80,13 +81,7 @@ if __name__ == '__main__':
         for k in test_ks:
             abs_diff = rec[k] - rec_ref[k]
             rel_diff = (rec[k] - rec_ref[k]) / rec_ref[k]
-            if not isinstance(rec[k], np.ndarray):
-                print(f'{k:10}: base={rec_ref[k]:.6e} ' + \
-                           f'test={rec[k]:.6e}' + \
-                           f'abs_diff={abs_diff:.6e}' + \
-                           f'rel_diff={rel_diff:.6e}')
-            else:
-                print(f'{k:10}: base={np.mean(rec_ref[k]):.6e}\t\t' + \
-                           f'test={np.mean(rec[k]):.6e}\t\t' + \
-                           f'abs_diff={np.mean(abs_diff):.6e}+/-{np.std(abs_diff):.6e}\t\t' + \
-                           f'rel_diff={np.mean(rel_diff):.6e}+/-{np.std(rel_diff):.6e}\t\t')
+            print(f'{k:12}: base={np.mean(rec_ref[k]):.6e}\t' + \
+                          f'test={np.mean(rec[k]):.6e}\t' + \
+                          f'abs_diff={np.mean(abs_diff):.6e}+/-{np.std(abs_diff):.6e}\t' + \
+                          f'rel_diff={np.mean(rel_diff):.6e}+/-{np.std(rel_diff):.6e}\t')

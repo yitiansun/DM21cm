@@ -20,6 +20,9 @@ def interp1d(fp, xp, x):
         xp (array): 1D array of x values.
         x (array): x values to interpolate.
 
+    Return:
+        Interpolated values.
+
     Notes:
         xp must be sorted. Does not do bound checks.
     """
@@ -37,6 +40,9 @@ def interp2d(fp, x0p, x1p, x01):
         x0p (array): 1D array of x0 values (first dimension of fp).
         x1p (array): 1D array of x1 values (second dimension of fp).
         x01 (array): [x0, x1] values to interpolate.
+
+    Return:
+        Interpolated values.
 
     Notes:
         x0p and x1p must be sorted. Does not do bound checks.
@@ -57,6 +63,7 @@ def interp2d(fp, x0p, x1p, x01):
 #===== utilities =====
 
 def bound_action(v, absc, out_of_bounds_action):
+    """Check if v is within bounds of absc. If not, raise error or clip."""
     if out_of_bounds_action == 'clip':
         return jnp.clip(v, jnp.min(absc)*(1+EPSILON), jnp.max(absc)/(1+EPSILON))
     else:
@@ -101,7 +108,11 @@ class BatchInterpolator:
     
     
     def set_fixed_in_spec(self, in_spec):
+        """Set a fixed in_spec for faster interpolation.
         
+        Args:
+            in_spec (array): Input spectrum [N/Bavg].
+        """
         self.fixed_in_spec = in_spec
         self.fixed_in_spec_data = jnp.einsum('e,renxo->rnxo', in_spec, self.data)
         if self.on_device:
@@ -111,24 +122,24 @@ class BatchInterpolator:
     def __call__(self, rs=None, in_spec=None, nBs_s=None, x_s=None,
                  sum_result=False, sum_weight=None, sum_batch_size=256**3,
                  out_of_bounds_action='error'):
-        """Batch interpolate in (nBs and) x directions.
+        """Batch interpolate in nBs and x.
         
-        First sum with in_spec (with caching), then interpolate to a rs point,
-        then perform the interpolation on [(nBs_s), x_s]. If sum_result is True,
-        sum over all interpolated value.
+        First sum with in_spec and interpolate to a rs point (with caching), then perform the
+        interpolation on [nBs_s, x_s]. If sum_result is True, sum over all interpolated value
+        with weight. The sum is done in batches for memory efficiency.
         
-        Parameters:
-            rs : [1]
-            in_spec : [N * ...]
-            nBs_s : [1]
-            x_s : [1]
-            sum_result : if True, return average in the batch dimension.
-            sum_weight : if None, just sum. otherwise dot.
-            sum_batch_size : perform batch interpolation (and averaging) in batches of this size.
-            out_of_bounds_action : {'error', 'clip'}
-        
+        Args:
+            rs (float): Redshift rs=1+z values to interpolate to.
+            in_spec (array): Input spectrum [N/Bavg].
+            nBs_s (array): Relative baryon density values to interpolate to.
+            x_s (array): Ionization fraction values to interpolate to.
+            sum_result (bool): If True, sum over all interpolated value with weight.
+            sum_weight (array): If not None, weight to sum over.
+            sum_batch_size (int): Batch size for summing.
+            out_of_bounds_action (str): 'error' or 'clip'.
+
         Return:
-            interpolated box or average of interpolated box.
+            Interpolated box or average of interpolated box.
         """
 
         rs = bound_action(rs, self.abscs['rs'], out_of_bounds_action)
@@ -179,7 +190,17 @@ class BatchInterpolator:
         
     
     def point_interp(self, rs=None, nBs=None, x=None, out_of_bounds_action='error'):
-        """Returns the transfer function at a (rs, nBs, x) point."""
+        """Returns the transfer function at a (rs, nBs, x) point.
+        
+        Args:
+            rs (float): Redshift rs=1+z value to interpolate to.
+            nBs (float): Relative baryon density value to interpolate to.
+            x (float): Ionization fraction value to interpolate to.
+            out_of_bounds_action (str): 'error' or 'clip'.
+
+        Return:
+            Interpolated transfer function.
+        """
 
         rs = bound_action(rs, self.abscs['rs'], out_of_bounds_action)
         nBs = bound_action(nBs, self.abscs['nBs'], out_of_bounds_action)

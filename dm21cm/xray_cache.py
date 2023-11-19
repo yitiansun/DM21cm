@@ -37,7 +37,6 @@ class CachedState:
     """
 
     def __init__(self, key, z_start, z_end, spectrum):
-
         self.key = key # key to box in the cache file
         self.z_start = z_start
         self.z_end = z_end
@@ -46,9 +45,11 @@ class CachedState:
         self.isinbath = False
 
     def append_box(self, hf, box):
+        """Fourier transform and append the box to the cache file."""
         hf.create_dataset(self.key, data=fft.rfftn(box)) # hf should be in append mode
 
     def get_ftbox(self, hf):
+        """Get the Fourier transformed box from the cache file."""
         return jnp.array(hf[self.key][()], dtype=jnp.complex64)
 
     def attenuate(self, attenuation_arr):
@@ -65,6 +66,12 @@ class XrayCache:
         data_dir (str): Path to the cache directory.
         box_dim (int): The dimension of the box.
         dx (float): The size of each cell [cfMpc].
+        load_snapshot (bool): If True, load the snapshot at data_dir/xray_cache_snapshot.p.
+
+    Attributes:
+        isresumed (bool): Whether the cache is resumed from a snapshot.
+        states (list): List of CachedState objects.
+        saved_phot_bath_spec (array): The photon bath spectrum saved in the snapshot.
     """
 
     def __init__(self, data_dir, box_dim=None, dx=None, load_snapshot=False):
@@ -111,37 +118,25 @@ class XrayCache:
             os.remove(self.snapshot_path)
 
     def save_snapshot(self, phot_bath_spec=...):
+        """Save the current cache to a snapshot file with the photon bath spectrum."""
         pickle.dump((self.states, phot_bath_spec), open(self.snapshot_path, 'wb'))
 
     def load_snapshot(self):
+        """Load the snapshot file."""
         self.states, self.saved_phot_bath_spec = pickle.load(open(self.snapshot_path, 'rb'))
 
     @property
     def i_shell_start(self):
+        """Get the index of the first state that is not in the bath."""
         isinbath_arr = np.array([state.isinbath for state in self.states])
         return np.where(isinbath_arr == False)[0][0] if len(isinbath_arr) > 0 else 0
-
-    # @property
-    # def z_s(self):
-    #     return np.array([state.z_end for state in self.states])
-
-    # def ind(self, z):
-    #     """Get index closest to z with bounds checking."""
-    #     z_s = self.z_s
-    #     atol = 1e-3
-    #     if not z > np.min(z_s) - atol and z < np.max(z_s) + atol:
-    #         raise ValueError(f'z={z} out of bounds {np.min(z_s)} - {np.max(z_s)}.')
-    #     return np.argmin(np.abs(z_s - z))
-
-    # def get_state(self, z):
-    #     """Get the cached state with redshift closest to z."""
-    #     return self.states[self.ind(z)]
 
     def advance_spectra(self, attenuation_arr, z_target):
         """Attenuate and redshift the spectra of states to the target redshift."""
         for state in self.states:
-            state.attenuate(attenuation_arr)
-            state.redshift(z_target)
+            if not state.isinbath:
+                state.attenuate(attenuation_arr)
+                state.redshift(z_target)
 
     def smooth_box(self, ftbox, R1, R2):
         """Smooths the box with a top-hat shell window function.
@@ -177,6 +172,15 @@ class XrayCache:
         return fft.irfftn(ftbox * W)
     
     def get_smoothed_box(self, state, z_receiver):
+        """Get the smoothed box w.r.t. the receiver redshift.
+        
+        Args:
+            state (CachedState): The donor shell's state.
+            z_receiver (float): The redshift of the receiver.
+
+        Returns:
+            array: The smoothed box.
+        """
 
         r_start = phys.conformal_dx_between_z(state.z_start, z_receiver)
         r_end   = phys.conformal_dx_between_z(state.z_end,   z_receiver)
@@ -185,6 +189,7 @@ class XrayCache:
         return smoothed_box
     
     def is_latest_z(self, z):
+        """Check if the redshift is at the latest saved redshift (for resuming feature)."""
         if len(self.states) == 0:
             return True
         return np.isclose(z, self.states[-1].z_end)

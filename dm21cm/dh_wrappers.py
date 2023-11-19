@@ -14,25 +14,39 @@ sys.path.append(os.environ['DH_DIR'])
 from darkhistory.main import evolve as evolve_DH
 from darkhistory.spec.spectrum import Spectrum
 
-
 EPSILON = 1e-6
 
 
 class DarkHistoryWrapper:
-    """Wrapper for running DarkHistory."""
+    """Wrapper for running DarkHistory prior to 21cmFAST steps.
+    
+    Args:
+        dm_params (DMParams): Dark matter parameters.
+        prefix (str, optional): Prefix for DarkHistory initial conditions file.
+        soln_name (str, optional): Name of DarkHistory initial conditions file.
+    """
     
     def __init__(self, dm_params, prefix='.', soln_name='dh_init_soln.p'):
-
         self.dm_params = dm_params
-        self.soln_fn = prefix + '/' + soln_name
+        self.soln_fn = os.path.join(prefix, soln_name)
 
     def clear_soln(self):
+        """Clears cached DarkHistory run."""
         if os.path.exists(self.soln_fn):
             logging.info('DarkHistoryWrapper: Removed cached DarkHistory run.')
             os.remove(self.soln_fn)
 
     def evolve(self, end_rs, rerun=False, **kwargs):
+        """Runs DarkHistory to generate initial conditions.
+        
+        Args:
+            end_rs (float): Final redshift rs = 1 + z.
+            rerun (bool, optional): Whether to rerun DarkHistory. Default: False.
+            **kwargs: Keyword arguments for DarkHistory evolve function.
 
+        Returns:
+            soln (dict): DarkHistory run solution.
+        """
         if os.path.exists(self.soln_fn) and not rerun:
             self.soln = pickle.load(open(self.soln_fn, 'rb'))
             logging.info('DarkHistoryWrapper: Found existing DarkHistory initial conditions.')
@@ -57,7 +71,16 @@ class DarkHistoryWrapper:
         return self.soln
 
     def get_init_cond(self, rs):
-        """Returns initial conditions T_k [K], x_e [1], and photon bath spectrum [N / Bavg] at redshift rs=1+z."""
+        """Returns global averaged initial conditions for 21cmFAST.
+        
+        Args:
+            rs (float): Matching redshift rs = 1 + z.
+
+        Returns:
+            T_k (float): Initial kinetic temperature [K].
+            x_e (float): Initial ionization fraction [1].
+            spec (Spectrum): Initial photon bath spectrum [N / Bavg].
+        """
 
         T_k = np.interp(rs, self.soln['rs'][::-1], self.soln['Tm'][::-1] / phys.kB) # [K]
         x_e = np.interp(rs, self.soln['rs'][::-1], self.soln['x'][::-1, 0]) # HII
@@ -94,7 +117,7 @@ class TransferFunctionWrapper:
         self.reset_dep()
             
     def load_tfs(self):
-        """Initialize transfer functions."""
+        """Load transfer functions from disk."""
         
         if not self.on_device:
             logging.warning('TransferFunctionWrapper: Not saving transfer functions on device!')
@@ -111,7 +134,7 @@ class TransferFunctionWrapper:
             logging.info('TransferFunctionWrapper: Skipping electron transfer functions.')
             
     def set_params(self, rs=..., delta_plus_one_box=..., x_e_box=..., T_k_box=..., homogenize_deposition=False):
-        """Initializes parameters and receivers for injection step."""
+        """Initializes parameters for deposition."""
         delta_plus_one_box = jnp.clip(
             delta_plus_one_box,
             (1 + EPSILON) * jnp.min(self.abscs['nBs']),
@@ -135,10 +158,12 @@ class TransferFunctionWrapper:
         )
 
     def reset_phot(self):
+        """Resets propagating and emission photon."""
         self.prop_phot_N = np.zeros_like(self.abscs['photE']) # [N / Bavg]
         self.emit_phot_N = np.zeros_like(self.abscs['photE']) # [N / Bavg]
 
     def reset_dep(self):
+        """Resets deposition boxes."""
         self.dep_box = np.zeros((self.box_dim, self.box_dim, self.box_dim, len(self.abscs['dep_c']))) # [eV / Bavg]
 
     def inject_phot(self, in_spec, inject_type=..., weight_box=...):
@@ -212,6 +237,14 @@ class TransferFunctionWrapper:
 
 
     def populate_injection_boxes(self, input_heating, input_ionization, input_jalpha, dt):
+        """Populate input boxes for 21cmFAST and reset dep_box.
+        
+        Args:
+            input_heating (InputHeating): Heating input box.
+            input_ionization (InputIonization): Ionization input box.
+            input_jalpha (InputJAlpha): Lyman-alpha input box.
+            dt (float): Time in step [s].
+        """
         
         dep_heat_box = self.dep_box[...,3]
         dep_ion_box = (self.dep_box[...,0]/phys.rydberg + self.dep_box[...,1]/phys.He_ion_eng)
@@ -225,7 +258,7 @@ class TransferFunctionWrapper:
         input_heating.input_heating += np.array(
             2 / (3*phys.kB*(1+self.params['x_e_box'])) * dep_heat_box / self.params['nBs_box'] / phys.A_per_B # [K/Bavg] / [B/Bavg] / [A/B] = [K/A]
             - self.params['T_k_box'] / (1+self.params['x_e_box']) * delta_ionization_box # species changing term [K] / [1] * [1/A] = [K/A]
-        )
+        ) # here [K] just means [eV/kB], do not think of it as temperature
 
         nBavg = phys.n_B * self.params['rs']**3 # [Bavg / pcm^3]
         dNlya_dVdt = dep_lya_box * nBavg / dt / phys.lya_eng # [lya pcm^-3 s^-1]
@@ -240,16 +273,26 @@ class TransferFunctionWrapper:
 
         self.reset_dep()
 
-        # self.params = None # invalidate parameters
-        # self.tf_kwargs = None # invalidate parameters
-
     @property
     def xray_eng_box(self):
         """X-ray energy-per-average-baryon box [eV / Bavg]."""
         return self.dep_box[..., 5]
 
     def attenuation_arr(self, rs, x, nBs=1.):
-        """Attenuation (fraction of remaining) array w.r.t. energy. Applies to xray photons only (secondary photons not counted)."""
+        """Attenuation (fraction of remaining) array w.r.t. energy.
+
+        Args:
+            rs (float): Redshift rs = 1 + z.
+            x (float): Ionization fraction.
+            nBs (float, optional): Relative baryon number density. Default: 1.
+
+        Returns:
+            atten (ndarray): Attenuation array.
+
+        Notes:
+            Applies to xray photons only (secondary photons not counted).
+        """
+        
         dep_tf_at_point = self.phot_dep_tf.point_interp(rs=rs, x=x, nBs=nBs, out_of_bounds_action='clip')
-        dep_toteng = np.sum(dep_tf_at_point[:, :5], axis=1) # H ion, He ion, exc, heat, cont
-        return 1 - dep_toteng/self.abscs['photE']
+        dep_toteng = np.sum(dep_tf_at_point[:, :5], axis=1) # H ionization, He ionization, excitation, heating, into continuum, (into xray band excluded)
+        return 1. - dep_toteng/self.abscs['photE']

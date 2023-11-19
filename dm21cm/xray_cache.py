@@ -72,6 +72,7 @@ class XrayCache:
         self.data_dir = data_dir
         self.box_cache_path = os.path.join(data_dir, 'xray_box_cache.h5')
         self.snapshot_path = os.path.join(data_dir, 'xray_cache_snapshot.p')
+        self.isresumed = False
 
         self.box_dim = box_dim
         self.dx = dx
@@ -80,11 +81,13 @@ class XrayCache:
                 self.load_snapshot()
                 z_latest = self.states[-1].z_end if len(self.states) > 0 else jnp.nan
                 logging.warning(f'Resuming from snapshot at {self.snapshot_path} with latest redshift z={z_latest:.3f}.')
+                self.isresumed = True
             else:
                 logging.warning(f'No snapshot found at {self.snapshot_path}, restarting run.')
-                self.states = []
-        else:
+
+        if not self.isresumed:
             self.states = []
+            self.saved_phot_bath_spec = None
 
         self.init_fft()
 
@@ -107,11 +110,11 @@ class XrayCache:
         if os.path.exists(self.snapshot_path):
             os.remove(self.snapshot_path)
 
-    def save_snapshot(self):
-        pickle.dump(self.states, open(self.snapshot_path, 'wb'))
+    def save_snapshot(self, phot_bath_spec=...):
+        pickle.dump((self.states, phot_bath_spec), open(self.snapshot_path, 'wb'))
 
     def load_snapshot(self):
-        self.states = pickle.load(open(self.snapshot_path, 'rb'))
+        self.states, self.saved_phot_bath_spec = pickle.load(open(self.snapshot_path, 'rb'))
 
     @property
     def i_shell_start(self):

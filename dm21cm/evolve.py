@@ -52,7 +52,7 @@ def evolve(run_name,
         z_end (float):              Ending redshift.
         subcycle_factor (int):      Number of subcycles per 21cmFAST step.
         max_n_shell (int or None):  Max number total shells used in xray injection. If None, use all shells smaller than the box size.
-        resume (bool):              Whether to resume from a previous run.
+        resume (bool):              Whether to attempt to resume from a previous run.
 
         dm_params (DMParams):       Dark matter (DM) parameters.
         enable_elec (bool):         Whether to enable electron injection.
@@ -60,7 +60,6 @@ def evolve(run_name,
         p21c_astro_params (p21c.AstroParams):              AstroParams for 21cmFAST.
         use_DH_init (bool):         Whether to use DarkHistory initial conditions.
         rerun_DH (bool):            Whether to rerun DarkHistory to get initial values.
-        clear_cache (bool):         Whether to clear cache for 21cmFAST.
         use_tqdm (bool):            Whether to use tqdm progress bars.
         tf_on_device (bool):        Whether to put transfer functions on device (GPU).
         no_injection (bool):        Whether to skip injection and energy deposition.
@@ -131,6 +130,8 @@ def evolve(run_name,
         ionized_box.xH_box = 1 - spin_temp.x_e_box
     else:
         phot_bath_spec = Spectrum(abscs['photE'], np.zeros_like(abscs['photE']), spec_type='N', rs=1+z_match) # [ph / Bavg]
+    if xray_cache.isresumed:
+        phot_bath_spec = xray_cache.saved_phot_bath_spec
     
 
     #===== main loop =====
@@ -237,7 +238,7 @@ def evolve(run_name,
             else:
                 xray_rel_eng_box = np.zeros_like(tf_wrapper.xray_eng_box) # [1 (relative energy)/Bavg]
             xray_cache.cache(z_current, z_next, xray_spec, xray_rel_eng_box)
-            xray_cache.save_snapshot()
+            xray_cache.save_snapshot(phot_bath_spec=phot_bath_spec)
 
             profiler.record('prep_next')
 

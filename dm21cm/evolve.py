@@ -41,28 +41,34 @@ def evolve(run_name,
            use_DH_init=True, rerun_DH=False,
            use_tqdm=True,
            tf_on_device=True,
+
            no_injection=False,
+           homogenize_injection=False,
+           homogenize_deposition=False,
            ):
     """
     Main evolution function.
 
     Args:
-        run_name (str):             Name of run. Used for cache directory.
-        z_start (float):            Starting redshift.
-        z_end (float):              Ending redshift.
-        subcycle_factor (int):      Number of subcycles per 21cmFAST step.
-        max_n_shell (int or None):  Max number total shells used in xray injection. If None, use all shells smaller than the box size.
-        resume (bool):              Whether to attempt to resume from a previous run.
+        run_name (str):               Name of run. Used for cache directory.
+        z_start (float):              Starting redshift.
+        z_end (float):                Ending redshift.
+        subcycle_factor (int):        Number of subcycles per 21cmFAST step.
+        max_n_shell (int or None):    Max number total shells used in xray injection. If None, use all shells smaller than the box size.
+        resume (bool):                Whether to attempt to resume from a previous run.
 
-        dm_params (DMParams):       Dark matter (DM) parameters.
-        enable_elec (bool):         Whether to enable electron injection.
+        dm_params (DMParams):         Dark matter (DM) parameters.
+        enable_elec (bool):           Whether to enable electron injection.
         p21c_initial_conditions (p21c.InitialConditions):  Initial conditions for 21cmFAST.
         p21c_astro_params (p21c.AstroParams):              AstroParams for 21cmFAST.
-        use_DH_init (bool):         Whether to use DarkHistory initial conditions.
-        rerun_DH (bool):            Whether to rerun DarkHistory to get initial values.
-        use_tqdm (bool):            Whether to use tqdm progress bars.
-        tf_on_device (bool):        Whether to put transfer functions on device (GPU).
-        no_injection (bool):        Whether to skip injection and energy deposition.
+        use_DH_init (bool):           Whether to use DarkHistory initial conditions.
+        rerun_DH (bool):              Whether to rerun DarkHistory to get initial values.
+        use_tqdm (bool):              Whether to use tqdm progress bars.
+        tf_on_device (bool):          Whether to put transfer functions on device (GPU).
+
+        no_injection (bool):          Whether to skip injection and energy deposition.
+        homogenize_injection (bool):  Whether to use homogeneous injection.
+        homogenize_deposition (bool): Whether to use homogeneous deposition.
 
     Returns:
         dict: Dictionary of results.
@@ -168,6 +174,8 @@ def evolve(run_name,
         #--- for dark matter ---
         nBavg = phys.n_B * (1+z_current)**3 # [Bavg / (physical cm)^3]
         rho_DM_box = delta_plus_one_box * phys.rho_DM * (1+z_current)**3 # [eV/(physical cm)^3]
+        if homogenize_injection:
+            rho_DM_box = jnp.mean(rho_DM_box) * jnp.ones_like(rho_DM_box)
         inj_per_Bavg_box = phys.inj_rate(rho_DM_box, dm_params) * dt * dm_params.struct_boost(1+z_current) / nBavg # [inj/Bavg]
         
         if (not no_injection) and xray_cache.is_latest_z(z_current):

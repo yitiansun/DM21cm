@@ -24,7 +24,7 @@ sys.path.append(os.environ['DM21CM_DIR'])
 import dm21cm.physics as phys
 from dm21cm.dh_wrappers import DarkHistoryWrapper, TransferFunctionWrapper
 from dm21cm.utils import load_h5_dict
-from dm21cm.data_cacher import Cacher
+from dm21cm.data_cache import Cache
 from dm21cm.profiler import Profiler
 
 logging.getLogger().setLevel(logging.INFO)
@@ -54,9 +54,9 @@ def evolve(run_name,
         z_start (float):            Starting redshift.
         z_end (float):              Ending redshift.
         subcycle_factor (int):      Number of subcycles per 21cmFAST step.
-        max_n_shell (int or None):  Number total shells used in xray injection. If None, use all shells smaller than the box size.
-        dm_params (dm21cm.dm_params.DMParams):             Dark matter (DM) parameters.
-        enable_elec (bool):                                Whether to enable electron injection.
+        max_n_shell (int or None):  Max number total shells used in xray injection. If None, use all shells smaller than the box size.
+        dm_params (DMParams):       Dark matter (DM) parameters.
+        enable_elec (bool):         Whether to enable electron injection.
         p21c_initial_conditions (p21c.InitialConditions):  Initial conditions for 21cmFAST.
         p21c_astro_params (p21c.AstroParams):              AstroParams for 21cmFAST.
         use_DH_init (bool):         Whether to use DarkHistory initial conditions.
@@ -95,7 +95,7 @@ def evolve(run_name,
     box_len = p21c_initial_conditions.user_params.BOX_LEN
     cosmo = Planck18
 
-    #--- DarkHistory and transfer functions ---
+    #--- transfer functions ---
     tf_wrapper = TransferFunctionWrapper(
         box_dim = box_dim,
         abscs = abscs,
@@ -105,54 +105,51 @@ def evolve(run_name,
     )
 
     #--- xray ---
-    xray_cacher = Cacher(data_path=f"{cache_dir}/xray_brightness.h5", cosmo=cosmo, N=box_dim, dx=box_len/box_dim)
-    xray_cacher.clear_cache()
+    xray_cache = Cache(data_path=f"{cache_dir}/xray_brightness.h5", cosmo=cosmo, N=box_dim, dx=box_len/box_dim)
+    xray_cache.clear_cache()
 
     #--- redshift stepping ---
     z_edges = get_z_edges(z_start, z_end, abscs['zplusone_step_factor'])
     z_edges_coarse = get_z_edges(z_start, z_end, p21c.global_params.ZPRIME_STEP_FACTOR)
 
     #===== initial steps =====
+    # We synchronize DM21cm with 21cmFAST at the second step because 21cmFAST acts strangely in the first step:
+    # - global_params.TK_at_Z_HEAT_MAX is not set correctly (it is likely set and evolved for a step).
+    # - global_params.XION_at_Z_HEAT_MAX is not set correctly (it is likely set and evolved for a step).
+    # - first step ignores any values added to spin_temp.Tk_box and spin_temp.x_e_box.
+    perturbed_field = p21c.perturb_field(redshift=z_edges[1], init_boxes=p21c_initial_conditions, write=True)
+    spin_temp, ionized_box, brightness_temp = p21c_step(perturbed_field=perturbed_field, spin_temp=None, ionized_box=None, astro_params=p21c_astro_params)
+    
     dh_wrapper = DarkHistoryWrapper(dm_params, prefix=p21c.config[f'direc'])
-
-    # We have to synchronize at the second step because 21cmFAST acts weird in the first step:
-    # - global_params.TK_at_Z_HEAT_MAX is not set correctly (it is probably set and evolved for a step)
-    # - global_params.XION_at_Z_HEAT_MAX is not set correctly (it is probably set and evolved for a step)
-    # - first step ignores any values added to spin_temp.Tk_box and spin_temp.x_e_box
-    z_match = z_edges_coarse[1]
+    z_match = z_edges_coarse[1] # synchronize at the second *coarse* step
     if use_DH_init:
         dh_wrapper.evolve(end_rs=(1+z_match)*0.9, rerun=rerun_DH)
         T_k_DH_init, x_e_DH_init, phot_bath_spec = dh_wrapper.get_init_cond(rs=1+z_match)
-    else:
-        phot_bath_spec = Spectrum(abscs['photE'], np.zeros_like(abscs['photE']), spec_type='N', rs=1+z_match) # [ph / Bavg]
-
-    perturbed_field = p21c.perturb_field(redshift=z_edges[1], init_boxes=p21c_initial_conditions, write = True)
-    spin_temp, ionized_box, brightness_temp = p21c_step(perturbed_field=perturbed_field, spin_temp=None, ionized_box=None, astro_params=p21c_astro_params)
-    if use_DH_init:
         spin_temp.Tk_box += T_k_DH_init - np.mean(spin_temp.Tk_box)
         spin_temp.x_e_box += x_e_DH_init - np.mean(spin_temp.x_e_box)
         ionized_box.xH_box = 1 - spin_temp.x_e_box
+    else:
+        phot_bath_spec = Spectrum(abscs['photE'], np.zeros_like(abscs['photE']), spec_type='N', rs=1+z_match) # [ph / Bavg]
+    
 
     #===== main loop =====
-    # advance z_edges to start with z_match
-    while not np.isclose(z_edges[0], z_match):
+    while not np.isclose(z_edges[0], z_match): # advance z_edges to start with z_match
         z_edges = z_edges[1:]
-    z_edges_coarse = z_edges_coarse[1:]
-    z_range = range(len(z_edges)-1)
-    records = []
+    z_edges_coarse = z_edges_coarse[1:] # now z_edges and z_edges_coarse have matching start and end
+    i_z_range = range(len(z_edges)-1) # -1 such that the z_next in the final step will be z_end
     if use_tqdm:
         from tqdm import tqdm
-        z_range = tqdm(z_range)
-    profiler = Profiler()
+        i_z_range = tqdm(i_z_range)
 
     #--- trackers ---
+    records = []
+    profiler = Profiler()
     i_xray_loop_start = 0 # where we start looking for annuli
 
     #--- loop ---
-    for i_z in z_range:
+    for i_z in i_z_range:
 
         profiler.start()
-        print_str = f'i_z={i_z}/{len(z_edges)-2} z={z_edges[i_z]:.2f}'
         i_z_coarse = i_z // subcycle_factor
 
         #===== physical quantities =====
@@ -165,19 +162,17 @@ def evolve(run_name,
         x_e_box = np.asarray(1 - ionized_box.xH_box)
         T_k_box = np.asarray(spin_temp.Tk_box)
         tf_wrapper.set_params(rs=1+z_current, delta_plus_one_box=delta_plus_one_box, x_e_box=x_e_box, T_k_box=T_k_box)
-        tf_wrapper.reset_phot() # reset photon each step, but deposition is reset only after populating boxes
+        tf_wrapper.reset_phot() # reset photon each subcycle, but deposition is reset only after populating boxes
 
         #--- for dark matter ---
         nBavg = phys.n_B * (1+z_current)**3 # [Bavg / (physical cm)^3]
         rho_DM_box = delta_plus_one_box * phys.rho_DM * (1+z_current)**3 # [eV/(physical cm)^3]
         inj_per_Bavg_box = phys.inj_rate(rho_DM_box, dm_params) * dt * dm_params.struct_boost(1+z_current) / nBavg # [inj/Bavg]
-
         
         if not no_injection:
-
             #===== photon injection and energy deposition =====
             #--- xray ---
-            # First we dump to bath all spectra whose corresponding shells are larger than the box size.
+            # First we dump to bath all cached states whose shell is larger than the box size.
             while i_xray_loop_start < i_z:
                 z_shell_start = z_edges[i_xray_loop_start]
                 z_shell_end = z_edges[i_xray_loop_start+1]
@@ -185,7 +180,7 @@ def evolve(run_name,
                 r_end = phys.conformal_dx_between_z(z_current, z_shell_end) # [cMpc]
                 
                 if min(r_start, r_end) > box_len/2: # if the shell is larger than the box size
-                    phot_bath_spec += xray_cacher.spectrum_cache.get_spectrum(z_shell_start)
+                    phot_bath_spec += xray_cache.spectrum_cache.get_spectrum(z_shell_start)
                     i_xray_loop_start += 1
                 else:
                     break
@@ -206,10 +201,10 @@ def evolve(run_name,
                 z_shell_end = z_edges[i_z_shell+1]
 
                 if i_z_shell not in inds_chosen_shells:
-                    accumulated_shell_spec += xray_cacher.spectrum_cache.get_spectrum(z_shell_start)
+                    accumulated_shell_spec += xray_cache.spectrum_cache.get_spectrum(z_shell_start)
                     continue
 
-                xray_brightness_box, xray_spec, _ = xray_cacher.get_annulus_data(z_current, z_shell_start, z_shell_end)
+                xray_brightness_box, xray_spec, _ = xray_cache.get_annulus_data(z_current, z_shell_start, z_shell_end)
                 xray_spec += accumulated_shell_spec
                 tf_wrapper.inject_phot(xray_spec, inject_type='xray', weight_box=xray_brightness_box)
 
@@ -236,7 +231,7 @@ def evolve(run_name,
             #--- xray ---
             x_e_for_attenuation = 1 - np.mean(ionized_box.xH_box)
             attenuation_arr = np.array(tf_wrapper.attenuation_arr(rs=1+z_current, x=np.mean(x_e_for_attenuation))) # convert from jax array
-            xray_cacher.advance_spectrum(attenuation_arr, z_next)
+            xray_cache.advance_spectrum(attenuation_arr, z_next)
 
             xray_spec = Spectrum(abscs['photE'], emit_xray_N, rs=1+z_current, spec_type='N') # [ph/Bavg]
             xray_spec.redshift(1+z_next)
@@ -247,7 +242,7 @@ def evolve(run_name,
             else:
                 xray_rel_eng_box = np.zeros_like(tf_wrapper.xray_eng_box) # [1 (relative energy)/Bavg]
             
-            xray_cacher.cache(z_current, xray_rel_eng_box, xray_spec)
+            xray_cache.cache(z_current, xray_rel_eng_box, xray_spec)
 
             profiler.record('prep_next')
 
@@ -255,7 +250,6 @@ def evolve(run_name,
         # check if z_next matches
         if (i_z_coarse + 1) * subcycle_factor == (i_z + 1):
 
-            #print(f'evolves 21cmFAST at i_z={i_z}, i_z_coarse={i_z_coarse}, z_next={z_next:.2f}={z_edges_coarse[i_z_coarse+1]:.2f}')
             assert np.isclose(z_next, z_edges_coarse[i_z_coarse+1]) # cross check remove later
 
             perturbed_field = p21c.perturb_field(redshift=z_next, init_boxes=p21c_initial_conditions)
@@ -294,9 +288,6 @@ def evolve(run_name,
                 'T_k_slice' : np.array(spin_temp.Tk_box[0]), # [K]
             })
 
-        if not use_tqdm:
-            print(print_str, flush=True)
-
     #===== end of loop, return results =====
     arr_records = {k: np.array([r[k] for r in records]) for k in records[0].keys()}
     profiler.print_summary()
@@ -308,6 +299,7 @@ def evolve(run_name,
     }
 
     return return_dict
+
 
 #===== utilities for evolve =====
 

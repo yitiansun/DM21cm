@@ -14,7 +14,7 @@ from dm21cm.evolve import evolve
 
 if __name__ == '__main__':
 
-    run_name = 'xcis_xrayphph_lifetime26_noLX_nopop2_zf001_scf10_adashell40'
+    run_name = 'xcis_xrayphph_lifetime26_noLX_nopop2_zf001_scf10_adashell40_test'
 
     os.environ['DM21CM_DATA_DIR'] = '/n/holyscratch01/iaifi_lab/yitians/dm21cm/DM21cm/data/tf/zf001/data'
 

@@ -21,16 +21,8 @@ else:
     jnp = np
 
 
-
-
-
-
-
-
-
-
-class Cacher:
-    """Data cacher for xray.
+class Cache:
+    """Cache for xray.
 
     Args:
         data_path (str): Path to the HDF5 cache file.

@@ -4,6 +4,7 @@ import os
 import sys
 import h5py
 import pickle
+import logging
 import numpy as np
 
 sys.path.append(os.environ['DM21CM_DIR'])
@@ -71,14 +72,18 @@ class XrayCache:
         self.data_dir = data_dir
         self.box_cache_path = os.path.join(data_dir, 'xray_box_cache.h5')
         self.snapshot_path = os.path.join(data_dir, 'xray_cache_snapshot.p')
+
+        self.box_dim = box_dim
+        self.dx = dx
         if load_snapshot:
             if os.path.exists(self.snapshot_path):
                 self.load_snapshot()
+                z_latest = self.states[-1].z_end if len(self.states) > 0 else jnp.nan
+                logging.warning(f'Resuming from snapshot at {self.snapshot_path} with latest redshift z={z_latest:.3f}.')
             else:
-                raise ValueError(f'No snapshot found at {self.snapshot_path}.')
+                logging.warning(f'No snapshot found at {self.snapshot_path}, restarting run.')
+                self.states = []
         else:
-            self.box_dim = box_dim
-            self.dx = dx
             self.states = []
 
         self.init_fft()
@@ -103,10 +108,10 @@ class XrayCache:
             os.remove(self.snapshot_path)
 
     def save_snapshot(self):
-        pickle.dump((self.box_dim, self.dx, self.states), open(self.snapshot_path, 'wb'))
+        pickle.dump(self.states, open(self.snapshot_path, 'wb'))
 
     def load_snapshot(self):
-        self.box_dim, self.dx, self.states = pickle.load(open(self.snapshot_path, 'rb'))
+        self.states = pickle.load(open(self.snapshot_path, 'rb'))
 
     @property
     def i_shell_start(self):
@@ -175,3 +180,8 @@ class XrayCache:
         with h5py.File(self.box_cache_path, 'r') as hf:
             smoothed_box = self.smooth_box(state.get_ftbox(hf), r_start, r_end)
         return smoothed_box
+    
+    def is_latest_z(self, z):
+        if len(self.states) == 0:
+            return True
+        return np.isclose(z, self.states[-1].z_end)

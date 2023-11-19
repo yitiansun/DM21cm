@@ -62,7 +62,7 @@ if __name__ == '__main__':
         ),
         p21c_astro_params = p21c.AstroParams(L_X = 0.), # log10 value
         
-        clear_cache = True,
+        resume = True,
         #tf_on_device = False,
         #no_injection = False,
         #use_DH_init = False,

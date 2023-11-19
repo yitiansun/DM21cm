@@ -35,7 +35,7 @@ class Profiler:
 
     def print_last(self):
         for name, t_list in self.t_dict.items():
-            print(f'{name}: {t_list[-1]:.4f} s')
+            print(f'{name}: {t_list[-1]:.4f} s / step')
 
     def print_summary(self, ignore_first_n=1):
         try:

@@ -44,9 +44,11 @@ class CachedState:
         self.spectrum.switch_spec_type('N')
         self.isinbath = False
 
-    def append_box(self, hf, box):
+    def append_box(self, hf, box, overwrite=False):
         """Fourier transform and append the box to the cache file."""
-        hf.create_dataset(self.key, data=fft.rfftn(box)) # hf should be in append mode
+        if overwrite and self.key in hf:
+            del hf[self.key]
+        hf.create_dataset(self.key, data=fft.rfftn(box))
 
     def get_ftbox(self, hf):
         """Get the Fourier transformed box from the cache file."""
@@ -107,7 +109,7 @@ class XrayCache:
     def cache(self, z_start, z_end, spectrum, box):
         state = CachedState(f'z{z_start:.3f}_z{z_end:.3f}', z_start, z_end, spectrum)
         with h5py.File(self.box_cache_path, 'a') as hf:
-            state.append_box(hf, box)
+            state.append_box(hf, box, overwrite=self.isresumed) # only overwrite if resumed
         self.states.append(state)
 
     def clear_cache(self):

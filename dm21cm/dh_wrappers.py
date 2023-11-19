@@ -277,6 +277,11 @@ class TransferFunctionWrapper:
     def xray_eng_box(self):
         """X-ray energy-per-average-baryon box [eV / Bavg]."""
         return self.dep_box[..., 5]
+    
+    @property
+    def dep_box_means(self):
+        """Deposition box means [eV / Bavg]."""
+        return np.mean(self.dep_box, axis=(0,1,2))
 
     def attenuation_arr(self, rs, x, nBs=1.):
         """Attenuation (fraction of remaining) array w.r.t. energy.

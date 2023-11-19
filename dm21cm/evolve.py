@@ -253,7 +253,6 @@ def evolve(run_name,
             else:
                 xray_rel_eng_box = np.zeros_like(tf_wrapper.xray_eng_box) # [1 (relative energy)/Bavg]
             xray_cache.cache(z_current, z_next, xray_spec, xray_rel_eng_box)
-            xray_cache.save_snapshot(phot_bath_spec=phot_bath_spec)
 
             profiler.record('prep_next')
 
@@ -273,6 +272,7 @@ def evolve(run_name,
                 input_jalpha = input_jalpha,
                 astro_params = p21c_astro_params
             )
+            xray_cache.save_snapshot(phot_bath_spec=phot_bath_spec) # only save snapshot once dep_box is cleared
 
             profiler.record('21cmFAST')
 

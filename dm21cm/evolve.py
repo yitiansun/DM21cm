@@ -6,10 +6,6 @@ import logging
 import gc
 
 import numpy as np
-from scipy import interpolate
-from astropy.cosmology import Planck18
-import astropy.units as u
-
 from jax import config
 config.update("jax_enable_x64", True)
 import jax.numpy as jnp
@@ -24,7 +20,7 @@ sys.path.append(os.environ['DM21CM_DIR'])
 import dm21cm.physics as phys
 from dm21cm.dh_wrappers import DarkHistoryWrapper, TransferFunctionWrapper
 from dm21cm.utils import load_h5_dict
-from dm21cm.data_cache import Cache
+from dm21cm.xray_cache import XrayCache
 from dm21cm.profiler import Profiler
 
 logging.getLogger().setLevel(logging.INFO)
@@ -93,7 +89,6 @@ def evolve(run_name,
 
     box_dim = p21c_initial_conditions.user_params.HII_DIM
     box_len = p21c_initial_conditions.user_params.BOX_LEN
-    cosmo = Planck18
 
     #--- transfer functions ---
     tf_wrapper = TransferFunctionWrapper(
@@ -105,8 +100,9 @@ def evolve(run_name,
     )
 
     #--- xray ---
-    xray_cache = Cache(data_path=f"{cache_dir}/xray_brightness.h5", cosmo=cosmo, N=box_dim, dx=box_len/box_dim)
-    xray_cache.clear_cache()
+    xray_cache = XrayCache(data_dir=cache_dir, box_dim=box_dim, dx=box_len/box_dim)
+    if clear_cache:
+        xray_cache.clear_cache()
 
     #--- redshift stepping ---
     z_edges = get_z_edges(z_start, z_end, abscs['zplusone_step_factor'])
@@ -144,7 +140,6 @@ def evolve(run_name,
     #--- trackers ---
     records = []
     profiler = Profiler()
-    i_xray_loop_start = 0 # where we start looking for annuli
 
     #--- loop ---
     for i_z in i_z_range:
@@ -173,40 +168,36 @@ def evolve(run_name,
             #===== photon injection and energy deposition =====
             #--- xray ---
             # First we dump to bath all cached states whose shell is larger than the box size.
-            while i_xray_loop_start < i_z:
-                z_shell_start = z_edges[i_xray_loop_start]
-                z_shell_end = z_edges[i_xray_loop_start+1]
-                r_start = phys.conformal_dx_between_z(z_current, z_shell_start) # [cMpc]
-                r_end = phys.conformal_dx_between_z(z_current, z_shell_end) # [cMpc]
-                
-                if min(r_start, r_end) > box_len/2: # if the shell is larger than the box size
-                    phot_bath_spec += xray_cache.spectrum_cache.get_spectrum(z_shell_start)
-                    i_xray_loop_start += 1
+            for state in xray_cache.states:
+                if state.isinbath:
+                    continue
+                if phys.conformal_dx_between_z(z_current, state.z_end) > box_len/2:
+                    phot_bath_spec += state.spectrum
+                    state.isinbath = True
                 else:
                     break
 
             # Then we select the chosen shell indices for deposition
             if max_n_shell is not None:
-                i_max = i_z - i_xray_loop_start
+                i_max = i_z - xray_cache.i_shell_start
                 inds_increasing = geom_inds(i_max=i_max, i_transition=10, n_goal=max_n_shell)
                 inds_chosen_shells = i_z - inds_increasing
             else:
-                inds_chosen_shells = list(range(i_xray_loop_start, i_z)) # all shells smaller than the box size are chosen
+                inds_chosen_shells = list(range(xray_cache.i_shell_start, i_z)) # all shells smaller than the box size are chosen
 
             # Finally, we accumulate spectra from the non-chosen shells and deposit only on the chosen shells
             accumulated_shell_spec = Spectrum(abscs['photE'], np.zeros_like(abscs['photE']), spec_type='N', rs=1+z_current) # [ph/Bavg]
 
-            for i_z_shell in range(i_xray_loop_start, i_z):
-                z_shell_start = z_edges[i_z_shell]
-                z_shell_end = z_edges[i_z_shell+1]
-
-                if i_z_shell not in inds_chosen_shells:
-                    accumulated_shell_spec += xray_cache.spectrum_cache.get_spectrum(z_shell_start)
+            for i_state, state in enumerate(xray_cache.states):
+                if state.isinbath:
+                    continue # skip states that are already in bath
+                if i_state not in inds_chosen_shells:
+                    accumulated_shell_spec += state.spectrum
                     continue
 
-                xray_brightness_box, xray_spec, _ = xray_cache.get_annulus_data(z_current, z_shell_start, z_shell_end)
-                xray_spec += accumulated_shell_spec
-                tf_wrapper.inject_phot(xray_spec, inject_type='xray', weight_box=xray_brightness_box)
+                smoothed_rel_eng_box = xray_cache.get_smoothed_box(state, z_current)
+                xray_spec = state.spectrum + accumulated_shell_spec
+                tf_wrapper.inject_phot(xray_spec, inject_type='xray', weight_box=smoothed_rel_eng_box)
 
                 accumulated_shell_spec *= 0.
 
@@ -229,9 +220,8 @@ def evolve(run_name,
             phot_bath_spec.redshift(1+z_next)
 
             #--- xray ---
-            x_e_for_attenuation = 1 - np.mean(ionized_box.xH_box)
-            attenuation_arr = np.array(tf_wrapper.attenuation_arr(rs=1+z_current, x=np.mean(x_e_for_attenuation))) # convert from jax array
-            xray_cache.advance_spectrum(attenuation_arr, z_next)
+            attenuation_arr = np.array(tf_wrapper.attenuation_arr(rs=1+z_current, x=1-np.mean(ionized_box.xH_box))) # convert from jax array
+            xray_cache.advance_spectra(attenuation_arr, z_next)
 
             xray_spec = Spectrum(abscs['photE'], emit_xray_N, rs=1+z_current, spec_type='N') # [ph/Bavg]
             xray_spec.redshift(1+z_next)
@@ -241,8 +231,7 @@ def evolve(run_name,
                 xray_rel_eng_box = tf_wrapper.xray_eng_box / jnp.mean(tf_wrapper.xray_eng_box) # [1 (relative energy)/Bavg]
             else:
                 xray_rel_eng_box = np.zeros_like(tf_wrapper.xray_eng_box) # [1 (relative energy)/Bavg]
-            
-            xray_cache.cache(z_current, xray_rel_eng_box, xray_spec)
+            xray_cache.cache(z_current, z_next, xray_spec, xray_rel_eng_box)
 
             profiler.record('prep_next')
 

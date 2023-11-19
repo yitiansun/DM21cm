@@ -11,6 +11,7 @@ cross_check/xray/*.pdf
 data/run_info/**
 data/sfrd
 debug/*.npy
+logo/*.npy
 notebooks/plots/tmp
 outputs/
 plots/

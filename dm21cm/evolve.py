@@ -67,8 +67,9 @@ def evolve(run_name,
         tf_on_device (bool):          Whether to put transfer functions on device (GPU).
 
         no_injection (bool):          Whether to skip injection and energy deposition.
-        homogenize_injection (bool):  Whether to use homogeneous injection.
-        homogenize_deposition (bool): Whether to use homogeneous deposition.
+        homogenize_injection (bool):  Whether to use homogeneous injection, where DM density is averaged over the box.
+        homogenize_deposition (bool): Whether to use homogeneous deposition, where the transfer function input parameters
+                                      T_k, x_e, and delta are averaged over the box.
 
     Returns:
         dict: Dictionary of results.
@@ -168,7 +169,13 @@ def evolve(run_name,
         delta_plus_one_box = 1 + np.asarray(perturbed_field.density)
         x_e_box = np.asarray(1 - ionized_box.xH_box)
         T_k_box = np.asarray(spin_temp.Tk_box)
-        tf_wrapper.set_params(rs=1+z_current, delta_plus_one_box=delta_plus_one_box, x_e_box=x_e_box, T_k_box=T_k_box)
+        tf_wrapper.set_params(
+            rs = 1+z_current,
+            delta_plus_one_box = delta_plus_one_box,
+            x_e_box = x_e_box,
+            T_k_box = T_k_box,
+            homogenize_deposition = homogenize_deposition
+        )
         tf_wrapper.reset_phot() # reset photon each subcycle, but deposition is reset only after populating boxes
 
         #--- for dark matter ---

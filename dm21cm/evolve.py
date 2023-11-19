@@ -45,6 +45,8 @@ def evolve(run_name,
            no_injection=False,
            homogenize_injection=False,
            homogenize_deposition=False,
+
+           ref_image=None,
            ):
     """
     Main evolution function.
@@ -184,6 +186,12 @@ def evolve(run_name,
         if homogenize_injection:
             rho_DM_box = jnp.mean(rho_DM_box) * jnp.ones_like(rho_DM_box)
         inj_per_Bavg_box = phys.inj_rate(rho_DM_box, dm_params) * dt * dm_params.struct_boost(1+z_current) / nBavg # [inj/Bavg]
+        if ref_image is not None:
+            inj_per_Bavg_box *= ref_image
+            m = (z_current/20) ** -9
+            m = np.clip(m, 0, 1e4)
+            m = np.where(m < 10, np.log(np.exp(m) + np.exp(1)), m)
+            inj_per_Bavg_box *= m
         
         if (not no_injection) and xray_cache.is_latest_z(z_current):
             #===== photon injection and energy deposition =====
@@ -297,6 +305,8 @@ def evolve(run_name,
                 'x_e_slice' : np.array(spin_temp.x_e_box[0]), # [1]
                 'x_H_slice' : np.array(ionized_box.xH_box[0]), # [1]
                 'T_k_slice' : np.array(spin_temp.Tk_box[0]), # [K]
+                'T_s_slice' : np.array(spin_temp.Ts_box[0]),
+                'T_b_slice' : np.array(brightness_temp.brightness_temp[0]),
             })
 
     #===== end of loop, return results =====

@@ -33,11 +33,12 @@ def evolve(run_name,
            z_start=..., z_end=...,
            subcycle_factor=1,
            max_n_shell=None,
+           resume=False,
+
            dm_params=..., enable_elec=False,
            p21c_initial_conditions=...,
            p21c_astro_params=None,
            use_DH_init=True, rerun_DH=False,
-           clear_cache=False,
            use_tqdm=True,
            tf_on_device=True,
            no_injection=False,
@@ -51,6 +52,8 @@ def evolve(run_name,
         z_end (float):              Ending redshift.
         subcycle_factor (int):      Number of subcycles per 21cmFAST step.
         max_n_shell (int or None):  Max number total shells used in xray injection. If None, use all shells smaller than the box size.
+        resume (bool):              Whether to resume from a previous run.
+
         dm_params (DMParams):       Dark matter (DM) parameters.
         enable_elec (bool):         Whether to enable electron injection.
         p21c_initial_conditions (p21c.InitialConditions):  Initial conditions for 21cmFAST.
@@ -74,7 +77,7 @@ def evolve(run_name,
     p21c.config['direc'] = cache_dir
     logging.info(f"Cache dir: {cache_dir}")
     os.makedirs(cache_dir, exist_ok=True)
-    if clear_cache:
+    if not resume:
         cache_tools.clear_cache()
     gc.collect()
 
@@ -100,8 +103,10 @@ def evolve(run_name,
     )
 
     #--- xray ---
-    xray_cache = XrayCache(data_dir=cache_dir, box_dim=box_dim, dx=box_len/box_dim)
-    if clear_cache:
+    if resume:
+        xray_cache = XrayCache(data_dir=cache_dir, box_dim=box_dim, dx=box_len/box_dim, load_snapshot=True)
+    else:
+        xray_cache = XrayCache(data_dir=cache_dir, box_dim=box_dim, dx=box_len/box_dim)
         xray_cache.clear_cache()
 
     #--- redshift stepping ---
@@ -164,7 +169,7 @@ def evolve(run_name,
         rho_DM_box = delta_plus_one_box * phys.rho_DM * (1+z_current)**3 # [eV/(physical cm)^3]
         inj_per_Bavg_box = phys.inj_rate(rho_DM_box, dm_params) * dt * dm_params.struct_boost(1+z_current) / nBavg # [inj/Bavg]
         
-        if not no_injection:
+        if (not no_injection) and xray_cache.is_latest_z(z_current):
             #===== photon injection and energy deposition =====
             #--- xray ---
             # First we dump to bath all cached states whose shell is larger than the box size.
@@ -232,6 +237,7 @@ def evolve(run_name,
             else:
                 xray_rel_eng_box = np.zeros_like(tf_wrapper.xray_eng_box) # [1 (relative energy)/Bavg]
             xray_cache.cache(z_current, z_next, xray_spec, xray_rel_eng_box)
+            xray_cache.save_snapshot()
 
             profiler.record('prep_next')
 

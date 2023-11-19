@@ -1,7 +1,6 @@
 # DM21cm
 
-## Debug deconstructor
- - [ ] Separate out powerbox.
+![](plots/xH.gif)
 
 ## Installation
 

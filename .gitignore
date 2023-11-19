@@ -1,21 +1,21 @@
 #===== This project =====
+**/.DS_Store
+**/slurm_outputs/
+**/__pycache__/
 build_tf/*.pdf
 build_tf/ionhist_outputs/
-data/run_info/**
-data/sfrd
-notebooks/plots/tmp
-**/.DS_Store
-outputs/
-plots/
 cross_check/ionhist_outputs/
 cross_check/run_info/
 cross_check/tmp
 cross_check/xray/*.pdf
-**/slurm_outputs/
+data/run_info/**
+data/sfrd
+debug/*.npy
+notebooks/plots/tmp
+outputs/
+plots/
 scripts/*.out
 step/*.out
-
-**/__pycache__/
 #------------------------
 
 # Byte-compiled / optimized / DLL files

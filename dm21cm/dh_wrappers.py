@@ -3,6 +3,7 @@ import sys
 import pickle
 import logging
 import numpy as np
+import jax.numpy as jnp
 from scipy import interpolate
 
 sys.path.append("..")
@@ -88,7 +89,6 @@ class TransferFunctionWrapper:
         self.enable_elec = enable_elec
         self.on_device = on_device
 
-        self.nBs_lowerbound = (1 + EPSILON) * np.min(self.abscs['nBs']) # [Bavg]
         self.load_tfs()
         self.reset_phot()
         self.reset_dep()
@@ -110,19 +110,27 @@ class TransferFunctionWrapper:
         else:
             logging.info('TransferFunctionWrapper: Skipping electron transfer functions.')
             
-    def set_params(self, rs=..., delta_plus_one_box=..., x_e_box=..., T_k_box=...):
+    def set_params(self, rs=..., delta_plus_one_box=..., x_e_box=..., T_k_box=..., homogenize_deposition=False):
         """Initializes parameters and receivers for injection step."""
-        delta_plus_one_box = np.clip(delta_plus_one_box, self.nBs_lowerbound, None)
+        delta_plus_one_box = jnp.clip(
+            delta_plus_one_box,
+            (1 + EPSILON) * jnp.min(self.abscs['nBs']),
+            (1 - EPSILON) * jnp.max(self.abscs['nBs'])
+        )
         self.params = dict(
             rs = rs,
             nBs_box = delta_plus_one_box,
             x_e_box = x_e_box,
-            T_k_box = T_k_box,
+            T_k_box = T_k_box
         )
+        if homogenize_deposition:
+            self.params['nBs_box'] = jnp.ones_like(self.params['nBs_box']) * jnp.mean(self.params['nBs_box'])
+            self.params['x_e_box'] = jnp.ones_like(self.params['x_e_box']) * jnp.mean(self.params['x_e_box'])
+            self.params['T_k_box'] = jnp.ones_like(self.params['T_k_box']) * jnp.mean(self.params['T_k_box'])
         self.tf_kwargs = dict(
             rs = rs,
-            nBs_s = delta_plus_one_box.ravel(),
-            x_s = x_e_box.ravel(),
+            nBs_s = self.params['nBs_box'].ravel(),
+            x_s = self.params['x_e_box'].ravel(),
             out_of_bounds_action = 'clip',
         )
 

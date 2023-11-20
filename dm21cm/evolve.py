@@ -263,9 +263,6 @@ def evolve(run_name,
 
         #===== 21cmFAST step =====
         # check if z_next matches
-        print('Fine step:', i_z)
-        print('Coarse step:', i_z_coarse)
-        print('Updating state:', (i_z_coarse + 1) * subcycle_factor == (i_z + 1))
         if (i_z_coarse + 1) * subcycle_factor == (i_z + 1):
 
             assert np.isclose(z_next, z_edges_coarse[i_z_coarse+1]) # cross check remove later

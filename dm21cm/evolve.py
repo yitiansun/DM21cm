@@ -123,11 +123,11 @@ def evolve(run_name,
 
     # These are the z_edges that we step over coarsely. I am including a dummy step to match 21cmFAST.
     z_edges_coarse = get_z_edges(z_start, z_end, p21c.global_params.ZPRIME_STEP_FACTOR)
-    z_coarse_dummy = (z_edges_coarse[1] + 1) * p21c.global_params.ZPRIME_STEP_FACTOR - 1
-    z_edges_coarse = np.around(np.append(z_coarse_dummy, z_edges_coarse[1:]), decimals = 12)
+    z_edges_coarse = np.around(z_edges_coarse, decimals = 10)
 
     # This is how we define the fine stepping
     z_edges = get_z_edges(z_edges_coarse[0], z_end, abscs['zplusone_step_factor'])
+    z_edges = np.around(z_edges, decimals = 10)
     if np.isclose(z_edges[0], z_edges[1], atol = 0, rtol = 1e-8):
         z_edges = z_edges[1:] # remove possible duplicate, now z_edges and z_edges_coarse have matching start and end
 
@@ -267,7 +267,7 @@ def evolve(run_name,
 
             assert np.isclose(z_next, z_edges_coarse[i_z_coarse+1]) # cross check remove later
 
-            perturbed_field = p21c.perturb_field(redshift=z_next, init_boxes=p21c_initial_conditions)
+            perturbed_field = p21c.perturb_field(redshift=z_edges_coarse[i_z_coarse+1], init_boxes=p21c_initial_conditions)
             input_heating, input_ionization, input_jalpha = gen_injection_boxes(z_next, p21c_initial_conditions)
             tf_wrapper.populate_injection_boxes(input_heating, input_ionization, input_jalpha, dt,)
             spin_temp, ionized_box, brightness_temp = p21c_step(
@@ -318,13 +318,11 @@ def evolve(run_name,
 
 
 #===== utilities for evolve =====
-
 def get_z_edges(z_max, z_min, zplusone_step_factor):
     z_s = [z_min]
     while z_s[-1] < z_max:
         z_s.append((z_s[-1] + 1.) * zplusone_step_factor - 1.)
-
-    return np.around(np.clip(z_s[::-1], None, z_max), decimals = 12)
+    return z_s[::-1]
 
 
 def split_xray(phot_N, phot_eng):

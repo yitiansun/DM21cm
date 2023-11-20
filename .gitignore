@@ -15,6 +15,8 @@ logo/*.npy
 notebooks/plots/tmp
 outputs/
 plots/
+plotting/**/tmp
+plotting/**/*.npy
 scripts/*.out
 step/*.out
 #------------------------

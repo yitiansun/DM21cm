@@ -45,6 +45,8 @@ def evolve(run_name,
            no_injection=False,
            homogenize_injection=False,
            homogenize_deposition=False,
+
+           ref_image=None,
            ):
     """
     Main evolution function.
@@ -93,7 +95,7 @@ def evolve(run_name,
     dm_params.set_inj_specs(abscs)
 
     EPSILON = 1e-6
-    p21c.global_params.Z_HEAT_MAX = z_start# + EPSILON
+    p21c.global_params.Z_HEAT_MAX = z_start + EPSILON
     p21c.global_params.ZPRIME_STEP_FACTOR = abscs['zplusone_step_factor'] ** subcycle_factor
 
     box_dim = p21c_initial_conditions.user_params.HII_DIM
@@ -115,36 +117,21 @@ def evolve(run_name,
         xray_cache = XrayCache(data_dir=cache_dir, box_dim=box_dim, dx=box_len/box_dim)
         xray_cache.clear_cache()
 
+    #--- redshift stepping ---
+    z_edges = get_z_edges(z_start, z_end, abscs['zplusone_step_factor'])
+    z_edges_coarse = get_z_edges(z_start, z_end, p21c.global_params.ZPRIME_STEP_FACTOR)
+
     #===== initial steps =====
     # We synchronize DM21cm with 21cmFAST at the second step because 21cmFAST acts strangely in the first step:
     # - global_params.TK_at_Z_HEAT_MAX is not set correctly (it is likely set and evolved for a step).
     # - global_params.XION_at_Z_HEAT_MAX is not set correctly (it is likely set and evolved for a step).
     # - first step ignores any values added to spin_temp.Tk_box and spin_temp.x_e_box.
-
-    # These are the z_edges that we step over coarsely matching the 21cmFAST expectation.
-    EPSILON = 1e-6
-    z_edges_coarse = get_z_edges(z_start, z_end, p21c.global_params.ZPRIME_STEP_FACTOR)
-    z_edges = get_z_edges(z_edges_coarse[0]+EPSILON, z_end, abscs['zplusone_step_factor'])[1:]
-
-    # Doing some roundoff for nice behavior. I have included this rounding in 21cmFAST.
-    z_edges_coarse = np.around(z_edges_coarse, decimals = 10)
-    z_edges = np.around(z_edges, decimals = 10)
-    scrollz = np.copy(z_edges_coarse) # record keeping
-
-    # Construct the initial state, which will be above Z_HEAT_MAX
-    perturbed_field = p21c.perturb_field(redshift=z_edges_coarse[0], init_boxes=p21c_initial_conditions, write=True)
+    perturbed_field = p21c.perturb_field(redshift=z_edges[1], init_boxes=p21c_initial_conditions, write=True)
     spin_temp, ionized_box, brightness_temp = p21c_step(perturbed_field=perturbed_field, spin_temp=None, ionized_box=None, astro_params=p21c_astro_params)
-
-    # Step past Z_HEAT_MAX to the synchronization point. Remove the initial z_edges from the list as well.
-    z_edges_coarse =  z_edges_coarse[1:]
-    z_edges = z_edges[subcycle_factor:]
-    z_match = z_edges_coarse[0]
-
-    perturbed_field = p21c.perturb_field(redshift=z_match, init_boxes=p21c_initial_conditions, write=True)
-    spin_temp, ionized_box, brightness_temp = p21c_step(perturbed_field=perturbed_field, spin_temp=spin_temp, ionized_box=ionized_box, astro_params=p21c_astro_params)
-
+    
+    dh_wrapper = DarkHistoryWrapper(dm_params, prefix=p21c.config[f'direc'])
+    z_match = z_edges_coarse[1] # synchronize at the second *coarse* step
     if use_DH_init:
-        dh_wrapper = DarkHistoryWrapper(dm_params, prefix=p21c.config[f'direc'])
         dh_wrapper.evolve(end_rs=(1+z_match)*0.9, rerun=rerun_DH)
         T_k_DH_init, x_e_DH_init, phot_bath_spec = dh_wrapper.get_init_cond(rs=1+z_match)
         spin_temp.Tk_box += T_k_DH_init - np.mean(spin_temp.Tk_box)
@@ -154,9 +141,12 @@ def evolve(run_name,
         phot_bath_spec = Spectrum(abscs['photE'], np.zeros_like(abscs['photE']), spec_type='N', rs=1+z_match) # [ph / Bavg]
     if xray_cache.isresumed:
         phot_bath_spec = xray_cache.saved_phot_bath_spec
-
+    
 
     #===== main loop =====
+    while not np.isclose(z_edges[0], z_match): # advance z_edges to start with z_match
+        z_edges = z_edges[1:]
+    z_edges_coarse = z_edges_coarse[1:] # now z_edges and z_edges_coarse have matching start and end
     i_z_range = range(len(z_edges)-1) # -1 such that the z_next in the final step will be z_end
     if use_tqdm:
         from tqdm import tqdm
@@ -196,6 +186,12 @@ def evolve(run_name,
         if homogenize_injection:
             rho_DM_box = jnp.mean(rho_DM_box) * jnp.ones_like(rho_DM_box)
         inj_per_Bavg_box = phys.inj_rate(rho_DM_box, dm_params) * dt * dm_params.struct_boost(1+z_current) / nBavg # [inj/Bavg]
+        if ref_image is not None:
+            inj_per_Bavg_box *= ref_image
+            m = (z_current/20) ** -9
+            m = np.clip(m, 0, 1e4)
+            m = np.where(m < 10, np.log(np.exp(m) + np.exp(1)), m)
+            inj_per_Bavg_box *= m
         
         if (not no_injection) and xray_cache.is_latest_z(z_current):
             #===== photon injection and energy deposition =====
@@ -271,9 +267,10 @@ def evolve(run_name,
         #===== 21cmFAST step =====
         # check if z_next matches
         if (i_z_coarse + 1) * subcycle_factor == (i_z + 1):
+
             assert np.isclose(z_next, z_edges_coarse[i_z_coarse+1]) # cross check remove later
 
-            perturbed_field = p21c.perturb_field(redshift=z_edges_coarse[i_z_coarse+1], init_boxes=p21c_initial_conditions)
+            perturbed_field = p21c.perturb_field(redshift=z_next, init_boxes=p21c_initial_conditions)
             input_heating, input_ionization, input_jalpha = gen_injection_boxes(z_next, p21c_initial_conditions)
             tf_wrapper.populate_injection_boxes(input_heating, input_ionization, input_jalpha, dt,)
             spin_temp, ionized_box, brightness_temp = p21c_step(
@@ -308,30 +305,31 @@ def evolve(run_name,
                 'x_e_slice' : np.array(spin_temp.x_e_box[0]), # [1]
                 'x_H_slice' : np.array(ionized_box.xH_box[0]), # [1]
                 'T_k_slice' : np.array(spin_temp.Tk_box[0]), # [K]
+                'T_s_slice' : np.array(spin_temp.Ts_box[0]),
+                'T_b_slice' : np.array(brightness_temp.brightness_temp[0]),
             })
 
     #===== end of loop, return results =====
     arr_records = {k: np.array([r[k] for r in records]) for k in records[0].keys()}
     profiler.print_summary()
 
-
-
     return_dict = {
-	'profiler' : profiler,
+	    'profiler' : profiler,
         'records' : arr_records,
         'brightness_temp' : brightness_temp,
-        'scrollz': scrollz,
     }
 
     return return_dict
 
 
 #===== utilities for evolve =====
+
 def get_z_edges(z_max, z_min, zplusone_step_factor):
     z_s = [z_min]
     while z_s[-1] < z_max:
         z_s.append((z_s[-1] + 1.) * zplusone_step_factor - 1.)
-    return z_s[::-1]
+
+    return np.clip(z_s[::-1], None, z_max)
 
 
 def split_xray(phot_N, phot_eng):

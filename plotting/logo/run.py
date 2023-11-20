@@ -9,7 +9,7 @@ import py21cmfast as p21c
 WDIR = os.environ['DM21CM_DIR']
 sys.path.append(WDIR)
 from dm21cm.dm_params import DMParams
-from dm21cm.evolve import evolve
+from evolve_logo import evolve
 
 
 if __name__ == '__main__':
@@ -61,4 +61,4 @@ if __name__ == '__main__':
         ref_image = ref_image,
     )
 
-    np.save(f'../outputs/dm21cm/{run_name}_records.npy', return_dict['records'])
+    np.save(f'{WDIR}/outputs/dm21cm/{run_name}_records.npy', return_dict['records'])

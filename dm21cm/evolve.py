@@ -121,20 +121,27 @@ def evolve(run_name,
     # - global_params.XION_at_Z_HEAT_MAX is not set correctly (it is likely set and evolved for a step).
     # - first step ignores any values added to spin_temp.Tk_box and spin_temp.x_e_box.
 
-    # These are the z_edges that we step over coarsely. I am including a dummy step to match 21cmFAST.
+    # These are the z_edges that we step over coarsely matching the 21cmFAST expectation.
+    EPSILON = 1e-6
     z_edges_coarse = get_z_edges(z_start, z_end, p21c.global_params.ZPRIME_STEP_FACTOR)
+    z_edges = get_z_edges(z_edges_coarse[0]+EPSILON, z_end, abscs['zplusone_step_factor'])[1:]
+
+    # Doing some roundoff for nice behavior. I have included this rounding in 21cmFAST.
     z_edges_coarse = np.around(z_edges_coarse, decimals = 10)
-
-    # This is how we define the fine stepping
-    z_edges = get_z_edges(z_edges_coarse[0], z_end, abscs['zplusone_step_factor'])
     z_edges = np.around(z_edges, decimals = 10)
-    if z_edges[0] > z_edges_coarse[0]:
-        z_edges = z_edges[1:]
+    scrollz = np.copy(z_edges_coarse) # record keeping
 
-    # Step in advance of the synchronization
-    z_match = z_edges_coarse[0] # synchronize at the *coarse* step
-    perturbed_field = p21c.perturb_field(redshift=z_match, init_boxes=p21c_initial_conditions, write=True)
+    # Construct the initial state, which will be above Z_HEAT_MAX
+    perturbed_field = p21c.perturb_field(redshift=z_edges_coarse[0], init_boxes=p21c_initial_conditions, write=True)
     spin_temp, ionized_box, brightness_temp = p21c_step(perturbed_field=perturbed_field, spin_temp=None, ionized_box=None, astro_params=p21c_astro_params)
+
+    # Step past Z_HEAT_MAX to the synchronization point. Remove the initial z_edges from the list as well.
+    z_edges_coarse =  z_edges_coarse[1:]
+    z_edges = z_edges[subcycle_factor:]
+    z_match = z_edges_coarse[0]
+
+    perturbed_field = p21c.perturb_field(redshift=z_match, init_boxes=p21c_initial_conditions, write=True)
+    spin_temp, ionized_box, brightness_temp = p21c_step(perturbed_field=perturbed_field, spin_temp=spin_temp, ionized_box=ionized_box, astro_params=p21c_astro_params)
 
     if use_DH_init:
         dh_wrapper = DarkHistoryWrapper(dm_params, prefix=p21c.config[f'direc'])
@@ -307,10 +314,13 @@ def evolve(run_name,
     arr_records = {k: np.array([r[k] for r in records]) for k in records[0].keys()}
     profiler.print_summary()
 
+
+
     return_dict = {
-	    'profiler' : profiler,
+	'profiler' : profiler,
         'records' : arr_records,
         'brightness_temp' : brightness_temp,
+        'scrollz': scrollz,
     }
 
     return return_dict

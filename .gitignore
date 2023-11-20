@@ -17,6 +17,7 @@ outputs/
 plots/
 plotting/**/tmp
 plotting/**/*.npy
+plotting/**/*.h5
 scripts/*.out
 step/*.out
 #------------------------

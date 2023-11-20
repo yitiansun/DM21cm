@@ -93,7 +93,7 @@ def evolve(run_name,
     dm_params.set_inj_specs(abscs)
 
     EPSILON = 1e-6
-    p21c.global_params.Z_HEAT_MAX = z_start + EPSILON
+    p21c.global_params.Z_HEAT_MAX = z_start# + EPSILON
     p21c.global_params.ZPRIME_STEP_FACTOR = abscs['zplusone_step_factor'] ** subcycle_factor
 
     box_dim = p21c_initial_conditions.user_params.HII_DIM
@@ -120,17 +120,22 @@ def evolve(run_name,
     # - global_params.TK_at_Z_HEAT_MAX is not set correctly (it is likely set and evolved for a step).
     # - global_params.XION_at_Z_HEAT_MAX is not set correctly (it is likely set and evolved for a step).
     # - first step ignores any values added to spin_temp.Tk_box and spin_temp.x_e_box.
+
+    # These are the z_edges that we step over coarsely. I am including a dummy step to match 21cmFAST.
     z_edges_coarse = get_z_edges(z_start, z_end, p21c.global_params.ZPRIME_STEP_FACTOR)
-    z_edges_coarse = z_edges_coarse[1:] # start from the second *coarse* step
+    z_coarse_dummy = (z_edges_coarse[1] + 1) * p21c.global_params.ZPRIME_STEP_FACTOR - 1
+    z_edges_coarse = np.around(np.append(z_coarse_dummy, z_edges_coarse[1:]), decimals = 12)
+
+    # This is how we define the fine stepping
     z_edges = get_z_edges(z_edges_coarse[0], z_end, abscs['zplusone_step_factor'])
     if np.isclose(z_edges[0], z_edges[1], atol = 0, rtol = 1e-8):
         z_edges = z_edges[1:] # remove possible duplicate, now z_edges and z_edges_coarse have matching start and end
 
-    z_match = z_edges_coarse[0] # synchronize at the second *coarse* step
-
+    # Step in advance of the synchronization
+    z_match = z_edges_coarse[0] # synchronize at the *coarse* step
     perturbed_field = p21c.perturb_field(redshift=z_match, init_boxes=p21c_initial_conditions, write=True)
     spin_temp, ionized_box, brightness_temp = p21c_step(perturbed_field=perturbed_field, spin_temp=None, ionized_box=None, astro_params=p21c_astro_params)
-    
+
     if use_DH_init:
         dh_wrapper = DarkHistoryWrapper(dm_params, prefix=p21c.config[f'direc'])
         dh_wrapper.evolve(end_rs=(1+z_match)*0.9, rerun=rerun_DH)
@@ -258,6 +263,9 @@ def evolve(run_name,
 
         #===== 21cmFAST step =====
         # check if z_next matches
+        print('Fine step:', i_z)
+        print('Coarse step:', i_z_coarse)
+        print('Updating state:', (i_z_coarse + 1) * subcycle_factor == (i_z + 1))
         if (i_z_coarse + 1) * subcycle_factor == (i_z + 1):
 
             assert np.isclose(z_next, z_edges_coarse[i_z_coarse+1]) # cross check remove later
@@ -319,7 +327,7 @@ def get_z_edges(z_max, z_min, zplusone_step_factor):
     while z_s[-1] < z_max:
         z_s.append((z_s[-1] + 1.) * zplusone_step_factor - 1.)
 
-    return np.clip(z_s[::-1], None, z_max)
+    return np.around(np.clip(z_s[::-1], None, z_max), decimals = 12)
 
 
 def split_xray(phot_N, phot_eng):

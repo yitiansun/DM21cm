@@ -115,23 +115,24 @@ def evolve(run_name,
         xray_cache = XrayCache(data_dir=cache_dir, box_dim=box_dim, dx=box_len/box_dim)
         xray_cache.clear_cache()
 
-    #--- redshift stepping ---
-    z_edges_coarse = get_z_edges(z_start, z_end, p21c.global_params.ZPRIME_STEP_FACTOR)
-    z_edges = get_z_edges(z_edges_coarse[1], z_end, abscs['zplusone_step_factor'])
-    if np.isclose(z_edges[0], z_edges[1], atol = 0, rtol = 1e-8):
-        z_edges = z_edges[1:]
-
     #===== initial steps =====
     # We synchronize DM21cm with 21cmFAST at the second step because 21cmFAST acts strangely in the first step:
     # - global_params.TK_at_Z_HEAT_MAX is not set correctly (it is likely set and evolved for a step).
     # - global_params.XION_at_Z_HEAT_MAX is not set correctly (it is likely set and evolved for a step).
     # - first step ignores any values added to spin_temp.Tk_box and spin_temp.x_e_box.
-    perturbed_field = p21c.perturb_field(redshift=z_edges_coarse[1], init_boxes=p21c_initial_conditions, write=True)
+    z_edges_coarse = get_z_edges(z_start, z_end, p21c.global_params.ZPRIME_STEP_FACTOR)
+    z_edges_coarse = z_edges_coarse[1:] # start from the second *coarse* step
+    z_edges = get_z_edges(z_edges_coarse[0], z_end, abscs['zplusone_step_factor'])
+    if np.isclose(z_edges[0], z_edges[1], atol = 0, rtol = 1e-8):
+        z_edges = z_edges[1:] # remove possible duplicate, now z_edges and z_edges_coarse have matching start and end
+
+    z_match = z_edges_coarse[0] # synchronize at the second *coarse* step
+
+    perturbed_field = p21c.perturb_field(redshift=z_match, init_boxes=p21c_initial_conditions, write=True)
     spin_temp, ionized_box, brightness_temp = p21c_step(perturbed_field=perturbed_field, spin_temp=None, ionized_box=None, astro_params=p21c_astro_params)
     
-    dh_wrapper = DarkHistoryWrapper(dm_params, prefix=p21c.config[f'direc'])
-    z_match = z_edges_coarse[1] # synchronize at the second *coarse* step
     if use_DH_init:
+        dh_wrapper = DarkHistoryWrapper(dm_params, prefix=p21c.config[f'direc'])
         dh_wrapper.evolve(end_rs=(1+z_match)*0.9, rerun=rerun_DH)
         T_k_DH_init, x_e_DH_init, phot_bath_spec = dh_wrapper.get_init_cond(rs=1+z_match)
         spin_temp.Tk_box += T_k_DH_init - np.mean(spin_temp.Tk_box)
@@ -141,12 +142,9 @@ def evolve(run_name,
         phot_bath_spec = Spectrum(abscs['photE'], np.zeros_like(abscs['photE']), spec_type='N', rs=1+z_match) # [ph / Bavg]
     if xray_cache.isresumed:
         phot_bath_spec = xray_cache.saved_phot_bath_spec
-    
+
 
     #===== main loop =====
-    while not np.isclose(z_edges[0], z_match): # advance z_edges to start with z_match
-        z_edges = z_edges[1:]
-    z_edges_coarse = z_edges_coarse[1:] # now z_edges and z_edges_coarse have matching start and end
     i_z_range = range(len(z_edges)-1) # -1 such that the z_next in the final step will be z_end
     if use_tqdm:
         from tqdm import tqdm

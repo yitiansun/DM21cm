@@ -128,8 +128,8 @@ def evolve(run_name,
     # This is how we define the fine stepping
     z_edges = get_z_edges(z_edges_coarse[0], z_end, abscs['zplusone_step_factor'])
     z_edges = np.around(z_edges, decimals = 10)
-    if np.isclose(z_edges[0], z_edges[1], atol = 0, rtol = 1e-8):
-        z_edges = z_edges[1:] # remove possible duplicate, now z_edges and z_edges_coarse have matching start and end
+    if z_edges[0] > z_edges_coarse[0]:
+        z_edges = z_edges[1:]
 
     # Step in advance of the synchronization
     z_match = z_edges_coarse[0] # synchronize at the *coarse* step
@@ -265,6 +265,7 @@ def evolve(run_name,
         # check if z_next matches
         if (i_z_coarse + 1) * subcycle_factor == (i_z + 1):
 
+            print(z_next, z_edges_coarse[i_z_coarse+1])
             assert np.isclose(z_next, z_edges_coarse[i_z_coarse+1]) # cross check remove later
 
             perturbed_field = p21c.perturb_field(redshift=z_edges_coarse[i_z_coarse+1], init_boxes=p21c_initial_conditions)

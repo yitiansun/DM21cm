@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=fc005
+#SBATCH --job-name=fc001
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks=1
@@ -17,4 +17,4 @@ source /n/home07/yitians/setup_dm21cm.sh
 
 cd /n/home07/yitians/dm21cm/DM21cm/plotting/field-convergence
 
-python run.py -z 005
+python run.py -z 001 -s 1

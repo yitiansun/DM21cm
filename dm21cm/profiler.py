@@ -40,7 +40,7 @@ class Profiler:
         """Print the last recorded time."""
         try:
             for name, t_list in self.t_dict.items():
-                print(f'{name}: {t_list[-1]:.4f} s / step')
+                print(f'{name}: {t_list[-1]:.4f} s')
         except:
             print('Error printing last.')
 
@@ -48,7 +48,8 @@ class Profiler:
         """Print the mean and standard deviation of the recorded times."""
         try:
             for name, t_list in self.t_dict.items():
-                print(f'{name}: {np.mean(t_list[ignore_first_n:]):.4f} +/- {np.std(t_list[ignore_first_n:]):.4f} s')
+                tl = t_list[ignore_first_n:]
+                print(f'{name:12}: {np.mean(tl):.4f} +/- {np.std(tl):.4f} s * {len(tl)} steps : {np.sum(tl)} s')
         except:
             print('Error printing summary.')
 

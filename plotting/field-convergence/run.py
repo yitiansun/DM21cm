@@ -18,12 +18,12 @@ if __name__ == '__main__':
     # parse arguments
     parser = argparse.ArgumentParser()
     parser.add_argument('-z', '--zf', type=str)
+    parser.add_argument('-s', '--sf', type=int)
     args = parser.parse_args()
 
     run_name = f'fc_{args.zf}'
     zff = float('0.' + args.zf)
-    subcycle_factor = int(0.01 / zff)
-    print(f'zf = {args.zf}, zff = {zff}, subcycle_factor = {subcycle_factor}')
+    print(f'zf = {args.zf}, zff = {zff}, subcycle_factor = {args.sf}')
 
     os.environ['DM21CM_DATA_DIR'] = f'/n/holyscratch01/iaifi_lab/yitians/dm21cm/DM21cm/data/tf/zf{args.zf}/data'
 
@@ -62,7 +62,7 @@ if __name__ == '__main__':
         p21c_astro_params = p21c.AstroParams(L_X = 0.), # log10 value
         
         resume = False,
-        subcycle_factor = subcycle_factor,
+        subcycle_factor = args.sf,
         max_n_shell = 40,
     )
 

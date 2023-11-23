@@ -1,5 +1,6 @@
 import os
 import sys
+import argparse
 
 from astropy.cosmology import Planck18
 import py21cmfast as p21c
@@ -13,13 +14,18 @@ WDIR = os.environ['DM21CM_DIR']
 
 if __name__ == '__main__':
 
-    os.environ['DM21CM_DATA_DIR'] = '/n/holyscratch01/iaifi_lab/yitians/dm21cm/DM21cm/data/tf/zf01/data'
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-z', '--zf', type=str) # 001 002 005 01
+    parser.add_argument('-s', '--sf', type=int) # 10 5 2 1
+    args = parser.parse_args()
+
+    os.environ['DM21CM_DATA_DIR'] = f'/n/holyscratch01/iaifi_lab/yitians/dm21cm/DM21cm/data/tf/zf{args.zf}/data'
 
     # p21c.global_params.R_XLy_MAX = 500.
     # p21c.global_params.NUM_FILTER_STEPS_FOR_Ts = 40
 
     return_dict = evolve(
-        run_name = f'xdecay_dc',
+        run_name = f'fc_xray_zf{args.zf}_sf{args.sf}',
         z_start = 45.,
         z_end = 5.,
         dm_params = DMParams(
@@ -68,6 +74,6 @@ if __name__ == '__main__':
         debug_xray_Rmax_bath = 430.,
         adaptive_shell = 40,
 
-        subcycle_factor = 1,
+        subcycle_factor = args.sf,
         subcycle_evolve_delta = False,
     )

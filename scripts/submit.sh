@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #SBATCH --job-name=xdecay_zf001
-#SBATCH --partition=iaifi_gpu
+#SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=32

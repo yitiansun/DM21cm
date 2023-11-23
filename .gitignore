@@ -13,6 +13,7 @@ data/sfrd
 debug/*.npy
 logo/*.npy
 notebooks/plots/tmp
+notebooks/tmp
 outputs/
 plots/
 plotting/**/tmp

@@ -14,7 +14,7 @@ from dm21cm.evolve import evolve
 
 if __name__ == '__main__':
 
-    run_name = 'pipeline'
+    run_name = 'test_no_inj'
 
     os.environ['DM21CM_DATA_DIR'] = '/n/holyscratch01/iaifi_lab/yitians/dm21cm/DM21cm/data/tf/zf01/data'
 
@@ -50,11 +50,11 @@ if __name__ == '__main__':
             random_seed = 54321,
             write = True,
         ),
-        p21c_astro_params = p21c.AstroParams(L_X = 40.), # log10 value
+        p21c_astro_params = p21c.AstroParams(L_X = 0.), # log10 value
         
         #clear_cache = True,
         #tf_on_device = False,
-        #no_injection = False,
+        no_injection = True,
         #use_DH_init = False,
         subcycle_factor = 1,
         max_n_shell = 40,

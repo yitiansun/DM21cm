@@ -266,7 +266,7 @@ def evolve(run_name,
                 xray_rel_eng_box = np.zeros_like(tf_wrapper.xray_eng_box) # [1 (relative energy)/Bavg]
             xray_cache.cache(z_current, z_next, xray_spec, xray_rel_eng_box)
 
-            profiler.record('prep_next')
+            profiler.record('prep next')
 
         #===== 21cmFAST step =====
         # check if z_next matches
@@ -298,7 +298,6 @@ def evolve(run_name,
                 'T_k' : np.mean(spin_temp.Tk_box), # [K]
                 'x_e' : np.mean(spin_temp.x_e_box), # [1]
                 '1-x_H' : np.mean(1 - ionized_box.xH_box), # [1]
-                'E_phot' : phot_bath_spec.toteng(), # [eV/Bavg]
                 'phot_N' : phot_bath_spec.N, # [ph/Bavg]
                 'dE_inj_per_B' : dE_inj_per_Bavg, # [eV/Bavg]
                 'dE_inj_per_Bavg_unclustered' : dE_inj_per_Bavg_unclustered, # [eV/Bavg]
@@ -312,12 +311,11 @@ def evolve(run_name,
 
     #===== end of loop, return results =====
     arr_records = {k: np.array([r[k] for r in records]) for k in records[0].keys()}
+    arr_records['brightness_temp'] = brightness_temp
     profiler.print_summary()
 
-
-
     return_dict = {
-	'profiler' : profiler,
+	    'profiler' : profiler,
         'records' : arr_records,
         'brightness_temp' : brightness_temp,
         'scrollz': scrollz,

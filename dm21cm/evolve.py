@@ -90,7 +90,6 @@ def evolve(run_name,
     #===== initialize =====
     #--- physics parameters ---
     abscs = load_h5_dict(f"{data_dir}/abscissas.h5")
-    dm_params.set_inj_specs(abscs)
 
     EPSILON = 1e-6
     p21c.global_params.Z_HEAT_MAX = z_start# + EPSILON
@@ -99,21 +98,25 @@ def evolve(run_name,
     box_dim = p21c_initial_conditions.user_params.HII_DIM
     box_len = p21c_initial_conditions.user_params.BOX_LEN
 
-    #--- transfer functions ---
-    tf_wrapper = TransferFunctionWrapper(
-        box_dim = box_dim,
-        abscs = abscs,
-        prefix = data_dir,
-        enable_elec = enable_elec,
-        on_device = tf_on_device,
-    )
+    if not no_injection:
+        #--- dark matter ---
+        dm_params.set_inj_specs(abscs)
 
-    #--- xray ---
-    if resume:
-        xray_cache = XrayCache(data_dir=cache_dir, box_dim=box_dim, dx=box_len/box_dim, load_snapshot=True)
-    else:
-        xray_cache = XrayCache(data_dir=cache_dir, box_dim=box_dim, dx=box_len/box_dim)
-        xray_cache.clear_cache()
+        #--- transfer functions ---
+        tf_wrapper = TransferFunctionWrapper(
+            box_dim = box_dim,
+            abscs = abscs,
+            prefix = data_dir,
+            enable_elec = enable_elec,
+            on_device = tf_on_device,
+        )
+
+        #--- xray ---
+        if resume:
+            xray_cache = XrayCache(data_dir=cache_dir, box_dim=box_dim, dx=box_len/box_dim, load_snapshot=True)
+        else:
+            xray_cache = XrayCache(data_dir=cache_dir, box_dim=box_dim, dx=box_len/box_dim)
+            xray_cache.clear_cache()
 
     #===== initial steps =====
     # We synchronize DM21cm with 21cmFAST at the second step because 21cmFAST acts strangely in the first step:
@@ -122,7 +125,6 @@ def evolve(run_name,
     # - first step ignores any values added to spin_temp.Tk_box and spin_temp.x_e_box.
 
     # These are the z_edges that we step over coarsely matching the 21cmFAST expectation.
-    EPSILON = 1e-6
     z_edges_coarse = get_z_edges(z_start, z_end, p21c.global_params.ZPRIME_STEP_FACTOR)
     z_edges = get_z_edges(z_edges_coarse[0]+EPSILON, z_end, abscs['zplusone_step_factor'])[1:]
 
@@ -143,7 +145,7 @@ def evolve(run_name,
     perturbed_field = p21c.perturb_field(redshift=z_match, init_boxes=p21c_initial_conditions, write=True)
     spin_temp, ionized_box, brightness_temp = p21c_step(perturbed_field=perturbed_field, spin_temp=spin_temp, ionized_box=ionized_box, astro_params=p21c_astro_params)
 
-    if use_DH_init:
+    if use_DH_init: # still can use DH to get initial conditions if no_injection is set
         dh_wrapper = DarkHistoryWrapper(dm_params, prefix=p21c.config[f'direc'])
         dh_wrapper.evolve(end_rs=(1+z_match)*0.9, rerun=rerun_DH)
         T_k_DH_init, x_e_DH_init, phot_bath_spec = dh_wrapper.get_init_cond(rs=1+z_match)
@@ -152,8 +154,9 @@ def evolve(run_name,
         ionized_box.xH_box = 1 - spin_temp.x_e_box
     else:
         phot_bath_spec = Spectrum(abscs['photE'], np.zeros_like(abscs['photE']), spec_type='N', rs=1+z_match) # [ph / Bavg]
-    if xray_cache.isresumed:
-        phot_bath_spec = xray_cache.saved_phot_bath_spec
+    if not no_injection:
+        if xray_cache.isresumed:
+            phot_bath_spec = xray_cache.saved_phot_bath_spec
 
 
     #===== main loop =====
@@ -181,21 +184,23 @@ def evolve(run_name,
         delta_plus_one_box = 1 + np.asarray(perturbed_field.density)
         x_e_box = np.asarray(1 - ionized_box.xH_box)
         T_k_box = np.asarray(spin_temp.Tk_box)
-        tf_wrapper.set_params(
-            rs = 1+z_current,
-            delta_plus_one_box = delta_plus_one_box,
-            x_e_box = x_e_box,
-            T_k_box = T_k_box,
-            homogenize_deposition = homogenize_deposition
-        )
-        tf_wrapper.reset_phot() # reset photon each subcycle, but deposition is reset only after populating boxes
+        if not no_injection:
+            tf_wrapper.set_params(
+                rs = 1+z_current,
+                delta_plus_one_box = delta_plus_one_box,
+                x_e_box = x_e_box,
+                T_k_box = T_k_box,
+                homogenize_deposition = homogenize_deposition
+            )
+            tf_wrapper.reset_phot() # reset photon each subcycle, but deposition is reset only after populating boxes
 
         #--- for dark matter ---
         nBavg = phys.n_B * (1+z_current)**3 # [Bavg / (physical cm)^3]
         rho_DM_box = delta_plus_one_box * phys.rho_DM * (1+z_current)**3 # [eV/(physical cm)^3]
         if homogenize_injection:
             rho_DM_box = jnp.mean(rho_DM_box) * jnp.ones_like(rho_DM_box)
-        inj_per_Bavg_box = phys.inj_rate(rho_DM_box, dm_params) * dt * dm_params.struct_boost(1+z_current) / nBavg # [inj/Bavg]
+        if not no_injection:
+            inj_per_Bavg_box = phys.inj_rate(rho_DM_box, dm_params) * dt * dm_params.struct_boost(1+z_current) / nBavg # [inj/Bavg]
         
         if (not no_injection) and xray_cache.is_latest_z(z_current):
             #===== photon injection and energy deposition =====
@@ -271,11 +276,12 @@ def evolve(run_name,
         #===== 21cmFAST step =====
         # check if z_next matches
         if (i_z_coarse + 1) * subcycle_factor == (i_z + 1):
-            assert np.isclose(z_next, z_edges_coarse[i_z_coarse+1]) # cross check remove later
+            assert np.isclose(z_next, z_edges_coarse[i_z_coarse+1]) # cross check redshifts match on cycle
 
             perturbed_field = p21c.perturb_field(redshift=z_edges_coarse[i_z_coarse+1], init_boxes=p21c_initial_conditions)
             input_heating, input_ionization, input_jalpha = gen_injection_boxes(z_next, p21c_initial_conditions)
-            tf_wrapper.populate_injection_boxes(input_heating, input_ionization, input_jalpha, dt,)
+            if not no_injection:
+                tf_wrapper.populate_injection_boxes(input_heating, input_ionization, input_jalpha, dt,)
             spin_temp, ionized_box, brightness_temp = p21c_step(
                 perturbed_field, spin_temp, ionized_box,
                 input_heating = input_heating,
@@ -283,14 +289,12 @@ def evolve(run_name,
                 input_jalpha = input_jalpha,
                 astro_params = p21c_astro_params
             )
-            xray_cache.save_snapshot(phot_bath_spec=phot_bath_spec) # only save snapshot once dep_box is cleared
+            if not no_injection:
+                xray_cache.save_snapshot(phot_bath_spec=phot_bath_spec) # only save snapshot once dep_box is cleared
 
             profiler.record('21cmFAST')
 
             #===== calculate and save some quantities =====
-            dE_inj_per_Bavg = dm_params.eng_per_inj * np.mean(inj_per_Bavg_box) # [eV/Bavg]
-            dE_inj_per_Bavg_unclustered = dE_inj_per_Bavg / dm_params.struct_boost(1+z_current) # [eV/Bavg]
-
             records.append({
                 'z'   : z_next,
                 'T_s' : np.mean(spin_temp.Ts_box), # [mK]
@@ -298,16 +302,22 @@ def evolve(run_name,
                 'T_k' : np.mean(spin_temp.Tk_box), # [K]
                 'x_e' : np.mean(spin_temp.x_e_box), # [1]
                 '1-x_H' : np.mean(1 - ionized_box.xH_box), # [1]
-                'phot_N' : phot_bath_spec.N, # [ph/Bavg]
-                'dE_inj_per_B' : dE_inj_per_Bavg, # [eV/Bavg]
-                'dE_inj_per_Bavg_unclustered' : dE_inj_per_Bavg_unclustered, # [eV/Bavg]
-                'dep_ion'  : np.mean(tf_wrapper.dep_box[...,0] + tf_wrapper.dep_box[...,1]), # [eV/Bavg]
-                'dep_exc'  : np.mean(tf_wrapper.dep_box[...,2]), # [eV/Bavg]
-                'dep_heat' : np.mean(tf_wrapper.dep_box[...,3]), # [eV/Bavg]
                 'x_e_slice' : np.array(spin_temp.x_e_box[0]), # [1]
                 'x_H_slice' : np.array(ionized_box.xH_box[0]), # [1]
                 'T_k_slice' : np.array(spin_temp.Tk_box[0]), # [K]
             })
+            if not no_injection:
+                dE_inj_per_Bavg = dm_params.eng_per_inj * np.mean(inj_per_Bavg_box) # [eV/Bavg]
+                dE_inj_per_Bavg_unclustered = dE_inj_per_Bavg / dm_params.struct_boost(1+z_current) # [eV/Bavg]
+
+                records[-1].update({
+                    'phot_N' : phot_bath_spec.N, # [ph/Bavg]
+                    'dE_inj_per_B' : dE_inj_per_Bavg, # [eV/Bavg]
+                    'dE_inj_per_Bavg_unclustered' : dE_inj_per_Bavg_unclustered, # [eV/Bavg]
+                    'dep_ion'  : np.mean(tf_wrapper.dep_box[...,0] + tf_wrapper.dep_box[...,1]), # [eV/Bavg]
+                    'dep_exc'  : np.mean(tf_wrapper.dep_box[...,2]), # [eV/Bavg]
+                    'dep_heat' : np.mean(tf_wrapper.dep_box[...,3]), # [eV/Bavg]
+                })
 
     #===== end of loop, return results =====
     arr_records = {k: np.array([r[k] for r in records]) for k in records[0].keys()}

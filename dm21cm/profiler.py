@@ -49,7 +49,7 @@ class Profiler:
         try:
             for name, t_list in self.t_dict.items():
                 tl = t_list[ignore_first_n:]
-                print(f'{name:12}: {np.mean(tl):.4f} +/- {np.std(tl):.4f} s * {len(tl)} steps : {np.sum(tl)} s')
+                print(f'{name:12}: {np.mean(tl):.4f} +/- {np.std(tl):.4f} s * {len(tl)} steps : {np.sum(tl):.4f} s')
         except:
             print('Error printing summary.')
 

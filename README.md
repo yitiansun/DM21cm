@@ -1,6 +1,7 @@
 # DM21cm
+**A Semi-numerical Simulation of Inhomogeneous Energy Injection in 21cm**
 
-![](plots/xH.gif)
+![](plotting/logo/xH.gif)
 
 ## Installation
 

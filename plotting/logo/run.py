@@ -14,9 +14,9 @@ from evolve_logo import evolve
 
 if __name__ == '__main__':
 
-    run_name = 'logo'
+    run_name = 'logo_fine'
 
-    os.environ['DM21CM_DATA_DIR'] = '/n/holyscratch01/iaifi_lab/yitians/dm21cm/DM21cm/data/tf/zf01/data'
+    os.environ['DM21CM_DATA_DIR'] = '/n/holyscratch01/iaifi_lab/yitians/dm21cm/DM21cm/data/tf/zf002/data'
 
     ref_image = np.load("source_128.npy")
     ref_image /= np.mean(ref_image)
@@ -62,3 +62,4 @@ if __name__ == '__main__':
     )
 
     np.save(f'{WDIR}/outputs/dm21cm/{run_name}_records.npy', return_dict['records'])
+    np.save(f'{WDIR}/plotting/logo/{run_name}_records.npy', return_dict['records'])

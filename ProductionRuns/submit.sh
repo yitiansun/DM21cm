@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=inhom_5keV
+#SBATCH --job-name=inhom
 #SBATCH --array=0-3
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1

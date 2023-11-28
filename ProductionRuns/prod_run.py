@@ -41,11 +41,13 @@ BOX_LEN = max(256, 2 * HII_DIM)
 ###   Parameter Details and Command Line Arguments   ###
 ########################################################
 
-m_DM = 5e3 # [eV]
-decay_rate = 1e-26 # [1/s]
+m_DM = 1e7 # [eV]
+channel = 'elec_delta'
+decay_rate = 1e-28 # [1/s]
 lifetime = 1/decay_rate
 
 print('DM Mass [eV]:', m_DM)
+print('DM Channel:', channel)
 print('DM Decay Rate [1/s]:', decay_rate)
 print('DM Lifetime [s]:', lifetime)
 
@@ -72,7 +74,7 @@ elif run_index == 3:
 else:
     raise ValueError('Invalid run index')
 
-run_name = 'inhom_5keV'
+run_name = 'inhom_elec_m1e7'
 run_subname = f'I{str(int(homogenize_injection))}_D{str(int(homogenize_deposition))}'
 run_fullname = f'{run_name}_{run_subname}'
 fname = f'Lightcone_{run_subname}.h5'
@@ -164,7 +166,7 @@ return_dict = evolve(
 
 brightness_temp = return_dict['brightness_temp']
 scrollz = return_dict['scrollz']
-lightcone_quantities = ['brightness_temp','Ts_box', 'Tk_box', 'x_e_box', 'xH_box' ,"density"]
+lightcone_quantities = ['brightness_temp','Ts_box', 'Tk_box', 'x_e_box', 'xH_box', 'density']
 
 start = time.time()
 lightcone = p21c.run_lightcone(redshift = brightness_temp.redshift,

@@ -6,11 +6,15 @@ import py21cmfast as p21c
 from py21cmfast import cache_tools
 p21c.global_params.CLUMPING_FACTOR = 1.
 
-os.environ['DM21CM_DIR'] ='/u/jwfoster/21CM_Project/DM21cm/'
-os.environ['DM21CM_DATA_DIR'] = '/u/jwfoster/21CM_Project/Data002/'
+is_josh = False
+if is_josh:
+    os.environ['DM21CM_DIR'] ='/u/jwfoster/21CM_Project/DM21cm/'
+    os.environ['DM21CM_DATA_DIR'] = '/u/jwfoster/21CM_Project/Data002/'
 
-os.environ['DH_DIR'] ='/u/jwfoster/21CM_Project/DarkHistory/'
-os.environ['DH_DATA_DIR'] ='/u/jwfoster/21CM_Project/DarkHistory/DHData/'
+    os.environ['DH_DIR'] ='/u/jwfoster/21CM_Project/DarkHistory/'
+    os.environ['DH_DATA_DIR'] ='/u/jwfoster/21CM_Project/DarkHistory/DHData/'
+else:
+    os.environ['DM21CM_DATA_DIR'] = '/n/holyscratch01/iaifi_lab/yitians/dm21cm/DM21cm/data/tf/zf002/data'
 
 WDIR = os.environ['DM21CM_DIR']
 sys.path.append(WDIR)
@@ -27,7 +31,7 @@ param_shifts = [0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.001, 0.001, 0.
 
 param_dict = dict(zip(param_names, default_param_values))
 
-HII_DIM = 128
+HII_DIM = 32
 BOX_LEN = max(256, 2 * HII_DIM)
 
 ########################################################
@@ -58,24 +62,28 @@ N_THREADS = int(sys.argv[2])
 ###   Setting up the Save Paths   ###
 #####################################
 
-run_name = 'M' + str(mass_index) + 'D' + str(decay_index + 1) + '/'
-fname = 'LightCone_z5.0_HIIDIM=' + str(HII_DIM) + '_BOXLEN=' + str(BOX_LEN) + '_fisher_DM_'+str(1+decay_index)+'_r54321.h5'
+run_name = f'M{mass_index}D{1+decay_index}/'
+fname = f'LightCone_z5.0_HIIDIM={HII_DIM}_BOXLEN={BOX_LEN}_fisher_DM_{1+decay_index}_r54321.h5'
 
-scratch_dir = '/scratch/bbta/jwfoster/21cmRuns/N'+str(HII_DIM) + '_L' + str(BOX_LEN) + '/ElecDecay/Mass' + str(mass_index) + '/'
-if not os.path.isdir(scratch_dir):
-    os.makedirs(scratch_dir, exist_ok = True)
+if is_josh:
+    scratch_dir = '/scratch/bbta/jwfoster/21cmRuns/N'+str(HII_DIM) + '_L' + str(BOX_LEN) + '/ElecDecay/Mass' + str(mass_index) + '/'
+else:
+    scratch_dir = f'/n/holyscratch01/iaifi_lab/yitians/dm21cm/prod_outputs/elecdecay/Mass{mass_index}/'
+os.makedirs(scratch_dir, exist_ok=True)
 
 lightcone_direc = scratch_dir + 'LightCones/'
-if not os.path.isdir(lightcone_direc):
-    os.makedirs(lightcone_direc, exist_ok = True)
+os.makedirs(lightcone_direc, exist_ok=True)
 
 # Set up the cache dir
-cache_dir = '/tmp/' + run_name # This is the high-performance disk for rapid i/o
+if is_josh:
+    cache_dir = '/tmp/' + run_name # This is the high-performance disk for rapid i/o
+else:
+    cache_dir = os.path.join(os.environ['P21C_CACHE_DIR'], run_name)
 
 print('Run Name:', run_name)
 print('Lightcone filename:', fname)
 print('Saving lightcone to:', lightcone_direc)
-print('Cache Dir:,', cache_dir)
+print('Cache Dir:', cache_dir)
 
 # Don't waste time
 if os.path.isfile(lightcone_direc + fname):
@@ -85,8 +93,11 @@ if os.path.isfile(lightcone_direc + fname):
 # Only do this after all the paths have been set up. We don't want to import p21cmfast until then.
 from dm21cm.dm_params import DMParams
 from dm21cm.evolve import evolve
-os.environ['P21C_CACHE_DIR'] = cache_dir
-p21c.config['direc'] = os.environ['P21C_CACHE_DIR']
+if is_josh:
+    os.environ['P21C_CACHE_DIR'] = cache_dir
+    p21c.config['direc'] = os.environ['P21C_CACHE_DIR']
+else:
+    p21c.config['direc'] = cache_dir
 
 ########################################
 ###   Starting the Evaluation Loop   ###
@@ -126,7 +137,8 @@ return_dict = evolve(
 
     use_DH_init = True,
     no_injection = False,
-    subcycle_factor=10,
+    subcycle_factor = 10,
+    max_n_shell = 40,
 )
 
 
@@ -136,7 +148,7 @@ return_dict = evolve(
 
 brightness_temp = return_dict['brightness_temp']
 scrollz = return_dict['scrollz']
-lightcone_quantities = ['brightness_temp','Ts_box', 'Tk_box', 'x_e_box', 'xH_box' ,"density"]
+lightcone_quantities = ['brightness_temp','Ts_box', 'Tk_box', 'x_e_box', 'xH_box' , 'density']
 
 start = time.time()
 lightcone = p21c.run_lightcone(redshift = brightness_temp.redshift,
@@ -156,7 +168,8 @@ end = time.time()
 print('Time to Save lightcone:', end-start)
 
 start = time.time()
-shutil.rmtree(cache_dir)
+if is_josh:
+    shutil.rmtree(cache_dir)
 end = time.time()
 print('Time to clear cache:', end-start)
 sys.exit()

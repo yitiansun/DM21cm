@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=inhom
+#SBATCH --job-name=inhom_5keV
 #SBATCH --array=0-3
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
@@ -18,4 +18,4 @@ source /n/home07/yitians/setup_dm21cm.sh
 
 cd /n/home07/yitians/dm21cm/DM21cm/ProductionRuns
 
-python ExampleScript.py $SLURM_ARRAY_TASK_ID 32 
+python prod_run.py -i $SLURM_ARRAY_TASK_ID -n 32

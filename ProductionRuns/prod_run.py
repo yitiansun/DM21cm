@@ -1,4 +1,5 @@
 import sys, os, shutil, time
+import argparse
 import numpy as np
 
 from astropy.cosmology import Planck18
@@ -36,7 +37,11 @@ astro_params = p21c.AstroParams(param_dict)
 HII_DIM = 128
 BOX_LEN = max(256, 2 * HII_DIM)
 
-m_DM = 5e2 # [eV]
+########################################################
+###   Parameter Details and Command Line Arguments   ###
+########################################################
+
+m_DM = 5e3 # [eV]
 decay_rate = 1e-26 # [1/s]
 lifetime = 1/decay_rate
 
@@ -44,60 +49,59 @@ print('DM Mass [eV]:', m_DM)
 print('DM Decay Rate [1/s]:', decay_rate)
 print('DM Lifetime [s]:', lifetime)
 
-########################################################
-###   Parameter Details and Command Line Arguments   ###
-########################################################
+parser = argparse.ArgumentParser()
+parser.add_argument('-i', '--run_index', type=int)
+parser.add_argument('-n', '--n_threads', type=int, default=32)
+args = parser.parse_args()
 
-run_index = int(sys.argv[1])
-N_THREADS = int(sys.argv[2])
+run_index = args.run_index
+N_THREADS = args.n_threads
 
 if run_index == 0:
     homogenize_injection = False
     homogenize_deposition = False
-    run_name = 'IFalse_DFalse/'
-    fname = 'Lightcone_IFalse_DFalse.h5'
-
 elif run_index == 1:
     homogenize_injection = False
     homogenize_deposition = True
-    run_name = 'IFalse_DTrue/'
-    fname = 'Lightcone_IFalse_DTrue.h5'
-
 elif run_index == 2:
     homogenize_injection = True
     homogenize_deposition = False
-    run_name = 'ITrue_DFalse/'
-    fname = 'Lightcone_ITrue_DFalse.h5'
-
-else:
+elif run_index == 3:
     homogenize_injection = True
     homogenize_deposition = True
-    run_name = 'ITrue_DTrue/'
-    fname = 'Lightcone_ITrue_DTrue.h5'
+else:
+    raise ValueError('Invalid run index')
+
+run_name = 'inhom_5keV'
+run_subname = f'I{str(int(homogenize_injection))}_D{str(int(homogenize_deposition))}'
+run_fullname = f'{run_name}_{run_subname}'
+fname = f'Lightcone_{run_subname}.h5'
 
 ###########################################
 ###   Setting up the Save/Cache Paths   ###
 ###########################################
 
+folder_name = run_name
 if is_josh:
-    scratch_dir = '/scratch/bbta/jwfoster/21cmRuns/SystematicVariations_NoStars/'
+    scratch_dir = f'/scratch/bbta/jwfoster/21cmRuns/{folder_name}/'
     lightcone_direc = scratch_dir + 'LightCones/'
-    cache_dir = '/tmp/' + run_name # This is the high-performance disk for rapid i/o
+    cache_dir = '/tmp/' + run_subname # This is the high-performance disk for rapid i/o
     os.environ['P21C_CACHE_DIR'] = cache_dir
     p21c.config['direc'] = os.environ['P21C_CACHE_DIR']
 else:
-    scratch_dir = '/n/holyscratch01/iaifi_lab/yitians/dm21cm/prod_outputs/SystematicVariations_NoStars/'
-    lightcone_direc = scratch_dir + 'LightCones/'
-    cache_dir = os.path.join(os.environ['P21C_CACHE_DIR'], run_name)
+    scratch_dir     = os.path.join('/n/holyscratch01/iaifi_lab/yitians/dm21cm/prod_outputs', run_name)
+    lightcone_direc = os.path.join(scratch_dir, 'LightCones')
+    cache_dir       = os.path.join(os.environ['P21C_CACHE_DIR'], run_fullname)
     p21c.config['direc'] = cache_dir
 
 os.makedirs(scratch_dir, exist_ok=True)
 os.makedirs(lightcone_direc, exist_ok=True)
 
 print('Run Name:', run_name)
+print('Run Subname:', run_subname)
 print('Lightcone filename:', fname)
 print('Saving lightcone to:', lightcone_direc)
-print('Cache Dir:,', cache_dir)
+print('Cache Dir:', cache_dir)
 
 ########################################
 ###   Starting the Evaluation Loop   ###
@@ -117,7 +121,7 @@ p21c.global_params.Pop2_ion = 0.
 p21c.global_params.Pop3_ion = 0.
 
 return_dict = evolve(
-    run_name = run_name,
+    run_name = run_fullname,
     z_start = 45.,
     z_end = 5.,
     dm_params = DMParams(

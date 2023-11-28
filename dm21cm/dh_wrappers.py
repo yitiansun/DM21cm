@@ -62,6 +62,7 @@ class DarkHistoryWrapper:
             sigmav=self.dm_params.sigmav, lifetime=self.dm_params.lifetime,
             struct_boost=self.dm_params.struct_boost,
             start_rs=3000, end_rs=end_rs, coarsen_factor=10, verbose=1,
+            clean_up_tf=True,
         ) # default parameters use case B coefficients
         default_kwargs.update(kwargs)
         self.soln = evolve_DH(**default_kwargs)

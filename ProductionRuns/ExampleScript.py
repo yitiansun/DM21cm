@@ -6,11 +6,15 @@ import py21cmfast as p21c
 from py21cmfast import cache_tools
 p21c.global_params.CLUMPING_FACTOR = 1.
 
-os.environ['DM21CM_DIR'] ='/u/jwfoster/21CM_Project/DM21cm/'
-os.environ['DM21CM_DATA_DIR'] = '/u/jwfoster/21CM_Project/Data002/'
+is_josh = False
+if is_josh:
+    os.environ['DM21CM_DIR'] ='/u/jwfoster/21CM_Project/DM21cm/'
+    os.environ['DM21CM_DATA_DIR'] = '/u/jwfoster/21CM_Project/Data002/'
 
-os.environ['DH_DIR'] ='/u/jwfoster/21CM_Project/DarkHistory/'
-os.environ['DH_DATA_DIR'] ='/u/jwfoster/21CM_Project/DarkHistory/DHData/'
+    os.environ['DH_DIR'] ='/u/jwfoster/21CM_Project/DarkHistory/'
+    os.environ['DH_DATA_DIR'] ='/u/jwfoster/21CM_Project/DarkHistory/DHData/'
+else:
+    os.environ['DM21CM_DATA_DIR'] = '/n/holyscratch01/iaifi_lab/yitians/dm21cm/DM21cm/data/tf/zf002/data'
 
 WDIR = os.environ['DM21CM_DIR']
 sys.path.append(WDIR)
@@ -32,8 +36,8 @@ astro_params = p21c.AstroParams(param_dict)
 HII_DIM = 128
 BOX_LEN = max(256, 2 * HII_DIM)
 
-m_DM = 5e3
-decay_rate = 1e-26
+m_DM = 5e2 # [eV]
+decay_rate = 1e-26 # [1/s]
 lifetime = 1/decay_rate
 
 print('DM Mass [eV]:', m_DM)
@@ -71,25 +75,33 @@ else:
     run_name = 'ITrue_DTrue/'
     fname = 'Lightcone_ITrue_DTrue.h5'
 
-#####################################
-###   Setting up the Save Paths   ###
-#####################################
+###########################################
+###   Setting up the Save/Cache Paths   ###
+###########################################
 
-scratch_dir = '/scratch/bbta/jwfoster/21cmRuns/SystematicVariations_NoStars/'
-if not os.path.isdir(scratch_dir):
-    os.makedirs(scratch_dir, exist_ok = True)
+if is_josh:
+    scratch_dir = '/scratch/bbta/jwfoster/21cmRuns/SystematicVariations_NoStars/'
+    lightcone_direc = scratch_dir + 'LightCones/'
+    cache_dir = '/tmp/' + run_name # This is the high-performance disk for rapid i/o
+    os.environ['P21C_CACHE_DIR'] = cache_dir
+    p21c.config['direc'] = os.environ['P21C_CACHE_DIR']
+else:
+    scratch_dir = '/n/holyscratch01/iaifi_lab/yitians/dm21cm/prod_outputs/SystematicVariations_NoStars/'
+    lightcone_direc = scratch_dir + 'LightCones/'
+    cache_dir = os.path.join(os.environ['P21C_CACHE_DIR'], run_name)
+    p21c.config['direc'] = cache_dir
 
-lightcone_direc = scratch_dir + 'LightCones/'
-if not os.path.isdir(lightcone_direc):
-    os.makedirs(lightcone_direc, exist_ok = True)
-
-# Set up the cache dir
-cache_dir = '/tmp/' + run_name # This is the high-performance disk for rapid i/o
+os.makedirs(scratch_dir, exist_ok=True)
+os.makedirs(lightcone_direc, exist_ok=True)
 
 print('Run Name:', run_name)
 print('Lightcone filename:', fname)
 print('Saving lightcone to:', lightcone_direc)
 print('Cache Dir:,', cache_dir)
+
+########################################
+###   Starting the Evaluation Loop   ###
+########################################
 
 # Don't waste time
 if os.path.isfile(lightcone_direc + fname):
@@ -99,12 +111,6 @@ if os.path.isfile(lightcone_direc + fname):
 # Only do this after all the paths have been set up. We don't want to import p21cmfast until then.
 from dm21cm.dm_params import DMParams
 from dm21cm.evolve import evolve
-os.environ['P21C_CACHE_DIR'] = cache_dir
-p21c.config['direc'] = os.environ['P21C_CACHE_DIR']
-
-########################################
-###   Starting the Evaluation Loop   ###
-########################################
 
 p21c.global_params.CLUMPING_FACTOR = 1.
 p21c.global_params.Pop2_ion = 0.
@@ -142,7 +148,7 @@ return_dict = evolve(
 
     use_DH_init = True,
     no_injection = False,
-    subcycle_factor=10,
+    subcycle_factor = 10,
     homogenize_injection = homogenize_injection,
     homogenize_deposition = homogenize_deposition,
 )
@@ -161,8 +167,9 @@ lightcone = p21c.run_lightcone(redshift = brightness_temp.redshift,
                                user_params = brightness_temp.user_params,
                                cosmo_params = brightness_temp.cosmo_params,
                                astro_params = brightness_temp.astro_params,
-                               flag_options=brightness_temp.flag_options,
-                               lightcone_quantities=lightcone_quantities,
+                               flag_options = brightness_temp.flag_options,
+                               lightcone_quantities = lightcone_quantities,
+                               scrollz = scrollz,
                               )
 end = time.time()
 print('Time to generate lightcone:', end-start)
@@ -173,7 +180,8 @@ end = time.time()
 print('Time to Save lightcone:', end-start)
 
 start = time.time()
-shutil.rmtree(cache_dir)
+if is_josh:
+    shutil.rmtree(cache_dir)
 end = time.time()
 print('Time to clear cache:', end-start)
 sys.exit()

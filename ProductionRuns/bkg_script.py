@@ -10,7 +10,6 @@ is_josh = False
 if is_josh:
     os.environ['DM21CM_DIR'] ='/u/jwfoster/21CM_Project/DM21cm/'
     os.environ['DM21CM_DATA_DIR'] = '/u/jwfoster/21CM_Project/Data002/'
-
     os.environ['DH_DIR'] ='/u/jwfoster/21CM_Project/DarkHistory/'
     os.environ['DH_DATA_DIR'] ='/u/jwfoster/21CM_Project/DarkHistory/DHData/'
 else:
@@ -72,7 +71,9 @@ else:
 astro_params = p21c.AstroParams(param_dict)
 print(astro_params)
 
-# Setting up the save paths
+###########################################
+###   Setting up the save/cache paths   ###
+###########################################
 if is_josh:
     scratch_dir = '/scratch/bbta/jwfoster/21cmRuns/N'+str(HII_DIM) + '_L' + str(BOX_LEN) + '/BKG/'
 else:
@@ -100,14 +101,13 @@ if os.path.isfile(lightcone_direc + fname):
     print('Already completed')
     sys.exit()
 
-# Only do this after all the paths have been set up. We don't want to import p21cmfast until then.
-from dm21cm.dm_params import DMParams
-from dm21cm.evolve import evolve
-
-
 ########################################
 ###   Starting the Evaluation Loop   ###
 ########################################
+
+# Only do this after all the paths have been set up. We don't want to import p21cmfast until then.
+from dm21cm.dm_params import DMParams
+from dm21cm.evolve import evolve
 
 p21c.global_params.CLUMPING_FACTOR = 1.
 
@@ -159,8 +159,9 @@ lightcone = p21c.run_lightcone(redshift = brightness_temp.redshift,
                                user_params = brightness_temp.user_params,
                                cosmo_params = brightness_temp.cosmo_params,
                                astro_params = brightness_temp.astro_params,
-                               flag_options=brightness_temp.flag_options,
-                               lightcone_quantities=lightcone_quantities,
+                               flag_options = brightness_temp.flag_options,
+                               lightcone_quantities = lightcone_quantities,
+                               scrollz = scrollz
                               )
 end = time.time()
 print('Time to generate lightcone:', end-start)

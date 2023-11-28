@@ -156,8 +156,8 @@ lightcone = p21c.run_lightcone(redshift = brightness_temp.redshift,
                                user_params = brightness_temp.user_params,
                                cosmo_params = brightness_temp.cosmo_params,
                                astro_params = brightness_temp.astro_params,
-                               flag_options=brightness_temp.flag_options,
-                               lightcone_quantities=lightcone_quantities,
+                               flag_options = brightness_temp.flag_options,
+                               lightcone_quantities = lightcone_quantities,
                                scrollz = scrollz,
                               )
 end = time.time()

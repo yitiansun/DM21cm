@@ -31,7 +31,7 @@ param_shifts = [0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.001, 0.001, 0.
 
 param_dict = dict(zip(param_names, default_param_values))
 
-HII_DIM = 32
+HII_DIM = 128
 BOX_LEN = max(256, 2 * HII_DIM)
 
 ########################################################
@@ -138,7 +138,7 @@ return_dict = evolve(
     use_DH_init = True,
     no_injection = False,
     subcycle_factor = 10,
-    max_n_shell = 40,
+    #max_n_shell = 40,
 )
 
 

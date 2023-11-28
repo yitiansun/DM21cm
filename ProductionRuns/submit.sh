@@ -1,8 +1,8 @@
 #!/bin/bash
 
-#SBATCH --job-name=prtest
-#SBATCH --array=0-3
-#SBATCH --partition=gpu
+#SBATCH --job-name=prf
+#SBATCH --array=0
+#SBATCH --partition=iaifi_gpu
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=32
@@ -16,6 +16,7 @@
 
 source /n/home07/yitians/setup_dm21cm.sh
 
-cd /n/home07/yitians/dm21cm/DM21cm/scripts
+cd /n/home07/yitians/dm21cm/DM21cm/ProductionRuns
 
-python dm_elec_script.py $SLURM_ARRAY_TASK_ID 32
+python bkg_script.py 0 32
+#python dm_elec_script.py $SLURM_ARRAY_TASK_ID 32

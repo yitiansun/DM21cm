@@ -5,11 +5,15 @@ import py21cmfast as p21c
 from py21cmfast import cache_tools
 p21c.global_params.CLUMPING_FACTOR = 1.
 
-os.environ['DM21CM_DIR'] ='/u/jwfoster/21CM_Project/DM21cm/'
-os.environ['DM21CM_DATA_DIR'] = '/u/jwfoster/21CM_Project/Data002/'
+is_josh = False
+if is_josh:
+    os.environ['DM21CM_DIR'] ='/u/jwfoster/21CM_Project/DM21cm/'
+    os.environ['DM21CM_DATA_DIR'] = '/u/jwfoster/21CM_Project/Data002/'
 
-os.environ['DH_DIR'] ='/u/jwfoster/21CM_Project/DarkHistory/'
-os.environ['DH_DATA_DIR'] ='/u/jwfoster/21CM_Project/DarkHistory/DHData/'
+    os.environ['DH_DIR'] ='/u/jwfoster/21CM_Project/DarkHistory/'
+    os.environ['DH_DATA_DIR'] ='/u/jwfoster/21CM_Project/DarkHistory/DHData/'
+else:
+    os.environ['DM21CM_DATA_DIR'] = '/n/holyscratch01/iaifi_lab/yitians/dm21cm/DM21cm/data/tf/zf002/data'
 
 WDIR = os.environ['DM21CM_DIR']
 sys.path.append(WDIR)
@@ -68,14 +72,22 @@ astro_params = p21c.AstroParams(param_dict)
 print(astro_params)
 
 # Setting up the save paths
-scratch_dir = '/scratch/bbta/jwfoster/21cmRuns/N'+str(HII_DIM) + '_L' + str(BOX_LEN) + '/BKG/'
+if is_josh:
+    scratch_dir = '/scratch/bbta/jwfoster/21cmRuns/N'+str(HII_DIM) + '_L' + str(BOX_LEN) + '/BKG/'
+else:
+    scratch_dir = f'/n/holyscratch01/iaifi_lab/yitians/dm21cm/prod_outputs/bkg/'
+
 lightcone_direc = scratch_dir + 'LightCones/'
-if not os.path.isdir(lightcone_direc):
-    os.makedirs(lightcone_direc, exist_ok = True)
+os.makedirs(lightcone_direc, exist_ok=True)
 
 # Set up the cache dir
-cache_dir = '/tmp/' + run_name # This is the high-performance disk for rapid i/o
-os.environ['P21C_CACHE_DIR'] = cache_dir
+if is_josh:
+    cache_dir = '/tmp/' + run_name # This is the high-performance disk for rapid i/o
+    os.environ['P21C_CACHE_DIR'] = cache_dir
+    p21c.config['direc'] = os.environ['P21C_CACHE_DIR']
+else:
+    cache_dir = os.path.join(os.environ['P21C_CACHE_DIR'], run_name)
+    p21c.config['direc'] = cache_dir
 
 print('Run Name:', run_name)
 print('Lightcone filename:', fname)
@@ -90,7 +102,7 @@ if os.path.isfile(lightcone_direc + fname):
 # Only do this after all the paths have been set up. We don't want to import p21cmfast until then.
 from dm21cm.dm_params import DMParams
 from dm21cm.evolve import evolve
-p21c.config['direc'] = os.environ['P21C_CACHE_DIR']
+
 
 ########################################
 ###   Starting the Evaluation Loop   ###
@@ -158,7 +170,8 @@ end = time.time()
 print('Time to Save lightcone:', end-start)
 
 start = time.time()
-shutil.rmtree(cache_dir)
+if is_josh:
+    shutil.rmtree(cache_dir)
 end = time.time()
 print('Time to clear cache:', end-start)
 sys.exit()

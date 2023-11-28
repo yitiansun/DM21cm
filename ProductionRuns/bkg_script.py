@@ -3,6 +3,7 @@ import numpy as np
 from astropy.cosmology import Planck18
 import py21cmfast as p21c
 from py21cmfast import cache_tools
+
 p21c.global_params.CLUMPING_FACTOR = 1.
 
 is_josh = False
@@ -23,8 +24,8 @@ sys.path.append(WDIR)
 ######################################
 
 param_names = ['F_STAR10', 'F_STAR7_MINI', 'ALPHA_STAR', 'ALPHA_STAR_MINI', 't_STAR',
-               'F_ESC10', 'F_ESC7_MINI', 'ALPHA_ESC', 'L_X', 'L_X_MINI', 'NU_X_THRESH', 'A_LW'
-              ]
+               'F_ESC10', 'F_ESC7_MINI', 'ALPHA_ESC', 'L_X', 'L_X_MINI', 'NU_X_THRESH', 'A_LW']
+
 default_param_values = [-1.25, -2.5, 0.5, 0.0, 0.5, -1.35, -1.35, -0.3, 40.5, 40.5, 500, 2.0]
 param_shifts = [0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.001, 0.001, 0.03, 0.03]
 
@@ -37,7 +38,7 @@ BOX_LEN = max(256, 2 * HII_DIM)
 ###   Parameter Details and Command Line Arguments   ###
 ########################################################
 
-run_index = int(sys.argv[1])-1
+run_index = int(sys.argv[1]) - 1
 print('Run Index:', run_index)
 N_THREADS = int(sys.argv[2])
 print('Number of threads:', N_THREADS)
@@ -151,7 +152,7 @@ return_dict = evolve(
 
 brightness_temp = return_dict['brightness_temp']
 scrollz = return_dict['scrollz']
-lightcone_quantities = ['brightness_temp','Ts_box', 'Tk_box', 'x_e_box', 'xH_box' ,"density"]
+lightcone_quantities = ['brightness_temp', 'Ts_box', 'Tk_box', 'x_e_box', 'xH_box', 'density']
 
 start = time.time()
 lightcone = p21c.run_lightcone(redshift = brightness_temp.redshift,
@@ -175,4 +176,3 @@ if is_josh:
 end = time.time()
 print('Time to clear cache:', end-start)
 sys.exit()
-

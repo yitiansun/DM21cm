@@ -39,7 +39,8 @@ BOX_LEN = max(256, 2 * HII_DIM)
 ########################################################
 
 masses = np.geomspace(1e6, 1e12, 13)[1:]
-log_lifetimes = np.array([27., 26., 27., 28., 28., 27., 27., 26., 26., 26., 25., 25.])
+#log_lifetimes = np.array([27., 26., 27., 28., 28., 27., 27., 26., 26., 26., 25., 25.]) + 1.
+log_lifetimes = np.array([27.392, 27.989, 28.333, 28.459, 28.402, 28.199, 27.885, 27.496, 27.068, 26.636, 26.236, 25.905])
 
 # Runtime Settings for the Dark Matter Parametrization
 mass_index, decay_index = np.unravel_index(int(sys.argv[1]), (12, 2))
@@ -62,13 +63,13 @@ N_THREADS = int(sys.argv[2])
 ###   Setting up the Save Paths   ###
 #####################################
 
-run_name = f'M{mass_index}D{1+decay_index}/'
+run_name = f'M{mass_index}D{1+decay_index}_run2/'
 fname = f'LightCone_z5.0_HIIDIM={HII_DIM}_BOXLEN={BOX_LEN}_fisher_DM_{1+decay_index}_r54321.h5'
 
 if is_josh:
     scratch_dir = '/scratch/bbta/jwfoster/21cmRuns/N'+str(HII_DIM) + '_L' + str(BOX_LEN) + '/ElecDecay/Mass' + str(mass_index) + '/'
 else:
-    scratch_dir = f'/n/holyscratch01/iaifi_lab/yitians/dm21cm/prod_outputs/elecdecay/Mass{mass_index}/'
+    scratch_dir = f'/n/holyscratch01/iaifi_lab/yitians/dm21cm/prod_outputs/elecdecay2/Mass{mass_index}/'
 os.makedirs(scratch_dir, exist_ok=True)
 
 lightcone_direc = scratch_dir + 'LightCones/'

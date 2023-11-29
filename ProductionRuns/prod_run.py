@@ -4,14 +4,11 @@ import numpy as np
 
 from astropy.cosmology import Planck18
 import py21cmfast as p21c
-from py21cmfast import cache_tools
-p21c.global_params.CLUMPING_FACTOR = 1.
 
 is_josh = False
 if is_josh:
     os.environ['DM21CM_DIR'] ='/u/jwfoster/21CM_Project/DM21cm/'
     os.environ['DM21CM_DATA_DIR'] = '/u/jwfoster/21CM_Project/Data002/'
-
     os.environ['DH_DIR'] ='/u/jwfoster/21CM_Project/DarkHistory/'
     os.environ['DH_DATA_DIR'] ='/u/jwfoster/21CM_Project/DarkHistory/DHData/'
 else:
@@ -41,16 +38,6 @@ BOX_LEN = max(256, 2 * HII_DIM)
 ###   Parameter Details and Command Line Arguments   ###
 ########################################################
 
-m_DM = 1e7 # [eV]
-channel = 'elec_delta'
-decay_rate = 1e-28 # [1/s]
-lifetime = 1/decay_rate
-
-print('DM Mass [eV]:', m_DM)
-print('DM Channel:', channel)
-print('DM Decay Rate [1/s]:', decay_rate)
-print('DM Lifetime [s]:', lifetime)
-
 parser = argparse.ArgumentParser()
 parser.add_argument('-i', '--run_index', type=int)
 parser.add_argument('-n', '--n_threads', type=int, default=32)
@@ -58,6 +45,17 @@ args = parser.parse_args()
 
 run_index = args.run_index
 N_THREADS = args.n_threads
+
+m_DM = 1e7 # [eV]
+channel = 'elec_delta'
+decay_rate = 1e-26 # [1/s]
+lifetime = 1/decay_rate
+enable_elec = True
+
+print('DM Mass [eV]:', m_DM)
+print('DM Channel:', channel)
+print('DM Decay Rate [1/s]:', decay_rate)
+print('DM Lifetime [s]:', lifetime)
 
 if run_index == 0:
     homogenize_injection = False
@@ -83,9 +81,8 @@ fname = f'Lightcone_{run_subname}.h5'
 ###   Setting up the Save/Cache Paths   ###
 ###########################################
 
-folder_name = run_name
 if is_josh:
-    scratch_dir = f'/scratch/bbta/jwfoster/21cmRuns/{folder_name}/'
+    scratch_dir = f'/scratch/bbta/jwfoster/21cmRuns/{run_name}/'
     lightcone_direc = scratch_dir + 'LightCones/'
     cache_dir = '/tmp/' + run_subname # This is the high-performance disk for rapid i/o
     os.environ['P21C_CACHE_DIR'] = cache_dir
@@ -128,11 +125,11 @@ return_dict = evolve(
     z_end = 5.,
     dm_params = DMParams(
         mode='decay',
-        primary='phot_delta',
+        primary=channel,
         m_DM=m_DM,
         lifetime=lifetime,
     ),
-    enable_elec = False,
+    enable_elec = enable_elec,
 
     p21c_initial_conditions = p21c.initial_conditions(
         user_params = p21c.UserParams(

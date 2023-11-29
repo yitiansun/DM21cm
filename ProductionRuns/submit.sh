@@ -1,7 +1,7 @@
 #!/bin/bash
 
-#SBATCH --job-name=inhom
-#SBATCH --array=0-3
+#SBATCH --job-name=elecdecay_step4
+#SBATCH --array=2-3
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks=1
@@ -18,4 +18,4 @@ source /n/home07/yitians/setup_dm21cm.sh
 
 cd /n/home07/yitians/dm21cm/DM21cm/ProductionRuns
 
-python prod_run.py -i $SLURM_ARRAY_TASK_ID -n 32
+python dm_script.py -i $SLURM_ARRAY_TASK_ID -c elec -r elecdecay_step4

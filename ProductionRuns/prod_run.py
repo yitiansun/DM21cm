@@ -24,7 +24,7 @@ sys.path.append(WDIR)
 param_names = ['F_STAR10', 'F_STAR7_MINI', 'ALPHA_STAR', 'ALPHA_STAR_MINI', 't_STAR',
                'F_ESC10', 'F_ESC7_MINI', 'ALPHA_ESC', 'L_X', 'L_X_MINI', 'NU_X_THRESH', 'A_LW'
               ]
-default_param_values = [-1.25, -2.5, 0.5, 0.0, 0.5, -1.35, -1.35, -0.3, 0., 0., 500, 2.0]
+default_param_values = [-1.25, -2.5, 0.5, 0.0, 0.5, -1.35, -1.35, -0.3, 40.5, 40.5, 500, 2.0]
 param_shifts = [0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.001, 0.001, 0.03, 0.03]
 
 param_dict = dict(zip(param_names, default_param_values))
@@ -40,17 +40,28 @@ BOX_LEN = max(256, 2 * HII_DIM)
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-i', '--run_index', type=int)
+parser.add_argument('-c', '--channel', type=str)
 parser.add_argument('-n', '--n_threads', type=int, default=32)
 args = parser.parse_args()
 
 run_index = args.run_index
 N_THREADS = args.n_threads
 
-m_DM = 1e7 # [eV]
-channel = 'elec_delta'
-decay_rate = 1e-26 # [1/s]
-lifetime = 1/decay_rate
-enable_elec = True
+if args.channel == 'phot':
+    m_DM = 5e3 # [eV]
+    channel = 'phot_delta'
+    decay_rate = 1e-25 # [1/s]
+    lifetime = 1/decay_rate
+    enable_elec = False
+    run_name = 'inhom_phot_m5e3_lt25_stdastro'
+
+elif args.channel == 'elec':
+    m_DM = 1e7 # [eV]
+    channel = 'elec_delta'
+    decay_rate = 1e-25 # [1/s]
+    lifetime = 1/decay_rate
+    enable_elec = True
+    run_name = 'inhom_elec_m1e7_lt25_stdastro'
 
 print('DM Mass [eV]:', m_DM)
 print('DM Channel:', channel)
@@ -72,7 +83,6 @@ elif run_index == 3:
 else:
     raise ValueError('Invalid run index')
 
-run_name = 'inhom_elec_m1e7'
 run_subname = f'I{str(int(homogenize_injection))}_D{str(int(homogenize_deposition))}'
 run_fullname = f'{run_name}_{run_subname}'
 fname = f'Lightcone_{run_subname}.h5'
@@ -116,8 +126,8 @@ from dm21cm.dm_params import DMParams
 from dm21cm.evolve import evolve
 
 p21c.global_params.CLUMPING_FACTOR = 1.
-p21c.global_params.Pop2_ion = 0.
-p21c.global_params.Pop3_ion = 0.
+#p21c.global_params.Pop2_ion = 0.
+#p21c.global_params.Pop3_ion = 0.
 
 return_dict = evolve(
     run_name = run_fullname,

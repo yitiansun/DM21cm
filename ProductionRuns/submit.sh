@@ -1,8 +1,8 @@
 #!/bin/bash
 
-#SBATCH --job-name=elecdecay_step4
-#SBATCH --array=2-3
-#SBATCH --partition=gpu
+#SBATCH --job-name=inhom_phot
+#SBATCH --array=0-3
+#SBATCH --partition=iaifi_gpu
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=32
@@ -18,4 +18,12 @@ source /n/home07/yitians/setup_dm21cm.sh
 
 cd /n/home07/yitians/dm21cm/DM21cm/ProductionRuns
 
-python dm_script.py -i $SLURM_ARRAY_TASK_ID -c elec -r elecdecay_step4
+python prod_run.py -i $SLURM_ARRAY_TASK_ID -c phot
+#python dm_script.py -i $SLURM_ARRAY_TASK_ID -c elec -r elecdecay_hom --homogeneous
+
+#--array=
+# 0-23 for elec
+# 0-21 for phot
+# 0-3  for inhom
+
+# inhom fiducial values: photdecay mass 5e3, 1e25 s. elecdecay mass 1e7, 1e25 s.

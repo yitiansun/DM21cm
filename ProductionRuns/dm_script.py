@@ -42,22 +42,19 @@ parser.add_argument('-i', '--run_index', type=int)
 parser.add_argument('-c', '--channel', type=str)
 parser.add_argument('-n', '--n_threads', type=int, default=32)
 parser.add_argument('-r', '--run_name', type=str)
+parser.add_argument('--homogeneous', action='store_true')
 args = parser.parse_args()
 
 if args.channel == 'elec':
-
     primary = 'elec_delta'
     masses = np.logspace(6.5, 12, 12)
-    multiplier = 4.
-    log_lifetimes = np.log10(multiplier) + np.array([27.392, 27.989, 28.333, 28.459, 28.402, 28.199, 27.885, 27.496, 27.068, 26.636, 26.236, 25.905])
+    log_lifetimes = np.array([27.994, 28.591, 28.935, 29.061, 29.004, 28.801, 28.487, 28.098, 27.670, 27.238, 26.838, 26.507]) # calibrated for fisher
     mass_index, decay_index = np.unravel_index(args.run_index, (12, 2))
 
 elif args.channel == 'phot':
-
     primary = 'phot_delta'
     masses = np.logspace(2, 12, 11)
-    multiplier = 1/3.
-    log_lifetimes = np.log10(multiplier) + np.array([29.679, 29.298, 28.917, 28.536, 28.155, 27.774, 27.393, 27.012, 26.631, 26.249, 25.868, 25.487])
+    log_lifetimes = np.array([29.202, 28.821, 28.440, 28.059, 27.678, 27.297, 26.916, 26.535, 26.153, 25.772, 25.391]) # calibrated for fisher
     mass_index, decay_index = np.unravel_index(args.run_index, (11, 2))
 
 else:
@@ -71,6 +68,7 @@ print('DM Mass [eV]:', m_DM)
 print('DM Channel:', primary)
 print('DM Decay Rate [1/s]:', decay_rate)
 print('DM Lifetime [s]:', lifetime)
+print('Homogeneous:', args.homogeneous)
 
 # Setting the DM Parameter in the param_dict
 param_dict['DM'] = (1 + decay_index)
@@ -155,6 +153,9 @@ return_dict = evolve(
     use_DH_init = True,
     no_injection = False,
     subcycle_factor = 10,
+
+    homogenize_deposition = args.homogeneous,
+    homogenize_injection = args.homogeneous,
 )
 
 
@@ -185,6 +186,8 @@ print('Time to Save lightcone:', end-start)
 
 start = time.time()
 if is_josh:
+    shutil.rmtree(cache_dir)
+else:
     shutil.rmtree(cache_dir)
 end = time.time()
 print('Time to clear cache:', end-start)

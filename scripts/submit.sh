@@ -1,7 +1,7 @@
 #!/bin/bash
 
-#SBATCH --job-name=xdecay_zf001
-#SBATCH --partition=gpu
+#SBATCH --job-name=xc_LX
+#SBATCH --partition=iaifi_gpu
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=32
@@ -13,8 +13,8 @@
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=yitians@mit.com
 
-source /n/home07/yitians/setup_dm21cm.sh
+source /n/home07/yitians/setup_test-dm21cm.sh
 
 cd /n/home07/yitians/dm21cm/DM21cm/scripts
 
-python run_evolve.py > xdecay_zf001.out
+python run_evolve.py -z 002 -s 10

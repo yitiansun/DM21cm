@@ -1,5 +1,7 @@
 import os
 import sys
+import time
+import shutil
 import argparse
 
 from astropy.cosmology import Planck18
@@ -24,8 +26,11 @@ if __name__ == '__main__':
     # p21c.global_params.R_XLy_MAX = 500.
     # p21c.global_params.NUM_FILTER_STEPS_FOR_Ts = 40
 
+    run_name = f'fc_xray_128_zf{args.zf}_sf{args.sf}'
+    #run_name = f'fc_xray_128_LX'
+
     return_dict = evolve(
-        run_name = f'fc_xray_zf{args.zf}_sf{args.sf}',
+        run_name = run_name,
         z_start = 45.,
         z_end = 5.,
         dm_params = DMParams(
@@ -38,10 +43,9 @@ if __name__ == '__main__':
         
         p21c_initial_conditions = p21c.initial_conditions(
             user_params = p21c.UserParams(
-                HII_DIM = 32,
-                BOX_LEN = 32*2, # [conformal Mpc]
+                HII_DIM = 128,
+                BOX_LEN = 128*2, # [conformal Mpc]
                 N_THREADS = 32,
-                USE_INTERPOLATION_TABLES = True, # for testing
             ),
             cosmo_params = p21c.CosmoParams(
                 OMm = Planck18.Om0,
@@ -77,3 +81,26 @@ if __name__ == '__main__':
         subcycle_factor = args.sf,
         subcycle_evolve_delta = False,
     )
+
+    # run lightcone quantities
+
+    brightness_temp = return_dict['brightness_temp']
+    scrollz = return_dict['scrollz']
+    lightcone_quantities = ['brightness_temp','Ts_box', 'Tk_box', 'x_e_box', 'xH_box', 'density']
+
+    timer_start = time.time()
+    lightcone = p21c.run_lightcone(
+        redshift = brightness_temp.redshift,
+        user_params = brightness_temp.user_params,
+        cosmo_params = brightness_temp.cosmo_params,
+        astro_params = brightness_temp.astro_params,
+        flag_options = brightness_temp.flag_options,
+        lightcone_quantities = lightcone_quantities,
+        scrollz = scrollz,
+    )
+    print(f'Time to generate lightcone: {time.time()-timer_start:.3f} s')
+
+    save_dir = f'/n/holyscratch01/iaifi_lab/yitians/dm21cm/prod_outputs/fc_xray'
+    os.makedirs(save_dir, exist_ok=True)
+
+    lightcone._write(fname=f'lc_{run_name}.h5', direc=save_dir, clobber=True)

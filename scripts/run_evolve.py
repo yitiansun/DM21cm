@@ -26,8 +26,9 @@ if __name__ == '__main__':
     # p21c.global_params.R_XLy_MAX = 500.
     # p21c.global_params.NUM_FILTER_STEPS_FOR_Ts = 40
 
-    run_name = f'fc_xray_128_zf{args.zf}_sf{args.sf}'
-    #run_name = f'fc_xray_128_LX'
+    #run_name = f'fc_xray_128_zf{args.zf}_sf{args.sf}_xesink' # xray check
+    #run_name = f'fc_decay_128_zf{args.zf}_sf{args.sf}' # decay check
+    run_name = f'fc_xray_128_LX_xesink' # fiducial
 
     return_dict = evolve(
         run_name = run_name,
@@ -64,7 +65,7 @@ if __name__ == '__main__':
         debug_record_extra = False,
         
         # 21cmFAST xray injection
-        use_21cmfast_xray = False,
+        use_21cmfast_xray = True,
         debug_turn_off_pop2ion = True,
         debug_xray_Rmax_p21c = 500.,
 

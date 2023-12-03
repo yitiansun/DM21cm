@@ -120,7 +120,7 @@ class BatchInterpolator:
         
         
     def __call__(self, rs=None, in_spec=None, nBs_s=None, x_s=None,
-                 sum_result=False, sum_weight=None, sum_batch_size=256**3,
+                 sum_result=False, sum_weight=None, sum_batch_size=128**3,
                  out_of_bounds_action='error'):
         """Batch interpolate in nBs and x.
         

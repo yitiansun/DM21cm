@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=benchadashell
+#SBATCH --job-name=fc_xdecay_zf001_sf20_noxesink
 #SBATCH --partition=iaifi_gpu
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks=1
@@ -13,8 +13,8 @@
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=yitians@mit.com
 
-source /n/home07/yitians/setup_dm21cm.sh
+source /n/home07/yitians/setup_test-dm21cm.sh
 
 cd /n/home07/yitians/dm21cm/DM21cm/scripts
 
-python run_evolve.py > xcis_xrayphph_lifetime26_noLX_nopop2_zf001_scf10_adashell40.out
+python run_evolve.py

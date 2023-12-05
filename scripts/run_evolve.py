@@ -19,6 +19,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-z', '--zf', type=str) # 001 002 005 01
     parser.add_argument('-s', '--sf', type=int) # 10 5 2 1
+    parser.add_argument('-b', '--boxlen', type=int, default=32) # 32 64 128 256
     args = parser.parse_args()
 
     os.environ['DM21CM_DATA_DIR'] = f'/n/holyscratch01/iaifi_lab/yitians/dm21cm/DM21cm/data/tf/zf{args.zf}/data'
@@ -26,9 +27,9 @@ if __name__ == '__main__':
     # p21c.global_params.R_XLy_MAX = 500.
     # p21c.global_params.NUM_FILTER_STEPS_FOR_Ts = 40
 
-    #run_name = f'fc_xray_128_zf{args.zf}_sf{args.sf}_xesink' # xray check
+    run_name = f'fc_xray_{args.boxlen}_zf{args.zf}_sf{args.sf}' # xray check
     #run_name = f'fc_decay_128_zf{args.zf}_sf{args.sf}' # decay check
-    run_name = f'fc_xray_128_LX_xesink' # fiducial
+    #run_name = f'fc_xray_128_LX_xesink' # fiducial
 
     return_dict = evolve(
         run_name = run_name,
@@ -44,8 +45,8 @@ if __name__ == '__main__':
         
         p21c_initial_conditions = p21c.initial_conditions(
             user_params = p21c.UserParams(
-                HII_DIM = 128,
-                BOX_LEN = 128*2, # [conformal Mpc]
+                HII_DIM = args.boxlen,
+                BOX_LEN = args.boxlen*2, # [conformal Mpc]
                 N_THREADS = 32,
             ),
             cosmo_params = p21c.CosmoParams(
@@ -65,7 +66,7 @@ if __name__ == '__main__':
         debug_record_extra = False,
         
         # 21cmFAST xray injection
-        use_21cmfast_xray = True,
+        use_21cmfast_xray = False,
         debug_turn_off_pop2ion = True,
         debug_xray_Rmax_p21c = 500.,
 

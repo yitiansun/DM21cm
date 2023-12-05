@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=xc_LX_xesink
+#SBATCH --job-name=xc_0005
 #SBATCH --partition=iaifi_gpu
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks=1
@@ -17,4 +17,4 @@ source /n/home07/yitians/setup_test-dm21cm.sh
 
 cd /n/home07/yitians/dm21cm/DM21cm/scripts
 
-python run_evolve.py -z 001 -s 20
+python run_evolve.py -z 0005 -s 40 -b 128

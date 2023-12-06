@@ -8,8 +8,6 @@ import py21cmfast as p21c
 is_josh = False
 if is_josh:
     os.environ['DM21CM_DIR'] ='/u/jwfoster/21CM_Project/DM21cm/'
-    os.environ['DM21CM_DATA_DIR'] = '/u/jwfoster/21CM_Project/Data002/'
-
     os.environ['DH_DIR'] ='/u/jwfoster/21CM_Project/DarkHistory/'
     os.environ['DH_DATA_DIR'] ='/u/jwfoster/21CM_Project/DarkHistory/DHData/'
 else:
@@ -39,11 +37,24 @@ BOX_LEN = max(256, 2 * HII_DIM)
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-i', '--run_index', type=int)
+parser.add_argument('-z', '--zf', type=str) # 01 005 002 001 0005 0002
+parser.add_argument('-s', '--sf', type=int) #  2   4  10  20   40   80
 parser.add_argument('-c', '--channel', type=str)
 parser.add_argument('-n', '--n_threads', type=int, default=32)
 parser.add_argument('-r', '--run_name', type=str)
 parser.add_argument('--homogeneous', action='store_true')
 args = parser.parse_args()
+
+if is_josh:
+    os.environ['DM21CM_DATA_DIR'] = f'/u/jwfoster/21CM_Project/Data{args.zf}/'
+else:
+    os.environ['DM21CM_DATA_DIR'] = f'/n/holyscratch01/iaifi_lab/yitians/dm21cm/DM21cm/data/tf/zf{args.zf}/data'
+
+print('run index:', args.run_index)
+print('run name:', args.run_name)
+print('n_threads:', args.n_threads)
+print('zf:', args.zf)
+print('sf:', args.sf)
 
 if args.channel == 'elec':
     primary = 'elec_delta'
@@ -152,7 +163,7 @@ return_dict = evolve(
 
     use_DH_init = True,
     no_injection = False,
-    subcycle_factor = 10,
+    subcycle_factor = args.sf,
 
     homogenize_deposition = args.homogeneous,
     homogenize_injection = args.homogeneous,

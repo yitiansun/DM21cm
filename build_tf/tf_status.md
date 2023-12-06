@@ -6,6 +6,7 @@
 | zf005         | V | V | V | V  |    |    |    |   V    |        |       |
 | zf001         | V | V | V | V  | V  | V  | V  |   V    |   V    |       |
 | zf0005        | V | V | V | V  |    |    |    |   V    |        |       |
+| zf0002        | V | V | V | V  |    |    |    |   V    |        |       |
 
 - _: next
 - R: running

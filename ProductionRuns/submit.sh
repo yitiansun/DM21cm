@@ -1,7 +1,7 @@
 #!/bin/bash
 
-#SBATCH --job-name=pr001_phot
-#SBATCH --array=2
+#SBATCH --job-name=pr001_elec_rq
+#SBATCH --array=2-3
 #SBATCH --partition=gpu_requeue
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks=1
@@ -19,7 +19,7 @@ source /n/home07/yitians/setup_dm21cm.sh
 cd /n/home07/yitians/dm21cm/DM21cm/ProductionRuns
 
 #python prod_run.py -i $SLURM_ARRAY_TASK_ID -c phot
-python dm_script.py -i $SLURM_ARRAY_TASK_ID -z 001 -s 20 -c phot -r photdecay_zf001
+python dm_script.py -i $SLURM_ARRAY_TASK_ID -z 001 -s 20 -c elec -r elecdecay_zf001
 
 #--array=
 # 0-23 for elec

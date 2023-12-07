@@ -17,8 +17,8 @@ WDIR = os.environ['DM21CM_DIR']
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('-z', '--zf', type=str) # 001 002 005 01
-    parser.add_argument('-s', '--sf', type=int) # 10 5 2 1
+    parser.add_argument('-z', '--zf', type=str) # 0002 0005 001 002 005 01
+    parser.add_argument('-s', '--sf', type=int) #   50   20  10   5   2  1
     parser.add_argument('-b', '--boxlen', type=int, default=32) # 32 64 128 256
     args = parser.parse_args()
 

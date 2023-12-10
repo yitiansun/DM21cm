@@ -250,7 +250,8 @@ def ifft(
 
 def _adjust_phase(ft, left_edge, freq, axes, b):
     for i, (l, f) in enumerate(zip(left_edge, freq)):
-        xp = np.exp(-b * 1j * f * l)
+        z = np.array(b * 1j * f * l, dtype=np.complex128)
+        xp = np.exp(z)
         obj = (
             tuple([None] * axes[i])
             + (slice(None, None, None),)
@@ -277,7 +278,7 @@ def _retfunc(ft, freq, axes, ret_cubegrid):
     grid = freq[0] ** 2
     for i in range(1, len(axes)):
         grid = np.add.outer(grid, freq[i] ** 2)
-
+    grid = np.array(grid, dtype=np.float64)
     return ft, freq, np.sqrt(grid)
 
 

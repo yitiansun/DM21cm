@@ -36,12 +36,12 @@ BOX_LEN = max(256, 2 * HII_DIM)
 ########################################################
 
 parser = argparse.ArgumentParser()
+parser.add_argument('-r', '--run_name', type=str)
 parser.add_argument('-i', '--run_index', type=int)
-parser.add_argument('-z', '--zf', type=str) # 01 005 002 001 0005 0002
-parser.add_argument('-s', '--sf', type=int) #  2   4  10  20   40   80
+parser.add_argument('-z', '--zf', type=str, default='002') # 01 005 002 001 0005 0002
+parser.add_argument('-s', '--sf', type=int, default=10)    #  2   4  10  20   40   80
 parser.add_argument('-c', '--channel', type=str)
 parser.add_argument('-n', '--n_threads', type=int, default=32)
-parser.add_argument('-r', '--run_name', type=str)
 parser.add_argument('--homogeneous', action='store_true')
 args = parser.parse_args()
 
@@ -67,6 +67,14 @@ elif args.channel == 'phot':
     masses = np.logspace(2, 12, 11)
     log_lifetimes = np.array([29.202, 28.821, 28.440, 28.059, 27.678, 27.297, 26.916, 26.535, 26.153, 25.772, 25.391]) # calibrated for fisher
     mass_index, decay_index = np.unravel_index(args.run_index, (11, 2))
+
+elif args.channel == 'phot_halfstep':
+    primary = 'phot_delta'
+    log10_masses = np.linspace(2, 12, 11)
+    log10_masses = (log10_masses[:-1] + log10_masses[1:]) / 2
+    masses = 10**log10_masses
+    log_lifetimes = np.array([29.012, 28.631, 28.250, 27.868, 27.487, 27.106, 26.725, 26.344, 25.963, 25.582]) # calibrated for fisher
+    mass_index, decay_index = np.unravel_index(args.run_index, (10, 2))
 
 else:
     raise ValueError('Invalid channel')

@@ -64,17 +64,12 @@ if args.channel == 'elec':
 
 elif args.channel == 'phot':
     primary = 'phot_delta'
-    masses = np.logspace(2, 12, 11)
-    log_lifetimes = np.array([29.202, 28.821, 28.440, 28.059, 27.678, 27.297, 26.916, 26.535, 26.153, 25.772, 25.391]) # calibrated for fisher
-    mass_index, decay_index = np.unravel_index(args.run_index, (11, 2))
-
-elif args.channel == 'phot_halfstep':
-    primary = 'phot_delta'
-    log10_masses = np.linspace(2, 12, 11)
-    log10_masses = (log10_masses[:-1] + log10_masses[1:]) / 2
-    masses = 10**log10_masses
-    log_lifetimes = np.array([29.012, 28.631, 28.250, 27.868, 27.487, 27.106, 26.725, 26.344, 25.963, 25.582]) # calibrated for fisher
-    mass_index, decay_index = np.unravel_index(args.run_index, (10, 2))
+    masses = np.logspace(1.5, 12, 22)
+    log_lifetimes = np.array([
+        29.393, 29.202, 29.012, 28.821, 28.631, 28.440, 28.250, 28.059, 27.868, 27.678, 27.487,
+        27.297, 27.106, 26.916, 26.725, 26.535, 26.344, 26.153, 25.963, 25.772, 25.582, 25.391
+    ])
+    mass_index, decay_index = np.unravel_index(args.run_index, (22, 2))
 
 else:
     raise ValueError('Invalid channel')

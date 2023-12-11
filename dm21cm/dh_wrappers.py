@@ -244,7 +244,7 @@ class TransferFunctionWrapper:
             input_heating (InputHeating): Heating input box.
             input_ionization (InputIonization): Ionization input box.
             input_jalpha (InputJAlpha): Lyman-alpha input box.
-            dt (float): Time in step [s].
+            dt (float): Time in full cycle step [s].
         """
         
         dep_heat_box = self.dep_box[...,3]

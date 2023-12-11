@@ -166,6 +166,7 @@ def evolve(run_name,
         i_z_range = tqdm(i_z_range)
 
     #--- trackers ---
+    dt_fullcycle = 0.
     records = []
     profiler = Profiler()
 
@@ -179,6 +180,7 @@ def evolve(run_name,
         z_current = z_edges[i_z]
         z_next = z_edges[i_z+1]
         dt = phys.dt_step(z_current, np.exp(abscs['dlnz']))
+        dt_fullcycle += dt
 
         #--- for interpolation ---
         delta_plus_one_box = 1 + np.asarray(perturbed_field.density)
@@ -281,7 +283,8 @@ def evolve(run_name,
             perturbed_field = p21c.perturb_field(redshift=z_edges_coarse[i_z_coarse+1], init_boxes=p21c_initial_conditions)
             input_heating, input_ionization, input_jalpha = gen_injection_boxes(z_next, p21c_initial_conditions)
             if not no_injection:
-                tf_wrapper.populate_injection_boxes(input_heating, input_ionization, input_jalpha, dt,)
+                tf_wrapper.populate_injection_boxes(input_heating, input_ionization, input_jalpha, dt_fullcycle)
+            dt_fullcycle = 0.
             spin_temp, ionized_box, brightness_temp = p21c_step(
                 perturbed_field, spin_temp, ionized_box,
                 input_heating = input_heating,

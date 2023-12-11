@@ -1,6 +1,7 @@
 import os
 import sys
 import time
+import argparse
 
 import numpy as np
 
@@ -16,16 +17,20 @@ from dm21cm.evolve import evolve
 if __name__ == '__main__':
 
     #===== config =====
-    run_name = 'fc_xdecay_zf001_sf20_noxesink'
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--run_name', type=str)
+    parser.add_argument('--zf', type=str)
+    parser.add_argument('--sf', type=int)
+    args = parser.parse_args()
+
+    run_name = args.run_name
     lc_save_dir = f'/n/holyscratch01/iaifi_lab/yitians/dm21cm/outputs/fc_xdecay'
     os.makedirs(lc_save_dir, exist_ok=True)
 
     #--- resolution ---
     HII_DIM = 128
     BOX_LEN = max(256, 2 * HII_DIM) # [conformal Mpc]
-    zf = '001'
-    subcycling_factor = 20
-    os.environ['DM21CM_DATA_DIR'] = f'/n/holyscratch01/iaifi_lab/yitians/dm21cm/DM21cm/data/tf/zf{zf}/data'
+    os.environ['DM21CM_DATA_DIR'] = f'/n/holyscratch01/iaifi_lab/yitians/dm21cm/DM21cm/data/tf/zf{args.zf}/data'
 
     #--- dark matter ---
     no_injection = False
@@ -94,7 +99,7 @@ if __name__ == '__main__':
         p21c_astro_params = astro_params, # log10 value
         
         no_injection = no_injection,
-        subcycle_factor = subcycling_factor,
+        subcycle_factor = args.sf,
         max_n_shell = 40,
     )
 

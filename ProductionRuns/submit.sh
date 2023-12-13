@@ -1,7 +1,7 @@
 #!/bin/bash
 
-#SBATCH --job-name=photdecay_hom
-#SBATCH --array=1,8,10,12,13,14,15,16,17,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,37,42
+#SBATCH --job-name=inhom_phot_26_stdastro
+#SBATCH --array=0-3
 #SBATCH --partition=gpu
 #SABTCH --exclude=holygpu7c26305
 #SBATCH --gres=gpu:1
@@ -19,8 +19,8 @@ source /n/home07/yitians/setup_dm21cm.sh
 
 cd /n/home07/yitians/dm21cm/DM21cm/ProductionRuns
 
-#python prod_run.py -i $SLURM_ARRAY_TASK_ID -c phot
-python dm_script.py -i $SLURM_ARRAY_TASK_ID -z 002 -s 10 -c phot -r photdecay_hom --homogeneous
+python prod_run.py -i $SLURM_ARRAY_TASK_ID -c phot --stdastro
+#python dm_script.py -i $SLURM_ARRAY_TASK_ID -z 002 -s 10 -c elec -r elecdecay_hom_check --homogeneous
 
 #--array=
 # 0-23 for elec

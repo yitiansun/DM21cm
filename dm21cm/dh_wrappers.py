@@ -8,7 +8,7 @@ from scipy import interpolate
 
 sys.path.append("..")
 import dm21cm.physics as phys
-from dm21cm.interpolators_jax import BatchInterpolator
+from dm21cm.interpolators import BatchInterpolator
 
 sys.path.append(os.environ['DH_DIR'])
 from darkhistory.main import evolve as evolve_DH

@@ -69,15 +69,15 @@ n_B          = rho_baryon/m_p
 Y_He         = 0.245
 """Helium abundance by mass."""
 n_H          = (1-Y_He) * n_B
-""" Atomic hydrogen number density in cm\ :sup:`-3`\ ."""
+"""Hydrogen nucleus number density in cm\ :sup:`-3`\ ."""
 n_He         = (Y_He/4) * n_B
-""" Atomic helium number density in cm\ :sup:`-3`\ ."""
+"""Helium nucleus number density in cm\ :sup:`-3`\ ."""
 n_A          = n_H + n_He
-""" Hydrogen and helium number density in cm\ :sup:`-3`\ .""" 
+"""Total hydrogen and helium nucleus number density in cm\ :sup:`-3`\ .""" 
 chi          = n_He / n_H
-"""Ratio of helium to hydrogen nuclei."""
+"""Ratio of helium to hydrogen nucleus number."""
 A_per_B      = n_A / n_B
-"""Ratio of all nuclei to baryons."""
+"""Ratio of nucleus number to baryon number."""
 
 
 #===== Cosmology =====

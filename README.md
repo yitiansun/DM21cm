@@ -25,3 +25,6 @@
 - Install the require packages via `pip install -r requirements.txt`.
 - Set environment variable `DM21CM_DIR` to point to the project folder (directory containing `README.md`).
 - Set environment variable `DM21CM_DATA_DIR` to point to the data folder (directory containing `abscissas.h5`).
+
+## Authors
+Yitian Sun, Joshua W. Foster, Hongwan Liu, Julian B. Muñoz, and Tracy R. Slatyer

@@ -7,7 +7,7 @@ import timeit
 
 sys.path.append("..")
 from dm21cm.interpolators import BatchInterpolator as BatchInterpolatorSciPy
-from dm21cm.interpolators_jax import BatchInterpolator as BatchInterpolatorJax
+from dm21cm.interpolators import BatchInterpolator as BatchInterpolatorJax
 
 rs = 20.
 in_spec = np.linspace(3., 4., 500)

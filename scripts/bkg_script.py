@@ -121,7 +121,6 @@ return_dict = evolve(
         m_DM=1e8,
         lifetime=1e50,
     ),
-    enable_elec = False,
 
     p21c_initial_conditions = p21c.initial_conditions(
         user_params = p21c.UserParams(
@@ -142,7 +141,7 @@ return_dict = evolve(
     p21c_astro_params = astro_params,
     use_DH_init = True,
     no_injection = True,
-    subcycle_factor=10,
+    subcycle_factor = 10,
 )
 
 

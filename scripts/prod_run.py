@@ -55,7 +55,6 @@ if args.channel == 'phot':
     channel = 'phot_delta'
     decay_rate = 1e-26 # [1/s]
     lifetime = 1/decay_rate
-    enable_elec = False
     run_name = 'inhom_phot_m5e3_lt26'
 
 elif args.channel == 'elec':
@@ -63,7 +62,6 @@ elif args.channel == 'elec':
     channel = 'elec_delta'
     decay_rate = 1e-25 # [1/s]
     lifetime = 1/decay_rate
-    enable_elec = True
     run_name = 'inhom_elec_m1e7_lt25'
 
 if args.stdastro:
@@ -146,7 +144,6 @@ return_dict = evolve(
         m_DM=m_DM,
         lifetime=lifetime,
     ),
-    enable_elec = enable_elec,
 
     p21c_initial_conditions = p21c.initial_conditions(
         user_params = p21c.UserParams(

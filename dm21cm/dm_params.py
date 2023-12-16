@@ -2,6 +2,8 @@ import os
 import sys
 from dataclasses import dataclass, field
 
+import numpy as np
+
 sys.path.append("..")
 import dm21cm.physics as phys
 
@@ -38,6 +40,10 @@ class DMParams:
 
     def __post_init__(self):
         self.eng_per_inj = self.m_DM if self.mode=='decay' else 2 * self.m_DM
+        if self.mode == 'swave' and self.sigmav is None:
+            raise ValueError('sigmav must be specified for swave injection.')
+        if self.mode == 'decay' and self.lifetime is None:
+            raise ValueError('lifetime must be specified for decay injection.')
 
     def set_inj_specs(self, abscs):
         """Set injection spectra according to absicissas."""
@@ -49,6 +55,11 @@ class DMParams:
             self.m_DM, abscs['elecEk'], self.primary, 'elec',
             decay=(self.mode=='decay')
         )
+
+    @property
+    def is_injecting_elec(self):
+        """Whether DM is injecting electron/positron."""
+        return not np.allclose(self.inj_elec_spec.N, 0.)
 
     def struct_boost(self, rs):
         """Structure boost factor as a function of redshift."""

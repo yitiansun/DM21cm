@@ -48,8 +48,12 @@ class Profiler:
         """Print the mean and standard deviation of the recorded times."""
         try:
             for name, t_list in self.t_dict.items():
-                tl = t_list[ignore_first_n:]
-                print(f'{name:12}: {np.mean(tl):.4f} +/- {np.std(tl):.4f} s * {len(tl)} steps : {np.sum(tl):.4f} s')
+                if len(t_list) == 1:
+                    tl = t_list
+                    print(f'{name:12}: {np.mean(tl):.4f} s * {len(tl)} steps : {np.sum(tl):.4f} s')
+                else:
+                    tl = t_list[ignore_first_n:]
+                    print(f'{name:12}: {np.mean(tl):.4f} +/- {np.std(tl):.4f} s * {len(tl)} steps : {np.sum(tl):.4f} s')
         except:
             print('Error printing summary.')
 
@@ -58,9 +62,16 @@ class Profiler:
         if ax is None:
             fig, ax = plt.subplots()
 
+        max_len = max([len(t_list) for t_list in self.t_dict.values()])
+
         for name, t_list in self.t_dict.items():
-            ax.plot(t_list, label=name, **kwargs)
+            if len(t_list) == 1:
+                continue
+            subcycle_factor = int(np.round(max_len / len(t_list)))
+            ax.plot(np.arange(len(t_list)) * subcycle_factor, np.array(t_list) / subcycle_factor, label=name, **kwargs)
 
         ax.legend()
-        ax.set(xlabel='Iteration', ylabel='Time [s]')
-        return fig, ax
+        ax.set(xlabel='Subcycle iteration', ylabel='Time per subcycle step [s]')
+
+        if ax is None:
+            return fig, ax

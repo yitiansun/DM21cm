@@ -119,6 +119,7 @@ def dtdz(rs, H0=H0, omega_m=omega_m, omega_rad=omega_rad, omega_lambda=omega_lam
 
 def dt_between_z(z_high, z_low):
     """Calculate delta t [s] between z_high and z_low.
+    Alternative time step calculation, not in use.
 
     Args:
         z_high (float): Higher redshift.
@@ -149,6 +150,7 @@ def conformal_dt_between_z(z_high, z_low):
 
 def conformal_dx_between_z(z_high, z_low):
     """Calculate conformal delta x [conformal Mpc] between z_high and z_low.
+    Used for calculating shell radii.
 
     Args:
         z_high (float): Higher redshift.

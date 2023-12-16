@@ -144,7 +144,6 @@ return_dict = evolve(
         m_DM=m_DM,
         lifetime=lifetime,
     ),
-    enable_elec = ('elec' in primary),
 
     p21c_initial_conditions = p21c.initial_conditions(
         user_params = p21c.UserParams(

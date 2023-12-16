@@ -18,30 +18,33 @@ from darkhistory.spec.spectrum import Spectrum
 
 sys.path.append(os.environ['DM21CM_DIR'])
 import dm21cm.physics as phys
-from dm21cm.dh_wrappers import DarkHistoryWrapper, TransferFunctionWrapper
-from dm21cm.utils import load_h5_dict
+from dm21cm.dh_wrapper import DarkHistoryWrapper
+from dm21cm.tf_wrapper import TransferFunctionWrapper
+from dm21cm.utils import load_h5_dict, init_logger
 from dm21cm.xray_cache import XrayCache
 from dm21cm.profiler import Profiler
 
-logging.getLogger().setLevel(logging.INFO)
-logging.getLogger('21cmFAST').setLevel(logging.CRITICAL+1)
-logging.getLogger('py21cmfast._utils').setLevel(logging.CRITICAL+1)
-logging.getLogger('py21cmfast.wrapper').setLevel(logging.CRITICAL+1)
+logging.getLogger('21cmFAST').setLevel(logging.CRITICAL)
+logging.getLogger('py21cmfast._utils').setLevel(logging.CRITICAL)
+logging.getLogger('py21cmfast.wrapper').setLevel(logging.CRITICAL)
+
+logger = init_logger('dm21cm.evolve')
 
 
 def evolve(run_name,
-           z_start=..., z_end=...,
-           subcycle_factor=1,
+           z_start=...,
+           z_end=...,
+           subcycle_factor=10,
            max_n_shell=None,
            resume=False,
+           use_tqdm=True,
 
-           dm_params=..., enable_elec=False,
+           dm_params=...,
            p21c_initial_conditions=...,
            p21c_astro_params=None,
-           use_DH_init=True, rerun_DH=False,
-           use_tqdm=True,
-           tf_on_device=True,
 
+           use_DH_init=True,
+           rerun_DH=False,
            no_injection=False,
            homogenize_injection=False,
            homogenize_deposition=False,
@@ -53,35 +56,36 @@ def evolve(run_name,
         run_name (str):               Name of run. Used for cache directory.
         z_start (float):              Starting redshift.
         z_end (float):                Ending redshift.
-        subcycle_factor (int):        Number of subcycles per 21cmFAST step.
+        subcycle_factor (int):        Number of DM21cm subcycles per 21cmFAST step.
         max_n_shell (int or None):    Max number total shells used in xray injection. If None, use all shells smaller than the box size.
-        resume (bool):                Whether to attempt to resume from a previous run.
+        resume (bool):                Whether to attempt to resume from a previous run. Requires specifying the correct cache directory via run_name.
+        use_tqdm (bool):              Whether to use tqdm progress bars.
 
         dm_params (DMParams):         Dark matter (DM) parameters.
-        enable_elec (bool):           Whether to enable electron injection.
         p21c_initial_conditions (p21c.InitialConditions):  Initial conditions for 21cmFAST.
         p21c_astro_params (p21c.AstroParams):              AstroParams for 21cmFAST.
+        
         use_DH_init (bool):           Whether to use DarkHistory initial conditions.
         rerun_DH (bool):              Whether to rerun DarkHistory to get initial values.
-        use_tqdm (bool):              Whether to use tqdm progress bars.
-        tf_on_device (bool):          Whether to put transfer functions on device (GPU).
-
         no_injection (bool):          Whether to skip injection and energy deposition.
         homogenize_injection (bool):  Whether to use homogeneous injection, where DM density is averaged over the box.
         homogenize_deposition (bool): Whether to use homogeneous deposition, where the transfer function input parameters
                                       T_k, x_e, and delta are averaged over the box.
 
     Returns:
-        dict: Dictionary of results.
+        dict: Dictionary of results consisting of:
+            'global' (dict): Records of global quantities.
+            'lightcone' (p21c.LightCone): Lightcones of density, x_e, T_k, T_s, and T_b.
+            'profiler' (Profiler): Profiler.
     """
 
-    logging.info(f'Using 21cmFAST version {p21c.__version__}')
+    logger.info(f'Using 21cmFAST version {p21c.__version__}')
 
     #===== data and cache =====
     data_dir = os.environ['DM21CM_DATA_DIR']
     cache_dir = os.environ['P21C_CACHE_DIR'] + '/' + run_name
     p21c.config['direc'] = cache_dir
-    logging.info(f"Cache dir: {cache_dir}")
+    logger.info(f"Cache dir: {cache_dir}")
     os.makedirs(cache_dir, exist_ok=True)
     if not resume:
         cache_tools.clear_cache()
@@ -103,12 +107,12 @@ def evolve(run_name,
         dm_params.set_inj_specs(abscs)
 
         #--- transfer functions ---
-        tf_wrapper = TransferFunctionWrapper(
+        tfs = TransferFunctionWrapper(
             box_dim = box_dim,
             abscs = abscs,
             prefix = data_dir,
-            enable_elec = enable_elec,
-            on_device = tf_on_device,
+            enable_elec = dm_params.is_injecting_elec,
+            on_device = True,
         )
 
         #--- xray ---
@@ -146,9 +150,9 @@ def evolve(run_name,
     spin_temp, ionized_box, brightness_temp = p21c_step(perturbed_field=perturbed_field, spin_temp=spin_temp, ionized_box=ionized_box, astro_params=p21c_astro_params)
 
     if use_DH_init: # still can use DH to get initial conditions if no_injection is set
-        dh_wrapper = DarkHistoryWrapper(dm_params, prefix=p21c.config[f'direc'])
-        dh_wrapper.evolve(end_rs=(1+z_match)*0.9, rerun=rerun_DH)
-        T_k_DH_init, x_e_DH_init, phot_bath_spec = dh_wrapper.get_init_cond(rs=1+z_match)
+        dh = DarkHistoryWrapper(dm_params, prefix=p21c.config[f'direc'])
+        dh.evolve(end_rs=(1+z_match)*0.9, rerun=rerun_DH)
+        T_k_DH_init, x_e_DH_init, phot_bath_spec = dh.get_init_cond(rs=1+z_match)
         spin_temp.Tk_box += T_k_DH_init - np.mean(spin_temp.Tk_box)
         spin_temp.x_e_box += x_e_DH_init - np.mean(spin_temp.x_e_box)
         ionized_box.xH_box = 1 - spin_temp.x_e_box
@@ -187,14 +191,14 @@ def evolve(run_name,
         x_e_box = np.asarray(1 - ionized_box.xH_box)
         T_k_box = np.asarray(spin_temp.Tk_box)
         if not no_injection:
-            tf_wrapper.set_params(
+            tfs.set_params(
                 rs = 1+z_current,
                 delta_plus_one_box = delta_plus_one_box,
                 x_e_box = x_e_box,
                 T_k_box = T_k_box,
                 homogenize_deposition = homogenize_deposition
             )
-            tf_wrapper.reset_phot() # reset photon each subcycle, but deposition is reset only after populating boxes
+            tfs.reset_phot() # reset photon each subcycle, but deposition is reset only after populating boxes
 
         #--- for dark matter ---
         nBavg = phys.n_B * (1+z_current)**3 # [Bavg / (physical cm)^3]
@@ -237,40 +241,40 @@ def evolve(run_name,
 
                 smoothed_rel_eng_box = xray_cache.get_smoothed_box(state, z_current)
                 xray_spec = state.spectrum + accumulated_shell_spec
-                tf_wrapper.inject_phot(xray_spec, inject_type='xray', weight_box=smoothed_rel_eng_box)
+                tfs.inject_phot(xray_spec, inject_type='xray', weight_box=smoothed_rel_eng_box)
 
                 accumulated_shell_spec *= 0.
 
             profiler.record('xray')
 
             #--- bath and homogeneous portion of xray ---
-            tf_wrapper.inject_phot(phot_bath_spec, inject_type='bath')
+            tfs.inject_phot(phot_bath_spec, inject_type='bath')
 
             #--- dark matter (on-the-spot) ---
-            tf_wrapper.inject_from_dm(dm_params, inj_per_Bavg_box)
+            tfs.inject_from_dm(dm_params, inj_per_Bavg_box)
 
             profiler.record('bath+dm')
 
             #===== prepare spectra for next step =====
             #--- bath (separating out xray) ---
-            prop_phot_N = np.array(tf_wrapper.prop_phot_N) # propagating and emitted photons have been stored in tf_wrapper up to this point, time to get them out
-            emit_phot_N = np.array(tf_wrapper.emit_phot_N)
+            prop_phot_N = np.array(tfs.prop_phot_N) # propagating and emitted photons have been stored in tfs up to this point, time to get them out
+            emit_phot_N = np.array(tfs.emit_phot_N)
             emit_bath_N, emit_xray_N = split_xray(emit_phot_N, abscs['photE'])
             phot_bath_spec = Spectrum(abscs['photE'], prop_phot_N + emit_bath_N, rs=1+z_current, spec_type='N') # photons not emitted to the xray band are added to the bath (treated as uniform)
             phot_bath_spec.redshift(1+z_next)
 
             #--- xray ---
-            attenuation_arr = np.array(tf_wrapper.attenuation_arr(rs=1+z_current, x=1-np.mean(ionized_box.xH_box))) # convert from jax array
+            attenuation_arr = np.array(tfs.attenuation_arr(rs=1+z_current, x=1-np.mean(ionized_box.xH_box))) # convert from jax array
             xray_cache.advance_spectra(attenuation_arr, z_next)
 
             xray_spec = Spectrum(abscs['photE'], emit_xray_N, rs=1+z_current, spec_type='N') # [ph/Bavg]
             xray_spec.redshift(1+z_next)
-            if np.mean(tf_wrapper.xray_eng_box) != 0.:
+            if np.mean(tfs.xray_eng_box) != 0.:
                 # dont' normalize w.r.t. to np.dot(abscs['photE'], emit_xray_N) because
                 # that contains not only the emission but propagation
-                xray_rel_eng_box = tf_wrapper.xray_eng_box / jnp.mean(tf_wrapper.xray_eng_box) # [1 (relative energy)/Bavg]
+                xray_rel_eng_box = tfs.xray_eng_box / jnp.mean(tfs.xray_eng_box) # [1 (relative energy)/Bavg]
             else:
-                xray_rel_eng_box = np.zeros_like(tf_wrapper.xray_eng_box) # [1 (relative energy)/Bavg]
+                xray_rel_eng_box = np.zeros_like(tfs.xray_eng_box) # [1 (relative energy)/Bavg]
             xray_cache.cache(z_current, z_next, xray_spec, xray_rel_eng_box)
 
             profiler.record('prep next')
@@ -283,7 +287,7 @@ def evolve(run_name,
             perturbed_field = p21c.perturb_field(redshift=z_edges_coarse[i_z_coarse+1], init_boxes=p21c_initial_conditions)
             input_heating, input_ionization, input_jalpha = gen_injection_boxes(z_next, p21c_initial_conditions)
             if not no_injection:
-                tf_wrapper.populate_injection_boxes(input_heating, input_ionization, input_jalpha, dt_fullcycle)
+                tfs.populate_injection_boxes(input_heating, input_ionization, input_jalpha, dt_fullcycle)
             dt_fullcycle = 0.
             spin_temp, ionized_box, brightness_temp = p21c_step(
                 perturbed_field, spin_temp, ionized_box,
@@ -300,14 +304,11 @@ def evolve(run_name,
             #===== calculate and save some quantities =====
             records.append({
                 'z'   : z_next,
-                'T_s' : np.mean(spin_temp.Ts_box), # [mK]
-                'T_b' : np.mean(brightness_temp.brightness_temp), # [K]
+                'T_s' : np.mean(spin_temp.Ts_box), # [K]
+                'T_b' : np.mean(brightness_temp.brightness_temp), # [mK]
                 'T_k' : np.mean(spin_temp.Tk_box), # [K]
                 'x_e' : np.mean(spin_temp.x_e_box), # [1]
                 '1-x_H' : np.mean(1 - ionized_box.xH_box), # [1]
-                'x_e_slice' : np.array(spin_temp.x_e_box[0]), # [1]
-                'x_H_slice' : np.array(ionized_box.xH_box[0]), # [1]
-                'T_k_slice' : np.array(spin_temp.Tk_box[0]), # [K]
             })
             if not no_injection:
                 dE_inj_per_Bavg = dm_params.eng_per_inj * np.mean(inj_per_Bavg_box) # [eV/Bavg]
@@ -317,24 +318,36 @@ def evolve(run_name,
                     'phot_N' : phot_bath_spec.N, # [ph/Bavg]
                     'dE_inj_per_B' : dE_inj_per_Bavg, # [eV/Bavg]
                     'dE_inj_per_Bavg_unclustered' : dE_inj_per_Bavg_unclustered, # [eV/Bavg]
-                    'dep_ion'  : np.mean(tf_wrapper.dep_box[...,0] + tf_wrapper.dep_box[...,1]), # [eV/Bavg]
-                    'dep_exc'  : np.mean(tf_wrapper.dep_box[...,2]), # [eV/Bavg]
-                    'dep_heat' : np.mean(tf_wrapper.dep_box[...,3]), # [eV/Bavg]
+                    'dep_ion'  : np.mean(tfs.dep_box[...,0] + tfs.dep_box[...,1]), # [eV/Bavg]
+                    'dep_exc'  : np.mean(tfs.dep_box[...,2]), # [eV/Bavg]
+                    'dep_heat' : np.mean(tfs.dep_box[...,3]), # [eV/Bavg]
                 })
 
+    #===== construct lightcone =====
+    lightcone = p21c.run_lightcone(
+        redshift = brightness_temp.redshift,
+        user_params = brightness_temp.user_params,
+        cosmo_params = brightness_temp.cosmo_params,
+        astro_params = brightness_temp.astro_params,
+        flag_options = brightness_temp.flag_options,
+        lightcone_quantities = ['brightness_temp','Ts_box', 'Tk_box', 'x_e_box', 'xH_box', 'density'],
+        scrollz = scrollz,
+    )
+    lightcone._write(fname=f'lightcones.h5', direc=cache_dir, clobber=True)
+
+    profiler.record('lightcone')
+
     #===== end of loop, return results =====
-    arr_records = {k: np.array([r[k] for r in records]) for k in records[0].keys()}
-    arr_records['brightness_temp'] = brightness_temp
+    global_records = {k: np.array([r[k] for r in records]) for k in records[0].keys()}
+    np.save(f'{cache_dir}/global_records', global_records)
+
     profiler.print_summary()
 
-    return_dict = {
-	    'profiler' : profiler,
-        'records' : arr_records,
-        'brightness_temp' : brightness_temp,
-        'scrollz': scrollz,
+    return {
+        'global' : global_records,
+        'lightcone' : lightcone,
+        'profiler' : profiler,
     }
-
-    return return_dict
 
 
 #===== utilities for evolve =====

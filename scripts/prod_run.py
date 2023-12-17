@@ -1,6 +1,8 @@
-import sys, os, shutil, time
+import os
+import sys
+import shutil
+import time
 import argparse
-import numpy as np
 
 from astropy.cosmology import Planck18
 import py21cmfast as p21c
@@ -49,6 +51,13 @@ BOX_LEN = max(256, 2 * HII_DIM)
 
 run_index = args.run_index
 N_THREADS = args.n_threads
+
+# if args.channel == 'phot': # old
+#     m_DM = 5e3 # [eV]
+#     channel = 'phot_delta'
+#     decay_rate = 1e-26 # [1/s]
+#     lifetime = 1/decay_rate
+#     run_name = 'inhom_phot_m5e3_lt26'
 
 if args.channel == 'phot':
     m_DM = 5e3 # [eV]

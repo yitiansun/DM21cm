@@ -2,26 +2,16 @@
 **/.DS_Store
 **/slurm_outputs/
 **/__pycache__/
-build_tf/*.pdf
-build_tf/ionhist_outputs/
-cross_check/ionhist_outputs/
-cross_check/run_info/
-cross_check/tmp
-cross_check/xray/*.pdf
-data/run_info/**
-data/sfrd
-debug/*.npy
-logo/*.npy
-notebooks/plots/tmp
-notebooks/tmp
+build_tf/
+cross_check/
+data/
+debug/
 outputs/
-plots/
 plotting/**/tmp
 plotting/**/*.npy
 plotting/**/*.h5
 plotting/**/*.p
 scripts/*.out
-step/*.out
 #------------------------
 
 # Byte-compiled / optimized / DLL files

@@ -1,3 +1,5 @@
+[![arXiv](https://img.shields.io/badge/arXiv-2309.03254%20-green.svg)](https://arxiv.org/abs/2309.03254)
+
 # DM21cm
 **A Semi-numerical Simulation of Inhomogeneous Energy Injection in 21cm**
 

@@ -2,7 +2,7 @@
 
 [![arXiv](https://img.shields.io/badge/arXiv-2309.03254%20-green.svg)](https://arxiv.org/abs/2309.03254)
 
-![](plotting/logo/xH.gif)
+![](resources/logo.gif)
 
 ## Installation
 

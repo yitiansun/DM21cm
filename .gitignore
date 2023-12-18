@@ -7,11 +7,8 @@ cross_check/
 data/
 debug/
 outputs/
-plotting/**/tmp
-plotting/**/*.npy
-plotting/**/*.h5
-plotting/**/*.p
-scripts/*.out
+plotting/
+scripts/
 #------------------------
 
 # Byte-compiled / optimized / DLL files

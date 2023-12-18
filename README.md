@@ -18,6 +18,7 @@
   - Install gcc and have environment variable `CC` point to the binary.
   - Install gsl (GNU Scientific Library) and have `GSL_LIB` point to the directory of the library.
   - Install fftw and have `FFTW_INC` point to the directory containing fftw header files.
+  - Install `21cmFAST` via `pip install .` in the project directory.
 - Set environment variable `P21C_CACHE_DIR` to a directory for storing cached files (requries at least 10G for a 128^3 box 1.01 redshift step run).
 
 ### DM21cm

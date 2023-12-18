@@ -22,7 +22,7 @@
 
 ### DM21cm
 - Clone this repository. Checkout branch `main`.
-- Download data files from [here]().
+- Download data files from [here](https://doi.org/10.5281/zenodo.10397814).
 - Install the require packages via `pip install -r requirements.txt`. We recommend installing `JAX` according to your hardware (e.g. GPU) specification.
 - Set environment variable `DM21CM_DIR` to point to the project folder (directory containing `README.md`).
 - Set environment variable `DM21CM_DATA_DIR` to point to the data folder (directory containing `abscissas.h5`).

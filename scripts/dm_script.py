@@ -58,9 +58,14 @@ print('sf:', args.sf)
 
 if args.channel == 'elec':
     primary = 'elec_delta'
+    # masses = np.logspace(6.5, 12, 12)
+    # log_lifetimes = np.array([27.994, 28.591, 28.935, 29.061, 29.004, 28.801, 28.487, 28.098, 27.670, 27.238, 26.838, 26.507]) # calibrated for fisher
+    # mass_index, decay_index = np.unravel_index(args.run_index, (12, 2))
     masses = np.logspace(6.5, 12, 12)
-    log_lifetimes = np.array([27.994, 28.591, 28.935, 29.061, 29.004, 28.801, 28.487, 28.098, 27.670, 27.238, 26.838, 26.507]) # calibrated for fisher
-    mass_index, decay_index = np.unravel_index(args.run_index, (12, 2))
+    masses = np.sqrt(masses[:-1] * masses[1:]) # midpoints
+    log_lifetimes = np.array([28.327, 28.793, 29.023, 29.053, 28.919, 28.656, 28.300, 27.887, 27.452, 27.032, 26.662]) # calibrated for fisher
+    mass_index, decay_index = np.unravel_index(args.run_index, (11, 2))
+    
 
 elif args.channel == 'phot':
     primary = 'phot_delta'
@@ -176,24 +181,24 @@ return_dict = evolve(
 ###   Make the lightcone   ###
 ##############################
 
-brightness_temp = return_dict['brightness_temp']
-scrollz = return_dict['scrollz']
-lightcone_quantities = ['brightness_temp','Ts_box', 'Tk_box', 'x_e_box', 'xH_box', 'density']
+# brightness_temp = return_dict['brightness_temp']
+# scrollz = return_dict['scrollz']
+# lightcone_quantities = ['brightness_temp','Ts_box', 'Tk_box', 'x_e_box', 'xH_box', 'density']
+
+# start = time.time()
+# lightcone = p21c.run_lightcone(redshift = brightness_temp.redshift,
+#                                user_params = brightness_temp.user_params,
+#                                cosmo_params = brightness_temp.cosmo_params,
+#                                astro_params = brightness_temp.astro_params,
+#                                flag_options = brightness_temp.flag_options,
+#                                lightcone_quantities = lightcone_quantities,
+#                                scrollz = scrollz,
+#                               )
+# end = time.time()
+# print('Time to generate lightcone:', end-start)
 
 start = time.time()
-lightcone = p21c.run_lightcone(redshift = brightness_temp.redshift,
-                               user_params = brightness_temp.user_params,
-                               cosmo_params = brightness_temp.cosmo_params,
-                               astro_params = brightness_temp.astro_params,
-                               flag_options = brightness_temp.flag_options,
-                               lightcone_quantities = lightcone_quantities,
-                               scrollz = scrollz,
-                              )
-end = time.time()
-print('Time to generate lightcone:', end-start)
-
-start = time.time()
-lightcone._write(fname=fname, direc=lightcone_direc, clobber=True)
+return_dict['lightcone']._write(fname=fname, direc=lightcone_direc, clobber=True)
 end = time.time()
 print('Time to Save lightcone:', end-start)
 

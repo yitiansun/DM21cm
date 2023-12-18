@@ -1,6 +1,6 @@
 # DM21cm - Inhomogeneous Energy Injection in 21cm Cosmology
 
-[![arXiv](https://img.shields.io/badge/arXiv-2309.03254%20-green.svg)](https://arxiv.org/abs/2309.03254)
+[![arXiv](https://img.shields.io/badge/arXiv-2312.XXXXX%20-green.svg)](https://arxiv.org/abs/2312.XXXXX)
 
 ![](resources/logo.gif)
 

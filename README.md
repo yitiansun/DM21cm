@@ -1,8 +1,11 @@
 # DM21cm - Inhomogeneous Energy Injection in 21cm Cosmology
 
-[![arXiv](https://img.shields.io/badge/arXiv-2312.XXXXX%20-green.svg)](https://arxiv.org/abs/2312.XXXXX)
+[![arXiv](https://img.shields.io/badge/arXiv-2312.11608%20-green.svg)](https://arxiv.org/abs/2312.11608)
 
 ![](resources/logo.gif)
+
+## Sensitivity to dark matter monochromatic decays
+<img src="resources/limits.png" width="1000"/>
 
 ## Installation
 

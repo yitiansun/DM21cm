@@ -4,11 +4,11 @@ import os
 import sys
 import h5py
 import pickle
-import logging
 import numpy as np
 
 sys.path.append(os.environ['DM21CM_DIR'])
 import dm21cm.physics as phys
+from dm21cm.utils import init_logger
 
 sys.path.append(os.environ['DH_DIR'])
 from darkhistory.spec.spectrum import Spectrum
@@ -23,6 +23,8 @@ else:
     jnp = np
 
 EPSILON = 1e-6
+
+logger = init_logger('dm21cm.xray_cache')
 
 
 class CachedState:
@@ -89,10 +91,10 @@ class XrayCache:
             if os.path.exists(self.snapshot_path):
                 self.load_snapshot()
                 z_latest = self.states[-1].z_end if len(self.states) > 0 else jnp.nan
-                logging.warning(f'Resuming from snapshot at {self.snapshot_path} with latest redshift z={z_latest:.3f}.')
+                logger.warning(f'Resuming from snapshot at {self.snapshot_path} with latest redshift z={z_latest:.3f}.')
                 self.isresumed = True
             else:
-                logging.warning(f'No snapshot found at {self.snapshot_path}, restarting run.')
+                logger.warning(f'No snapshot found at {self.snapshot_path}, restarting run.')
 
         if not self.isresumed:
             self.states = []

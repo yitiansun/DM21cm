@@ -13,7 +13,7 @@ sys.path.append(os.environ['DH_DIR'])
 from darkhistory.main import evolve as evolve_DH
 from darkhistory.spec.spectrum import Spectrum
 
-logger = init_logger('dm21cm.DarkHistoryWrapper')
+logger = init_logger(__name__)
 EPSILON = 1e-6
 
 

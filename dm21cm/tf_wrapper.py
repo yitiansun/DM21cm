@@ -9,7 +9,7 @@ import dm21cm.physics as phys
 from dm21cm.interpolators import BatchInterpolator
 from dm21cm.utils import init_logger
 
-logger = init_logger('dm21cm.TransferFunctionWrapper')
+logger = init_logger(__name__)
 EPSILON = 1e-6
 
 
@@ -25,7 +25,7 @@ class TransferFunctionWrapper:
     """
     
     def __init__(self, box_dim, abscs, prefix, enable_elec=True, on_device=True):
-        
+
         self.box_dim = box_dim
         self.abscs = abscs
         self.prefix = prefix # temporary
@@ -83,8 +83,9 @@ class TransferFunctionWrapper:
         self.emit_phot_N = np.zeros_like(self.abscs['photE']) # [N / Bavg]
 
     def reset_dep(self):
-        """Resets deposition boxes."""
+        """Resets deposition boxes and dt."""
         self.dep_box = np.zeros((self.box_dim, self.box_dim, self.box_dim, len(self.abscs['dep_c']))) # [eV / Bavg]
+        self.dep_dt = 0.
 
     def inject_phot(self, in_spec, inject_type=..., weight_box=...):
         """Inject photons into (prop_phot_N,) emit_phot_N, and dep_box.
@@ -155,8 +156,12 @@ class TransferFunctionWrapper:
         if self.enable_elec:
             self.inject_elec(dm_params.inj_elec_spec, weight_box=inj_per_Bavg_box)
 
+    def increase_dt(self, dt):
+        """Increase dep_dt by dt."""
+        self.dep_dt += dt
 
-    def populate_injection_boxes(self, input_heating, input_ionization, input_jalpha, dt):
+
+    def populate_injection_boxes(self, input_heating, input_ionization, input_jalpha):
         """Populate input boxes for 21cmFAST and reset dep_box.
         
         Args:
@@ -181,7 +186,7 @@ class TransferFunctionWrapper:
         ) # here [K] just means [eV/kB], do not think of it as temperature
 
         nBavg = phys.n_B * self.params['rs']**3 # [Bavg / pcm^3]
-        dNlya_dVdt = dep_lya_box * nBavg / dt / phys.lya_eng # [lya pcm^-3 s^-1]
+        dNlya_dVdt = dep_lya_box * nBavg / self.dep_dt / phys.lya_eng # [lya pcm^-3 s^-1]
         nu_lya_Hz = (phys.lya_eng) / (2*np.pi*phys.hbar) # [Hz]
         J_lya = dNlya_dVdt * phys.c / (4*np.pi * nu_lya_Hz * phys.hubble(self.params['rs'])) # [lya pcm^-3 s^-1 pcm/s] / [sr Hz s^-1] = [lya sr^-1 s^-1 pcm^-2 Hz^-1]
         # hubble might be inconsistent with 1 / ((1+z) * dtdz)

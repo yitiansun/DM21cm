@@ -24,7 +24,7 @@ else:
 
 EPSILON = 1e-6
 
-logger = init_logger('dm21cm.xray_cache')
+logger = init_logger(__name__)
 
 
 class CachedState:

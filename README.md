@@ -4,7 +4,7 @@
 
 ![](resources/logo.gif)
 
-## Sensitivity to dark matter monochromatic decays
+## HERA sensitivity to dark matter monochromatic decays
 <img src="resources/limits.png" width="1000"/>
 
 ## Installation

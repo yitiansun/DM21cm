@@ -21,10 +21,8 @@ if __name__ == '__main__':
     parser.add_argument('-n', '--name', type=str, default=f'{time.time():.0f}')
     args = parser.parse_args()
 
-    generate = args.generate
-
     run_name = f'test_{args.name}'
-    ref_name = f'test'
+    ref_name = f'ref'
 
     os.environ['DM21CM_DATA_DIR'] = '/n/holyscratch01/iaifi_lab/yitians/dm21cm/DM21cm/data/tf/zf001/data'
 
@@ -42,12 +40,11 @@ if __name__ == '__main__':
             m_DM=3e3, # [eV]
             lifetime=1e26, # [s]
         ),
-        enable_elec = False,
         
         p21c_initial_conditions = p21c.initial_conditions(
             user_params = p21c.UserParams(
                 HII_DIM = 32,
-                BOX_LEN = 32 * 2, # [conformal Mpc]
+                BOX_LEN = 256, # [conformal Mpc]
                 N_THREADS = 32,
             ),
             cosmo_params = p21c.CosmoParams(
@@ -70,18 +67,17 @@ if __name__ == '__main__':
         max_n_shell = 20,
     )
 
-    if generate:
-        np.save(f'{ref_name}_records.npy', return_dict['records'])
+    if args.generate:
+        return_dict['lightcone']._write(fname=f'{ref_name}_lightcones.h5', direc='.', clobber=True)
     else:
-        rec_ref = np.load(f'{ref_name}_records.npy', allow_pickle=True).item()
-        rec = return_dict['records']
+        lc_ref = p21c.LightCone.read(f'{ref_name}_lightcones.h5').lightcones
+        lc = return_dict['lightcone'].lightcones
 
-        test_ks = ['T_k', 'x_e', 'T_k_slice', 'x_e_slice', 'x_H_slice']
+        test_ks = ['Tk_box', 'x_e_box', 'brightness_temp']
 
         for k in test_ks:
-            abs_diff = rec[k] - rec_ref[k]
-            rel_diff = (rec[k] - rec_ref[k]) / rec_ref[k]
-            print(f'{k:12}: base={np.mean(rec_ref[k]):.6e}\t' + \
-                          f'test={np.mean(rec[k]):.6e}\t' + \
-                          f'abs_diff={np.mean(abs_diff):.6e}+/-{np.std(abs_diff):.6e}\t' + \
+            abs_diff = np.abs(lc[k] - lc_ref[k])
+            nonzero = lc_ref[k] != 0.
+            rel_diff = np.abs(lc[k] - lc_ref[k])[nonzero] / lc_ref[k][nonzero]
+            print(f'{k:15}: abs_diff={np.mean(abs_diff):.6e}+/-{np.std(abs_diff):.6e}\t' + \
                           f'rel_diff={np.mean(rel_diff):.6e}+/-{np.std(rel_diff):.6e}\t')

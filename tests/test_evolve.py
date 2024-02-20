@@ -22,9 +22,9 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     run_name = f'test_{args.name}'
-    ref_name = f'ref'
+    ref_name = f'test_evolve'
 
-    os.environ['DM21CM_DATA_DIR'] = '/n/holyscratch01/iaifi_lab/yitians/dm21cm/DM21cm/data/tf/zf001/data'
+    os.environ['DM21CM_DATA_DIR'] = '/n/holyscratch01/iaifi_lab/yitians/dm21cm/DM21cm/data/tf/zf002/data'
 
     # set global params
     p21c.global_params.CLUMPING_FACTOR = 1.
@@ -68,9 +68,11 @@ if __name__ == '__main__':
     )
 
     if args.generate:
-        return_dict['lightcone']._write(fname=f'{ref_name}_lightcones.h5', direc='.', clobber=True)
+        return_dict['lightcone']._write(fname=f'{ref_name}_ref_lightcone.h5', direc='.', clobber=True)
+        print(f'Generated {ref_name}_ref_lightcone.h5')
+        
     else:
-        lc_ref = p21c.LightCone.read(f'{ref_name}_lightcones.h5').lightcones
+        lc_ref = p21c.LightCone.read(f'{ref_name}_ref_lightcone.h5').lightcones
         lc = return_dict['lightcone'].lightcones
 
         test_ks = ['Tk_box', 'x_e_box', 'brightness_temp']

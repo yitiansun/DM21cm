@@ -7,7 +7,7 @@ from collections import OrderedDict
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-mpl.rc_file(f"{os.environ['DM21CM_DIR']}/matplotlibrc")
+mpl.rc_file(f"{os.environ['DM21CM_DIR']}/examples/matplotlibrc")
 
 
 class Profiler:

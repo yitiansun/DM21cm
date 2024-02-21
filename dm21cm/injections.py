@@ -54,6 +54,11 @@ class Injection: # Abstract template class
         """
         pass
 
+    def dE_inj_per_Bavg(self):
+        """Total energy injected in redshift step per average Baryon [eV/Bavg].
+        Called by evolve for recording."""
+        pass
+
     def __eq__(self, other):
         """Equality comparison. Used in darkhistory wrapper to check if cached solution has the correct injection."""
         pass
@@ -98,6 +103,10 @@ class DMDecayInjection (Injection):
         # must reuse self.inj_per_Bavg_box
         box_avg = float(jnp.mean(self.inj_per_Bavg_box)) # [inj / Bavg]
         return self.inj_elec_spec * box_avg, self.inj_per_Bavg_box / box_avg # [1/Bvg], [1]
+    
+    @property
+    def dE_inj_per_Bavg(self):
+        return jnp.mean(self.inj_per_Bavg_box) * self.m_DM
     
     def __eq__(self, other):
         return (

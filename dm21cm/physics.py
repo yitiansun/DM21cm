@@ -117,21 +117,21 @@ def dtdz(rs, H0=H0, omega_m=omega_m, omega_rad=omega_rad, omega_lambda=omega_lam
 
     return -1./(rs*hubble(rs, H0, omega_m, omega_rad, omega_lambda))
 
-def dt_between_z(z_high, z_low):
-    """Calculate delta t [s] between z_high and z_low.
-    Alternative time step calculation, not in use.
+# def dt_between_z(z_high, z_low):
+#     """Calculate delta t [s] between z_high and z_low.
+#     Alternative time step calculation, not in use.
 
-    Args:
-        z_high (float): Higher redshift.
-        z_low (float): Lower redshift.
+#     Args:
+#         z_high (float): Higher redshift.
+#         z_low (float): Lower redshift.
 
-    Returns:
-        float: Delta t [s].
-    """
-    norm = dtdz(1+z_high)
-    integrand = lambda z: dtdz(1+z) / norm
-    val, err = np.array(integrate.quad(integrand, z_high, z_low)) * norm
-    return val
+#     Returns:
+#         float: Delta t [s].
+#     """
+#     norm = dtdz(1+z_high)
+#     integrand = lambda z: dtdz(1+z) / norm
+#     val, err = np.array(integrate.quad(integrand, z_high, z_low)) * norm
+#     return val
 
 def conformal_dt_between_z(z_high, z_low):
     """Calculate conformal delta t [conformal s] between z_high and z_low.
@@ -177,46 +177,6 @@ def dt_step(z, zplusone_factor):
 
 
 #===== Dark Matter =====
-
-def inj_rate(rho_DM, dm_params):
-    """Dark matter annihilation/decay event injection rate. (Based on darkhistory.physics.inj_rate)
-
-    Args:
-        rho_DM (float or ndarray): DM number energy density (at redshift) in [eV cm^-3].
-        dm_params (DMParams): Dark matter parameter class.
-
-    Returns:
-        float or ndarray: The injection event rate density dN_inj/dV_dt in [inj cm^-3 s^-1].
-    """
-    if dm_params.mode == 'swave':
-        return (rho_DM/dm_params.m_DM)**2 * dm_params.sigmav / 2
-    
-    elif dm_params.mode == 'decay':
-        return (rho_DM/dm_params.m_DM) / dm_params.lifetime
-    
-    else:
-        raise NotImplementedError(dm_params.mode)
-
-
-def inj_eng_rate_box(rho_DM_box, dm_params):
-    """Dark matter annihilation/decay energy injection rate box. (Based on darkhistory.physics.inj_rate)
-
-    Args:
-        rho_DM_box (ndarray): DM density box (3D) at redshift in [eV cm^-3].
-        dm_params (DMParams): Dark matter parameter object.
-
-    Returns:
-        ndarray: The dE/dV_dt injection rate box in [eV cm^-3 s^-1].
-    """
-    if dm_params.mode == 'swave':
-        return rho_DM_box**2 * dm_params.sigmav / dm_params.m_DM
-    
-    elif dm_params.mode == 'decay':
-        return rho_DM_box / dm_params.lifetime
-    
-    else:
-        raise NotImplementedError(dm_params.mode)
-        
         
 def struct_boost_func(model=...):
     """Structure formation boost factor 1+B(z). (Copied from darkhistory.physics.struct_boost_func)

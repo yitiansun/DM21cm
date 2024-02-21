@@ -232,13 +232,6 @@ def evolve(run_name,
             tfs.inject_phot(phot_bath_spec, inject_type='bath')
 
             #--- dark matter (on-the-spot) ---
-            # nBavg = phys.n_B * (1+z_current)**3 # [Bavg / (physical cm)^3]
-            # rho_DM_box = delta_plus_one_box * phys.rho_DM * (1+z_current)**3 # [eV/(physical cm)^3]
-            # if homogenize_injection:
-            #     rho_DM_box = jnp.mean(rho_DM_box) * jnp.ones_like(rho_DM_box)
-            # inj_per_Bavg_box = phys.inj_rate(rho_DM_box, dm_params) * dt * dm_params.struct_boost(1+z_current) / nBavg # [inj/Bavg]
-            # tfs.inject_from_dm(dm_params, inj_per_Bavg_box)
-
             inj_spec, inj_box = injection.inj_phot_spec_box(z_current, dt, delta_plus_one_box=delta_plus_one_box)
             if homogenize_injection:
                 inj_box = jnp.full_like(inj_box, jnp.mean(inj_box))
@@ -306,13 +299,9 @@ def evolve(run_name,
                 '1-x_H' : np.mean(1 - ionized_box.xH_box), # [1]
             })
             if injection:
-                # dE_inj_per_Bavg = dm_params.eng_per_inj * np.mean(inj_per_Bavg_box) # [eV/Bavg]
-                # dE_inj_per_Bavg_unclustered = dE_inj_per_Bavg / dm_params.struct_boost(1+z_current) # [eV/Bavg]
-
                 records[-1].update({
                     'phot_N' : phot_bath_spec.N, # [ph/Bavg]
-                    # 'dE_inj_per_B' : dE_inj_per_Bavg, # [eV/Bavg]
-                    # 'dE_inj_per_Bavg_unclustered' : dE_inj_per_Bavg_unclustered, # [eV/Bavg]
+                    'dE_inj_per_B' : injection.dE_inj_per_Bavg, # [eV/Bavg]
                     'dep_ion'  : np.mean(tfs.dep_box[...,0] + tfs.dep_box[...,1]), # [eV/Bavg]
                     'dep_exc'  : np.mean(tfs.dep_box[...,2]), # [eV/Bavg]
                     'dep_heat' : np.mean(tfs.dep_box[...,3]), # [eV/Bavg]

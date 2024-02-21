@@ -182,7 +182,6 @@ def evolve(run_name,
         z_next = z_edges[i_z+1]
         dt = phys.dt_step(z_current, abscs['zplusone_step_factor'])
 
-        #--- for interpolation ---
         delta_plus_one_box = 1 + np.asarray(perturbed_field.density)
         x_e_box = np.asarray(1 - ionized_box.xH_box)
         T_k_box = np.asarray(spin_temp.Tk_box)
@@ -196,17 +195,10 @@ def evolve(run_name,
             )
             tfs.reset_phot() # reset photon each subcycle, but deposition is reset only after populating boxes
             tfs.increase_dt(dt) # increase deposition dt each subcycle
-
-        #--- for dark matter ---
-        nBavg = phys.n_B * (1+z_current)**3 # [Bavg / (physical cm)^3]
-        rho_DM_box = delta_plus_one_box * phys.rho_DM * (1+z_current)**3 # [eV/(physical cm)^3]
-        if homogenize_injection:
-            rho_DM_box = jnp.mean(rho_DM_box) * jnp.ones_like(rho_DM_box)
-        if not no_injection:
-            inj_per_Bavg_box = phys.inj_rate(rho_DM_box, dm_params) * dt * dm_params.struct_boost(1+z_current) / nBavg # [inj/Bavg]
         
+        #===== photon injection and energy deposition =====
         if (not no_injection) and xray_cache.is_latest_z(z_current):
-            #===== photon injection and energy deposition =====
+            
             #--- xray ---
             # First we dump to bath all cached states whose shell is larger than the box size.
             for state in xray_cache.states:
@@ -239,7 +231,6 @@ def evolve(run_name,
                 smoothed_rel_eng_box = xray_cache.get_smoothed_box(state, z_current)
                 xray_spec = state.spectrum + accumulated_shell_spec
                 tfs.inject_phot(xray_spec, inject_type='xray', weight_box=smoothed_rel_eng_box)
-
                 accumulated_shell_spec *= 0.
 
             profiler.record('xray')
@@ -248,6 +239,11 @@ def evolve(run_name,
             tfs.inject_phot(phot_bath_spec, inject_type='bath')
 
             #--- dark matter (on-the-spot) ---
+            nBavg = phys.n_B * (1+z_current)**3 # [Bavg / (physical cm)^3]
+            rho_DM_box = delta_plus_one_box * phys.rho_DM * (1+z_current)**3 # [eV/(physical cm)^3]
+            if homogenize_injection:
+                rho_DM_box = jnp.mean(rho_DM_box) * jnp.ones_like(rho_DM_box)
+            inj_per_Bavg_box = phys.inj_rate(rho_DM_box, dm_params) * dt * dm_params.struct_boost(1+z_current) / nBavg # [inj/Bavg]
             tfs.inject_from_dm(dm_params, inj_per_Bavg_box)
 
             profiler.record('bath+dm')

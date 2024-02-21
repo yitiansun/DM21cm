@@ -39,13 +39,12 @@ def evolve(run_name,
            resume=False,
            use_tqdm=True,
 
-           dm_params=...,
+           injection=None,
            p21c_initial_conditions=...,
            p21c_astro_params=None,
 
            use_DH_init=True,
            rerun_DH=False,
-           no_injection=False,
            homogenize_injection=False,
            homogenize_deposition=False,
            ):
@@ -61,13 +60,12 @@ def evolve(run_name,
         resume (bool):                Whether to attempt to resume from a previous run. Requires specifying the correct cache directory via run_name.
         use_tqdm (bool):              Whether to use tqdm progress bars.
 
-        dm_params (DMParams):         Dark matter (DM) parameters.
+        injection (Injection):        Injection object. If None, no injection is performed.
         p21c_initial_conditions (p21c.InitialConditions):  Initial conditions for 21cmFAST.
         p21c_astro_params (p21c.AstroParams):              AstroParams for 21cmFAST.
         
         use_DH_init (bool):           Whether to use DarkHistory initial conditions.
         rerun_DH (bool):              Whether to rerun DarkHistory to get initial values.
-        no_injection (bool):          Whether to skip injection and energy deposition.
         homogenize_injection (bool):  Whether to use homogeneous injection, where DM density is averaged over the box.
         homogenize_deposition (bool): Whether to use homogeneous deposition, where the transfer function input parameters
                                       T_k, x_e, and delta are averaged over the box.
@@ -102,20 +100,15 @@ def evolve(run_name,
     box_dim = p21c_initial_conditions.user_params.HII_DIM
     box_len = p21c_initial_conditions.user_params.BOX_LEN
 
-    if not no_injection:
-        #--- dark matter ---
-        dm_params.set_inj_specs(abscs)
-
-        #--- transfer functions ---
+    if injection:
+        injection.set_binning(abscs)
         tfs = TransferFunctionWrapper(
             box_dim = box_dim,
             abscs = abscs,
             prefix = data_dir,
-            enable_elec = dm_params.is_injecting_elec,
+            enable_elec = injection.is_injecting_elec,
             on_device = True,
         )
-
-        #--- xray ---
         if resume:
             xray_cache = XrayCache(data_dir=cache_dir, box_dim=box_dim, dx=box_len/box_dim, load_snapshot=True)
         else:
@@ -148,7 +141,7 @@ def evolve(run_name,
     spin_temp, ionized_box, brightness_temp = p21c_step(perturbed_field=perturbed_field, spin_temp=spin_temp, ionized_box=ionized_box, astro_params=p21c_astro_params)
 
     if use_DH_init: # still can use DH to get initial conditions if no_injection is set
-        dh = DarkHistoryWrapper(dm_params, prefix=p21c.config[f'direc'])
+        dh = DarkHistoryWrapper(injection, prefix=p21c.config[f'direc'])
         dh.evolve(end_rs=(1+z_match)*0.9, rerun=rerun_DH)
         T_k_DH_init, x_e_DH_init, phot_bath_spec = dh.get_init_cond(rs=1+z_match)
         spin_temp.Tk_box += T_k_DH_init - np.mean(spin_temp.Tk_box)
@@ -156,7 +149,7 @@ def evolve(run_name,
         ionized_box.xH_box = 1 - spin_temp.x_e_box
     else:
         phot_bath_spec = Spectrum(abscs['photE'], np.zeros_like(abscs['photE']), spec_type='N', rs=1+z_match) # [ph / Bavg]
-    if not no_injection:
+    if injection:
         if xray_cache.isresumed:
             phot_bath_spec = xray_cache.saved_phot_bath_spec
 
@@ -185,7 +178,7 @@ def evolve(run_name,
         delta_plus_one_box = 1 + np.asarray(perturbed_field.density)
         x_e_box = np.asarray(1 - ionized_box.xH_box)
         T_k_box = np.asarray(spin_temp.Tk_box)
-        if not no_injection:
+        if injection:
             tfs.set_params(
                 rs = 1+z_current,
                 delta_plus_one_box = delta_plus_one_box,
@@ -197,7 +190,7 @@ def evolve(run_name,
             tfs.increase_dt(dt) # increase deposition dt each subcycle
         
         #===== photon injection and energy deposition =====
-        if (not no_injection) and xray_cache.is_latest_z(z_current):
+        if injection and xray_cache.is_latest_z(z_current):
             
             #--- xray ---
             # First we dump to bath all cached states whose shell is larger than the box size.
@@ -239,12 +232,22 @@ def evolve(run_name,
             tfs.inject_phot(phot_bath_spec, inject_type='bath')
 
             #--- dark matter (on-the-spot) ---
-            nBavg = phys.n_B * (1+z_current)**3 # [Bavg / (physical cm)^3]
-            rho_DM_box = delta_plus_one_box * phys.rho_DM * (1+z_current)**3 # [eV/(physical cm)^3]
+            # nBavg = phys.n_B * (1+z_current)**3 # [Bavg / (physical cm)^3]
+            # rho_DM_box = delta_plus_one_box * phys.rho_DM * (1+z_current)**3 # [eV/(physical cm)^3]
+            # if homogenize_injection:
+            #     rho_DM_box = jnp.mean(rho_DM_box) * jnp.ones_like(rho_DM_box)
+            # inj_per_Bavg_box = phys.inj_rate(rho_DM_box, dm_params) * dt * dm_params.struct_boost(1+z_current) / nBavg # [inj/Bavg]
+            # tfs.inject_from_dm(dm_params, inj_per_Bavg_box)
+
+            inj_spec, inj_box = injection.inj_phot_spec_box(z_current, dt, delta_plus_one_box=delta_plus_one_box)
             if homogenize_injection:
-                rho_DM_box = jnp.mean(rho_DM_box) * jnp.ones_like(rho_DM_box)
-            inj_per_Bavg_box = phys.inj_rate(rho_DM_box, dm_params) * dt * dm_params.struct_boost(1+z_current) / nBavg # [inj/Bavg]
-            tfs.inject_from_dm(dm_params, inj_per_Bavg_box)
+                inj_box = jnp.full_like(inj_box, jnp.mean(inj_box))
+            tfs.inject_phot(inj_spec, weight_box=inj_box, inject_type='ots')
+
+            inj_spec, inj_box = injection.inj_elec_spec_box(z_current, dt, delta_plus_one_box=delta_plus_one_box)
+            if homogenize_injection:
+                inj_box = jnp.full_like(inj_box, jnp.mean(inj_box))
+            tfs.inject_elec(inj_spec, weight_box=inj_box)
 
             profiler.record('bath+dm')
 
@@ -279,7 +282,7 @@ def evolve(run_name,
 
             perturbed_field = p21c.perturb_field(redshift=z_edges_coarse[i_z_coarse+1], init_boxes=p21c_initial_conditions)
             input_heating, input_ionization, input_jalpha = gen_injection_boxes(z_next, p21c_initial_conditions)
-            if not no_injection:
+            if injection:
                 tfs.populate_injection_boxes(input_heating, input_ionization, input_jalpha)
             spin_temp, ionized_box, brightness_temp = p21c_step(
                 perturbed_field, spin_temp, ionized_box,
@@ -288,7 +291,7 @@ def evolve(run_name,
                 input_jalpha = input_jalpha,
                 astro_params = p21c_astro_params
             )
-            if not no_injection:
+            if injection:
                 xray_cache.save_snapshot(phot_bath_spec=phot_bath_spec) # only save snapshot once dep_box is cleared
 
             profiler.record('21cmFAST')
@@ -302,14 +305,14 @@ def evolve(run_name,
                 'x_e' : np.mean(spin_temp.x_e_box), # [1]
                 '1-x_H' : np.mean(1 - ionized_box.xH_box), # [1]
             })
-            if not no_injection:
-                dE_inj_per_Bavg = dm_params.eng_per_inj * np.mean(inj_per_Bavg_box) # [eV/Bavg]
-                dE_inj_per_Bavg_unclustered = dE_inj_per_Bavg / dm_params.struct_boost(1+z_current) # [eV/Bavg]
+            if injection:
+                # dE_inj_per_Bavg = dm_params.eng_per_inj * np.mean(inj_per_Bavg_box) # [eV/Bavg]
+                # dE_inj_per_Bavg_unclustered = dE_inj_per_Bavg / dm_params.struct_boost(1+z_current) # [eV/Bavg]
 
                 records[-1].update({
                     'phot_N' : phot_bath_spec.N, # [ph/Bavg]
-                    'dE_inj_per_B' : dE_inj_per_Bavg, # [eV/Bavg]
-                    'dE_inj_per_Bavg_unclustered' : dE_inj_per_Bavg_unclustered, # [eV/Bavg]
+                    # 'dE_inj_per_B' : dE_inj_per_Bavg, # [eV/Bavg]
+                    # 'dE_inj_per_Bavg_unclustered' : dE_inj_per_Bavg_unclustered, # [eV/Bavg]
                     'dep_ion'  : np.mean(tfs.dep_box[...,0] + tfs.dep_box[...,1]), # [eV/Bavg]
                     'dep_exc'  : np.mean(tfs.dep_box[...,2]), # [eV/Bavg]
                     'dep_heat' : np.mean(tfs.dep_box[...,3]), # [eV/Bavg]

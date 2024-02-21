@@ -10,7 +10,7 @@ import py21cmfast as p21c
 
 WDIR = os.environ['DM21CM_DIR']
 sys.path.append(WDIR)
-from dm21cm.dm_params import DMParams
+from dm21cm.injections import DMDecayInjection
 from dm21cm.evolve import evolve
 
 
@@ -34,8 +34,7 @@ if __name__ == '__main__':
         run_name = run_name,
         z_start = 45.,
         z_end = 40.,
-        dm_params = DMParams(
-            mode='decay',
+        injection = DMDecayInjection(
             primary='phot_delta',
             m_DM=3e3, # [eV]
             lifetime=1e26, # [s]
@@ -59,7 +58,7 @@ if __name__ == '__main__':
         ),
         p21c_astro_params = p21c.AstroParams(L_X = 0.), # log10 value
         
-        resume = True,
+        resume = False,
         #tf_on_device = False,
         #no_injection = False,
         #use_DH_init = False,

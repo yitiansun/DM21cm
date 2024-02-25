@@ -59,13 +59,27 @@ class DarkHistoryWrapper:
                 logger.warning('Injection object mismatch, rerunning.')
         
         logger.info('Running DarkHistory to generate initial conditions...')
+
+        # Custom injection API of DarkHistory
         default_kwargs = dict(
-            DM_process='decay', mDM=self.injection.m_DM,
+            in_spec_phot = lambda rs: self.injection.inj_phot_spec(rs-1) / self.injection.inj_rate_per_Bavg(rs-1), # [particle / inj]
+            in_spec_elec = lambda rs: self.injection.inj_elec_spec(rs-1) / self.injection.inj_rate_per_Bavg(rs-1), # [particle / inj]
+            rate_func_N  = lambda rs: self.injection.inj_rate_per_Bavg(rs-1), # [inj / Bavg s]
+            rate_func_E  = lambda rs: self.injection.inj_power_per_Bavg(rs-1), # [eV / Bavg s]
+            start_rs=3000, end_rs=end_rs, coarsen_factor=10, verbose=1,
+            clean_up_tf=True,
+        ) # default parameters use case B coefficients
+
+        # DM API of DarkHistory
+        default_kwargs = dict(
+            DM_process='decay',
+            mDM=self.injection.m_DM,
             primary=self.injection.primary,
             lifetime=self.injection.lifetime,
             start_rs=3000, end_rs=end_rs, coarsen_factor=10, verbose=1,
             clean_up_tf=True,
         ) # default parameters use case B coefficients
+
         default_kwargs.update(kwargs)
         self.soln = evolve_DH(**default_kwargs)
         self.soln['injection'] = self.injection

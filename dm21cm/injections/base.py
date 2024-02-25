@@ -1,6 +1,7 @@
 """Abstract base class for injections."""
 
 class Injection:
+    """Abstract base class for injections."""
 
     def __init__(self):
         pass
@@ -15,12 +16,20 @@ class Injection:
         raise NotImplementedError
 
     def is_injecting_elec(self):
-        """Whether DM is injecting electron/positron. Used by evolve."""
+        """Whether DM is injecting electron/positron. Used by evolve.
+        
+        Returns:
+            bool: Whether DM is injecting electron/positron.
+        """
         raise NotImplementedError
     
     def get_config(self):
         """Get configuration of the injection.
-        Used in DM21cm's DarkHistory wrapper to check if cached solution has the correct injection."""
+        Used in DM21cm's DarkHistory wrapper to check if cached solution has the correct injection.
+        
+        Returns:
+            dict: Configuration of the injection.
+        """
         raise NotImplementedError
 
     def __eq__(self, other):
@@ -87,7 +96,7 @@ class Injection:
             z (float): (Starting) redshift of the redshift step of injection.
 
         Returns:
-            (spec, weight_box) tuple, where:
+            tuple : (spec, weight_box), where:
                 spec (Spectrum) : Injected photon rate spectrum [ph / Bavg s].
                 weight_box (ndarray) : Injection weight box of the above spectrum [1].
 
@@ -104,7 +113,7 @@ class Injection:
             z (float): (Starting) redshift of the redshift step of injection.
 
         Returns:
-            (spec, weight_box) tuple, where:
+            tuple : (spec, weight_box), where:
                 spec (Spectrum) : Injected electron rate spectrum [e / Bavg s].
                 weight_box (ndarray) : Injection weight box of the above spectrum [1].
 

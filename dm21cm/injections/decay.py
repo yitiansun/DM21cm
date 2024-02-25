@@ -15,7 +15,7 @@ from darkhistory.spec import pppc
 
 
 class DMDecayInjection (Injection):
-    """Dark matter decay injection object.
+    """Dark matter decay injection object. See parent class for details.
     
     Args:
         primary (str): Primary injection channel. See darkhistory.pppc.get_pppc_spec
@@ -32,10 +32,10 @@ class DMDecayInjection (Injection):
     def set_binning(self, abscs):
         self.phot_spec_per_inj = pppc.get_pppc_spec(
             self.m_DM, abscs['photE'], self.primary, 'phot', decay=True
-        ) # per injection event
+        ) # [particles / inj]
         self.elec_spec_per_inj = pppc.get_pppc_spec(
             self.m_DM, abscs['elecEk'], self.primary, 'elec', decay=True
-        ) # per injection event
+        ) # [particles / inj]
 
     def is_injecting_elec(self):
         return not np.allclose(self.elec_spec_per_inj.N, 0.)

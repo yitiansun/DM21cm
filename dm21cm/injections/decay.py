@@ -49,8 +49,8 @@ class DMDecayInjection (Injection):
         }
 
     #===== injections =====
-    def decay_inj_per_Bavg(self, z_start, dt):
-        """Calculate the decay injection rate per average baryon in [inj / Bavg].
+    def inj_N_per_Bavg(self, z_start, dt):
+        """Total decay injection event number N per average baryon in [inj / Bavg] in dt.
         Assumes a homogeneous universe. (1+delta can be multiplied in later.)
 
         Args:
@@ -65,22 +65,8 @@ class DMDecayInjection (Injection):
         inj_rate = (rho_DM/self.m_DM) / self.lifetime # [inj / (physical cm)^3 s]
         return float(inj_rate * dt / nBavg) # [inj / Bavg]
     
-    def inj_phot_spec(self, z_start, dt, **kwargs):
-        return self.phot_spec_per_inj * self.decay_inj_per_Bavg(z_start, dt) # [1 / Bvg]
-    
-    def inj_elec_spec(self, z_start, dt, **kwargs):
-        return self.elec_spec_per_inj * self.decay_inj_per_Bavg(z_start, dt) # [1 / Bvg]
-    
-    def inj_phot_spec_box(self, z_start, dt, delta_plus_one_box=..., **kwargs):
-        box_avg = float(jnp.mean(delta_plus_one_box)) # [1] | should be very close to 1
-        return self.inj_phot_spec(z_start, dt) * box_avg, delta_plus_one_box / box_avg # [1 / Bvg], [1]
-
-    def inj_elec_spec_box(self, z_start, dt, delta_plus_one_box=..., **kwargs):
-        box_avg = float(jnp.mean(delta_plus_one_box))
-        return self.inj_elec_spec(z_start, dt) * box_avg, delta_plus_one_box / box_avg # [1 / Bvg], [1]
-    
-    def inj_energy_per_Bavg(self, z_start, dt):
-        """Total energy injected per average baryon in [eV / Bavg].
+    def inj_E_per_Bavg(self, z_start, dt):
+        """Total energy injected per average baryon in [eV / Bavg] in dt.
 
         Args:
             z_start (float): Starting redshift of the redshift step of injection.
@@ -90,3 +76,17 @@ class DMDecayInjection (Injection):
             float: Total energy injected per average baryon in [eV / Bavg].
         """
         return self.decay_inj_per_Bavg(z_start, dt) * self.m_DM
+    
+    def inj_phot_spec(self, z_start, dt, **kwargs):
+        return self.phot_spec_per_inj * self.decay_inj_per_Bavg(z_start, dt) # [ph / Bvg]
+    
+    def inj_elec_spec(self, z_start, dt, **kwargs):
+        return self.elec_spec_per_inj * self.decay_inj_per_Bavg(z_start, dt) # [e / Bvg]
+    
+    def inj_phot_spec_box(self, z_start, dt, delta_plus_one_box=..., **kwargs):
+        box_avg = float(jnp.mean(delta_plus_one_box)) # [1] | should be very close to 1
+        return self.inj_phot_spec(z_start, dt) * box_avg, delta_plus_one_box / box_avg # [ph / Bvg], [1]
+
+    def inj_elec_spec_box(self, z_start, dt, delta_plus_one_box=..., **kwargs):
+        box_avg = float(jnp.mean(delta_plus_one_box))
+        return self.inj_elec_spec(z_start, dt) * box_avg, delta_plus_one_box / box_avg # [e / Bvg], [1]

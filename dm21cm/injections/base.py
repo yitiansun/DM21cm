@@ -28,18 +28,67 @@ class Injection:
         return self.get_config() == other.get_config()
 
     #===== injections =====
-    def inj_phot_spec_box(self, z_start, dt, **kwargs):
-        """Injected photon spectrum and weight box starting from redshift z_start, for duration dt.
-        Called by DM21cm's transfer functions wrapper every redshift step.
+    def inj_rate_per_Bavg(self, z):
+        """Injection event rate per average baryon in [inj / Bavg s].
+        Used in DarkHistory. Assumes a homogeneous universe.
+        If injection cannot be thought of as events, use any number, as this factor will be canceled.
+        This factor is kept for DarkHistory's API.
 
         Args:
-            z_start (float): Starting redshift of the redshift step of injection.
-            dt (float): Duration of the redshift step in [s]. Specified in evolve to avoid inconsistent
-                dt calculations.
+            z (float): (Starting) redshift of the redshift step of injection.
+
+        Returns:
+            float: Injection event rate per average baryon in [inj / Bavg s].
+        """
+        raise NotImplementedError
+    
+    def inj_power_per_Bavg(self, z):
+        """Injection power per average baryon in [eV / Bavg s].
+        Used in DarkHistory. Assumes a homogeneous universe.
+        Different from `inj_rate_per_Bavg`, this factor affects DarkHistory run.
+
+        Args:
+            z (float): (Starting) redshift of the redshift step of injection.
+
+        Returns:
+            float: Injection power per average baryon in [eV / Bavg s].
+        """
+        raise NotImplementedError
+    
+    def inj_phot_spec(self, z, **kwargs):
+        """Injected photon rate spectrum assuming a homogeneous universe.
+        Used in DarkHistory.
+
+        Args:
+            z (float): (Starting) redshift of the redshift step of injection.
+
+        Returns:
+            Spectrum: Injected photon rate spectrum in [ph / Bavg s].
+        """
+        raise NotImplementedError
+    
+    def inj_elec_spec(self, z, **kwargs):
+        """Injected electron rate spectrum assuming a homogeneous universe.
+        Used in DarkHistory.
+
+        Args:
+            z (float): (Starting) redshift of the redshift step of injection.
+
+        Returns:
+            Spectrum: Injected photon rate spectrum in [e / Bavg s].
+        """
+        raise NotImplementedError
+    
+    def inj_phot_spec_box(self, z, **kwargs):
+        """Injected photon rate spectrum and weight box.
+        Called in dm21cm.evolve every redshift step.
+
+        Args:
+            z (float): (Starting) redshift of the redshift step of injection.
 
         Returns:
             (spec, weight_box) tuple, where:
-                spec (Spectrum) : Injected photon spectrum [ph / Bavg] (number of photons per average Baryon).
+                spec (Spectrum) : Injected photon rate spectrum [ph / Bavg s].
                 weight_box (ndarray) : Injection weight box of the above spectrum [1].
 
         Note:
@@ -47,33 +96,19 @@ class Injection:
         """
         raise NotImplementedError
 
-    def inj_elec_spec_box(self, z_start, dt, **kwargs):
-        """Injected electron spectrum and weight box starting from redshift z_start, for duration dt.
-        Called by DM21cm's transfer functions wrapper every redshift step. See `inj_phot_spec_box` for details.
-        """
-        raise NotImplementedError
-
-    def inj_phot_spec(self, z_start, dt, **kwargs):
-        """Injected photon spectrum similar to `inj_phot_spec_box` assuming a homogeneous universe.
-        Called by DarkHistory's evolve.
+    def inj_elec_spec_box(self, z, **kwargs):
+        """Injected electron rate spectrum and weight box.
+        Called in dm21cm.evolve every redshift step.
 
         Args:
-            z_start (float): Starting redshift of the redshift step of injection.
-            dt (float): Duration of the redshift step in [s]. Specified in evolve to avoid inconsistent
-                dt calculations.
+            z (float): (Starting) redshift of the redshift step of injection.
 
         Returns:
-            Spectrum: Injected photon spectrum [ph / Bavg] (number of photons per average Baryon).
-        """
-        raise NotImplementedError
-    
-    def inj_elec_spec(self, z_start, dt, **kwargs):
-        """Injected electron spectrum similar to `inj_elec_spec_box` assuming a homogeneous universe.
-        Called by DarkHistory's evolve. See inj_phot_spec for details.
-        """
-        raise NotImplementedError
+            (spec, weight_box) tuple, where:
+                spec (Spectrum) : Injected electron rate spectrum [e / Bavg s].
+                weight_box (ndarray) : Injection weight box of the above spectrum [1].
 
-    def inj_E_per_Bavg(self):
-        """Total energy injected in redshift step per average Baryon [eV/Bavg] in dt.
-        Called by DM21cm.evolve for recording."""
+        Note:
+            The output injection is spec \otimes weight_box, with spec carrying the units.
+        """
         raise NotImplementedError

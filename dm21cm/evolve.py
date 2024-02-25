@@ -232,15 +232,15 @@ def evolve(run_name,
             tfs.inject_phot(phot_bath_spec, inject_type='bath')
 
             #--- dark matter (on-the-spot) ---
-            inj_spec, inj_box = injection.inj_phot_spec_box(z_current, dt, delta_plus_one_box=delta_plus_one_box)
+            inj_rate_spec, weight_box = injection.inj_phot_spec_box(z_current, delta_plus_one_box=delta_plus_one_box)
             if homogenize_injection:
-                inj_box = jnp.full_like(inj_box, jnp.mean(inj_box))
-            tfs.inject_phot(inj_spec, weight_box=inj_box, inject_type='ots')
+                weight_box = jnp.full_like(weight_box, jnp.mean(weight_box))
+            tfs.inject_phot(inj_rate_spec * dt, weight_box=weight_box, inject_type='ots')
 
-            inj_spec, inj_box = injection.inj_elec_spec_box(z_current, dt, delta_plus_one_box=delta_plus_one_box)
+            inj_rate_spec, weight_box = injection.inj_elec_spec_box(z_current, delta_plus_one_box=delta_plus_one_box)
             if homogenize_injection:
-                inj_box = jnp.full_like(inj_box, jnp.mean(inj_box))
-            tfs.inject_elec(inj_spec, weight_box=inj_box)
+                weight_box = jnp.full_like(weight_box, jnp.mean(weight_box))
+            tfs.inject_elec(inj_rate_spec * dt, weight_box=weight_box)
 
             profiler.record('bath+dm')
 
@@ -274,7 +274,7 @@ def evolve(run_name,
             assert np.isclose(z_next, z_edges_coarse[i_z_coarse+1]) # cross check redshifts match on cycle
 
             perturbed_field = p21c.perturb_field(redshift=z_edges_coarse[i_z_coarse+1], init_boxes=p21c_initial_conditions)
-            input_heating, input_ionization, input_jalpha = gen_injection_boxes(z_next, p21c_initial_conditions)
+            input_heating, input_ionization, input_jalpha = init_input_boxes(z_next, p21c_initial_conditions)
             if injection:
                 tfs.populate_injection_boxes(input_heating, input_ionization, input_jalpha)
             spin_temp, ionized_box, brightness_temp = p21c_step(
@@ -301,7 +301,7 @@ def evolve(run_name,
             if injection:
                 records[-1].update({
                     'phot_N' : phot_bath_spec.N, # [ph/Bavg]
-                    'inj_E_per_Bavg' : injection.inj_E_per_Bavg(z_current, dt), # [eV/Bavg]
+                    'inj_E_per_Bavg' : injection.inj_power_per_Bavg(z_current) * dt, # [eV/Bavg]
                     'dep_ion'  : np.mean(tfs.dep_box[...,0] + tfs.dep_box[...,1]), # [eV/Bavg]
                     'dep_exc'  : np.mean(tfs.dep_box[...,2]), # [eV/Bavg]
                     'dep_heat' : np.mean(tfs.dep_box[...,3]), # [eV/Bavg]
@@ -358,7 +358,7 @@ def split_xray(phot_N, phot_eng):
     return bath_N, xray_N
 
 
-def gen_injection_boxes(z_next, p21c_initial_conditions):
+def init_input_boxes(z_next, p21c_initial_conditions):
 
     input_heating = p21c.input_heating(redshift=z_next, init_boxes=p21c_initial_conditions, write=False)
     input_ionization = p21c.input_ionization(redshift=z_next, init_boxes=p21c_initial_conditions, write=False)

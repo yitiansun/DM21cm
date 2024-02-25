@@ -106,7 +106,7 @@ def evolve(run_name,
             box_dim = box_dim,
             abscs = abscs,
             prefix = data_dir,
-            enable_elec = injection.is_injecting_elec,
+            enable_elec = injection.is_injecting_elec(),
             on_device = True,
         )
         if resume:
@@ -301,7 +301,7 @@ def evolve(run_name,
             if injection:
                 records[-1].update({
                     'phot_N' : phot_bath_spec.N, # [ph/Bavg]
-                    'dE_inj_per_B' : injection.dE_inj_per_Bavg, # [eV/Bavg]
+                    'inj_E_per_Bavg' : injection.inj_E_per_Bavg(z_current, dt), # [eV/Bavg]
                     'dep_ion'  : np.mean(tfs.dep_box[...,0] + tfs.dep_box[...,1]), # [eV/Bavg]
                     'dep_exc'  : np.mean(tfs.dep_box[...,2]), # [eV/Bavg]
                     'dep_heat' : np.mean(tfs.dep_box[...,3]), # [eV/Bavg]

@@ -73,8 +73,7 @@ class Injection:
         """
         raise NotImplementedError
 
-    @property
-    def dE_inj_per_Bavg(self):
-        """Total energy injected in redshift step per average Baryon [eV/Bavg].
+    def inj_E_per_Bavg(self):
+        """Total energy injected in redshift step per average Baryon [eV/Bavg] in dt.
         Called by DM21cm.evolve for recording."""
         raise NotImplementedError

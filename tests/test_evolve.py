@@ -10,7 +10,7 @@ import py21cmfast as p21c
 
 WDIR = os.environ['DM21CM_DIR']
 sys.path.append(WDIR)
-from dm21cm.injections import DMDecayInjection
+from dm21cm.injections.injections import DMDecayInjection
 from dm21cm.evolve import evolve
 
 

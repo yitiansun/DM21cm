@@ -24,6 +24,7 @@ if __name__ == '__main__':
     run_name = f'test_{args.name}'
     ref_name = f'test_evolve'
 
+    os.environ['P21C_CACHE_DIR'] = '/n/home07/yitians/21cmFAST-cache' # tmp
     os.environ['DM21CM_DATA_DIR'] = '/n/holyscratch01/iaifi_lab/yitians/dm21cm/DM21cm/data/tf/zf002/data'
 
     # set global params

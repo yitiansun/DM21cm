@@ -62,10 +62,10 @@ class DarkHistoryWrapper:
 
         # Custom injection API of DarkHistory
         default_kwargs = dict(
-            in_spec_phot = lambda rs: self.injection.inj_phot_spec(rs-1) / self.injection.inj_rate_per_Bavg(rs-1), # [particle / inj]
-            in_spec_elec = lambda rs: self.injection.inj_elec_spec(rs-1) / self.injection.inj_rate_per_Bavg(rs-1), # [particle / inj]
-            rate_func_N   = lambda rs: self.injection.inj_rate_per_Bavg(rs-1) * (phys.n_B * rs**3), # [inj / cm^3 s]
-            rate_func_eng = lambda rs: self.injection.inj_power_per_Bavg(rs-1) * (phys.n_B * rs**3), # [eV / cm^3 s]
+            in_spec_phot = lambda rs: self.injection.inj_phot_spec(rs-1) / self.injection.inj_rate(rs-1), # [phot / inj]
+            in_spec_elec = lambda rs: self.injection.inj_elec_spec(rs-1) / self.injection.inj_rate(rs-1), # [elec / inj]
+            rate_func_N   = lambda rs: self.injection.inj_rate(rs-1), # [inj / pcm^3 s]
+            rate_func_eng = lambda rs: self.injection.inj_power(rs-1), # [eV / pcm^3 s]
             start_rs = 3000, end_rs = end_rs, coarsen_factor = 10, verbose = 1,
             clean_up_tf = True,
         ) # default parameters use case B coefficients

@@ -232,16 +232,18 @@ def evolve(run_name,
             tfs.inject_phot(phot_bath_spec, inject_type='bath')
 
             #--- injection (on-the-spot) ---
+            n_Bavg = phys.n_B * (1 + z_current)**3 # [Bavg / pcm^3]
+
             inj_rate_spec, weight_box = injection.inj_phot_spec_box(z_current, delta_plus_one_box=delta_plus_one_box)
             if homogenize_injection:
                 weight_box = jnp.full_like(weight_box, jnp.mean(weight_box))
-            tfs.inject_phot(inj_rate_spec * dt, weight_box=weight_box, inject_type='ots')
+            tfs.inject_phot(inj_rate_spec * dt / n_Bavg, weight_box=weight_box, inject_type='ots') # ingoing spec has [phot / Bavg]
 
             if injection.is_injecting_elec():
                 inj_rate_spec, weight_box = injection.inj_elec_spec_box(z_current, delta_plus_one_box=delta_plus_one_box)
                 if homogenize_injection:
                     weight_box = jnp.full_like(weight_box, jnp.mean(weight_box))
-                tfs.inject_elec(inj_rate_spec * dt, weight_box=weight_box)
+                tfs.inject_elec(inj_rate_spec * dt / n_Bavg, weight_box=weight_box)
 
             profiler.record('bath+dm')
 
@@ -302,7 +304,7 @@ def evolve(run_name,
             if injection:
                 records[-1].update({
                     'phot_N' : phot_bath_spec.N, # [ph/Bavg]
-                    'inj_E_per_Bavg' : injection.inj_power_per_Bavg(z_current) * dt, # [eV/Bavg]
+                    'inj_E_per_Bavg' : injection.inj_power(z_current) * dt / n_Bavg, # [eV/Bavg]
                     'dep_ion'  : np.mean(tfs.dep_box[...,0] + tfs.dep_box[...,1]), # [eV/Bavg]
                     'dep_exc'  : np.mean(tfs.dep_box[...,2]), # [eV/Bavg]
                     'dep_heat' : np.mean(tfs.dep_box[...,3]), # [eV/Bavg]

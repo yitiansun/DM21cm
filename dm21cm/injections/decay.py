@@ -32,10 +32,10 @@ class DMDecayInjection (Injection):
     def set_binning(self, abscs):
         self.phot_spec_per_inj = pppc.get_pppc_spec(
             self.m_DM, abscs['photE'], self.primary, 'phot', decay=True
-        ) # [particles / inj]
+        ) # [phot / inj]
         self.elec_spec_per_inj = pppc.get_pppc_spec(
             self.m_DM, abscs['elecEk'], self.primary, 'elec', decay=True
-        ) # [particles / inj]
+        ) # [elec / inj]
 
     def is_injecting_elec(self):
         return not np.allclose(self.elec_spec_per_inj.N, 0.)
@@ -49,25 +49,23 @@ class DMDecayInjection (Injection):
         }
 
     #===== injections =====
-    def inj_rate_per_Bavg(self, z):
-        nBavg = phys.n_B * (1+z)**3 # [Bavg / (physical cm)^3]
-        rho_DM = phys.rho_DM * (1+z)**3 # [eV / (physical cm)^3]
-        inj_rate = (rho_DM/self.m_DM) / self.lifetime # [inj / (physical cm)^3 s]
-        return float(inj_rate / nBavg) # [inj / Bavg s]
+    def inj_rate(self, z):
+        rho_DM = phys.rho_DM * (1+z)**3 # [eV / pcm^3]
+        return float((rho_DM/self.m_DM) / self.lifetime) # [inj / pcm^3 s]
     
-    def inj_power_per_Bavg(self, z):
-        return self.inj_rate_per_Bavg(z) * self.m_DM # [eV / Bavg s]
+    def inj_power(self, z):
+        return self.inj_rate(z) * self.m_DM # [eV / pcm^3 s]
     
     def inj_phot_spec(self, z, **kwargs):
-        return self.phot_spec_per_inj * self.inj_rate_per_Bavg(z) # [ph / Bavg s]
+        return self.phot_spec_per_inj * self.inj_rate(z) # [phot / pcm^3 s]
     
     def inj_elec_spec(self, z, **kwargs):
-        return self.elec_spec_per_inj * self.inj_rate_per_Bavg(z) # [e / Bavg s]
+        return self.elec_spec_per_inj * self.inj_rate(z) # [elec / pcm^3 s]
     
     def inj_phot_spec_box(self, z, delta_plus_one_box=..., **kwargs):
-        box_avg = float(jnp.mean(delta_plus_one_box)) # [1] | should be very close to 1
-        return self.inj_phot_spec(z) * box_avg, delta_plus_one_box / box_avg # [ph / Bavg s], [1]
+        box_avg = float(jnp.mean(delta_plus_one_box)) # [1] | value should be very close to 1
+        return self.inj_phot_spec(z) * box_avg, delta_plus_one_box / box_avg # [phot / pcm^3 s], [1]
 
     def inj_elec_spec_box(self, z, delta_plus_one_box=..., **kwargs):
         box_avg = float(jnp.mean(delta_plus_one_box))
-        return self.inj_elec_spec(z) * box_avg, delta_plus_one_box / box_avg # [e / Bavg s], [1]
+        return self.inj_elec_spec(z) * box_avg, delta_plus_one_box / box_avg # [elec / pcm^3 s], [1]

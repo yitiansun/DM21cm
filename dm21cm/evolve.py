@@ -237,10 +237,11 @@ def evolve(run_name,
                 weight_box = jnp.full_like(weight_box, jnp.mean(weight_box))
             tfs.inject_phot(inj_rate_spec * dt, weight_box=weight_box, inject_type='ots')
 
-            inj_rate_spec, weight_box = injection.inj_elec_spec_box(z_current, delta_plus_one_box=delta_plus_one_box)
-            if homogenize_injection:
-                weight_box = jnp.full_like(weight_box, jnp.mean(weight_box))
-            tfs.inject_elec(inj_rate_spec * dt, weight_box=weight_box)
+            if injection.is_injecting_elec():
+                inj_rate_spec, weight_box = injection.inj_elec_spec_box(z_current, delta_plus_one_box=delta_plus_one_box)
+                if homogenize_injection:
+                    weight_box = jnp.full_like(weight_box, jnp.mean(weight_box))
+                tfs.inject_elec(inj_rate_spec * dt, weight_box=weight_box)
 
             profiler.record('bath+dm')
 

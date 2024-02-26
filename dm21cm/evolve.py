@@ -231,7 +231,7 @@ def evolve(run_name,
             #--- bath and homogeneous portion of xray ---
             tfs.inject_phot(phot_bath_spec, inject_type='bath')
 
-            #--- dark matter (on-the-spot) ---
+            #--- injection (on-the-spot) ---
             inj_rate_spec, weight_box = injection.inj_phot_spec_box(z_current, delta_plus_one_box=delta_plus_one_box)
             if homogenize_injection:
                 weight_box = jnp.full_like(weight_box, jnp.mean(weight_box))

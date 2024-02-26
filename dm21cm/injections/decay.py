@@ -59,15 +59,15 @@ class DMDecayInjection (Injection):
         return self.inj_rate_per_Bavg(z) * self.m_DM # [eV / Bavg s]
     
     def inj_phot_spec(self, z, **kwargs):
-        return self.phot_spec_per_inj * self.inj_rate_per_Bavg(z) # [ph / Bvg s]
+        return self.phot_spec_per_inj * self.inj_rate_per_Bavg(z) # [ph / Bavg s]
     
     def inj_elec_spec(self, z, **kwargs):
-        return self.elec_spec_per_inj * self.inj_rate_per_Bavg(z) # [e / Bvg s]
+        return self.elec_spec_per_inj * self.inj_rate_per_Bavg(z) # [e / Bavg s]
     
     def inj_phot_spec_box(self, z, delta_plus_one_box=..., **kwargs):
         box_avg = float(jnp.mean(delta_plus_one_box)) # [1] | should be very close to 1
-        return self.inj_phot_spec(z) * box_avg, delta_plus_one_box / box_avg # [ph / Bvg s], [1]
+        return self.inj_phot_spec(z) * box_avg, delta_plus_one_box / box_avg # [ph / Bavg s], [1]
 
     def inj_elec_spec_box(self, z, delta_plus_one_box=..., **kwargs):
         box_avg = float(jnp.mean(delta_plus_one_box))
-        return self.inj_elec_spec(z) * box_avg, delta_plus_one_box / box_avg # [e / Bvg s], [1]
+        return self.inj_elec_spec(z) * box_avg, delta_plus_one_box / box_avg # [e / Bavg s], [1]

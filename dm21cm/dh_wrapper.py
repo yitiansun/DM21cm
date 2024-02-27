@@ -21,13 +21,13 @@ class DarkHistoryWrapper:
     """Wrapper for running DarkHistory prior to 21cmFAST steps.
     
     Args:
-        dm_params (DMParams): Dark matter parameters.
+        injection (Injection): Injection object.
         prefix (str, optional): Prefix for DarkHistory initial conditions file.
         soln_name (str, optional): Name of DarkHistory initial conditions file.
     """
     
-    def __init__(self, dm_params, prefix='.', soln_name='dh_init_soln.p'):
-        self.dm_params = dm_params
+    def __init__(self, injection, prefix='.', soln_name='dh_init_soln.p'):
+        self.injection = injection
         self.soln_fn = os.path.join(prefix, soln_name)
 
     def clear_soln(self):
@@ -50,23 +50,36 @@ class DarkHistoryWrapper:
         if os.path.exists(self.soln_fn) and not rerun:
             self.soln = pickle.load(open(self.soln_fn, 'rb'))
             logger.info('Found existing DarkHistory initial conditions.')
-            if 'dm_params' in self.soln and self.dm_params == self.soln['dm_params']:
+            if 'injection' in self.soln and self.injection == self.soln['injection']:
                 return self.soln
             else:
-                logger.warning('DMParams mismatch, rerunning.')
+                logger.warning('Injection object mismatch, rerunning.')
         
         logger.info('Running DarkHistory to generate initial conditions...')
+
+        # Custom injection API of DarkHistory
         default_kwargs = dict(
-            DM_process=self.dm_params.mode, mDM=self.dm_params.m_DM,
-            primary=self.dm_params.primary,
-            sigmav=self.dm_params.sigmav, lifetime=self.dm_params.lifetime,
-            struct_boost=self.dm_params.struct_boost,
-            start_rs=3000, end_rs=end_rs, coarsen_factor=10, verbose=1,
-            clean_up_tf=True,
+            in_spec_phot = lambda rs: self.injection.inj_phot_spec(rs-1) / self.injection.inj_rate(rs-1), # [phot / inj]
+            in_spec_elec = lambda rs: self.injection.inj_elec_spec(rs-1) / self.injection.inj_rate(rs-1), # [elec / inj]
+            rate_func_N   = lambda rs: self.injection.inj_rate(rs-1), # [inj / pcm^3 s]
+            rate_func_eng = lambda rs: self.injection.inj_power(rs-1), # [eV / pcm^3 s]
+            start_rs = 3000, end_rs = end_rs, coarsen_factor = 10, verbose = 1,
+            clean_up_tf = True,
         ) # default parameters use case B coefficients
+
+        # DM API of DarkHistory
+        # default_kwargs = dict(
+        #     DM_process='decay',
+        #     mDM=self.injection.m_DM,
+        #     primary=self.injection.primary,
+        #     lifetime=self.injection.lifetime,
+        #     start_rs=3000, end_rs=end_rs, coarsen_factor=10, verbose=1,
+        #     clean_up_tf=True,
+        # ) # default parameters use case B coefficients
+
         default_kwargs.update(kwargs)
         self.soln = evolve_DH(**default_kwargs)
-        self.soln['dm_params'] = self.dm_params
+        self.soln['injection'] = self.injection
         pickle.dump(self.soln, open(self.soln_fn, 'wb'))
         logger.info('Saved DarkHistory initial conditions.')
         return self.soln

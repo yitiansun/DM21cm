@@ -142,20 +142,6 @@ class TransferFunctionWrapper:
             in_spec=in_spec.N, sum_result=False, **self.tf_kwargs
         ).reshape(self.dep_box.shape) # [eV / Bavg]
 
-    def inject_from_dm(self, dm_params, inj_per_Bavg_box):
-        """Inject photons and electrons (on-the-spot) from dark matter.
-
-        Args:
-            dm_params (DMParams): Dark matter parameters.
-            inj_per_Bavg_box (ndarray): Injection event per Bavg box.
-        """
-        if np.any(dm_params.inj_elec_spec.N != 0.) and not self.enable_elec:
-            raise ValueError('Must enable electron injection.')
-        
-        self.inject_phot(dm_params.inj_phot_spec, inject_type='ots', weight_box=inj_per_Bavg_box)
-        if self.enable_elec:
-            self.inject_elec(dm_params.inj_elec_spec, weight_box=inj_per_Bavg_box)
-
     def increase_dt(self, dt):
         """Increase dep_dt by dt."""
         self.dep_dt += dt

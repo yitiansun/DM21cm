@@ -39,13 +39,12 @@ def evolve(run_name,
            resume=False,
            use_tqdm=True,
 
-           dm_params=...,
+           injection=None,
            p21c_initial_conditions=...,
            p21c_astro_params=None,
 
            use_DH_init=True,
            rerun_DH=False,
-           no_injection=False,
            homogenize_injection=False,
            homogenize_deposition=False,
            ):
@@ -61,13 +60,12 @@ def evolve(run_name,
         resume (bool):                Whether to attempt to resume from a previous run. Requires specifying the correct cache directory via run_name.
         use_tqdm (bool):              Whether to use tqdm progress bars.
 
-        dm_params (DMParams):         Dark matter (DM) parameters.
+        injection (Injection):        Injection object. If None, no injection is performed.
         p21c_initial_conditions (p21c.InitialConditions):  Initial conditions for 21cmFAST.
         p21c_astro_params (p21c.AstroParams):              AstroParams for 21cmFAST.
         
         use_DH_init (bool):           Whether to use DarkHistory initial conditions.
         rerun_DH (bool):              Whether to rerun DarkHistory to get initial values.
-        no_injection (bool):          Whether to skip injection and energy deposition.
         homogenize_injection (bool):  Whether to use homogeneous injection, where DM density is averaged over the box.
         homogenize_deposition (bool): Whether to use homogeneous deposition, where the transfer function input parameters
                                       T_k, x_e, and delta are averaged over the box.
@@ -102,20 +100,15 @@ def evolve(run_name,
     box_dim = p21c_initial_conditions.user_params.HII_DIM
     box_len = p21c_initial_conditions.user_params.BOX_LEN
 
-    if not no_injection:
-        #--- dark matter ---
-        dm_params.set_inj_specs(abscs)
-
-        #--- transfer functions ---
+    if injection:
+        injection.set_binning(abscs)
         tfs = TransferFunctionWrapper(
             box_dim = box_dim,
             abscs = abscs,
             prefix = data_dir,
-            enable_elec = dm_params.is_injecting_elec,
+            enable_elec = injection.is_injecting_elec(),
             on_device = True,
         )
-
-        #--- xray ---
         if resume:
             xray_cache = XrayCache(data_dir=cache_dir, box_dim=box_dim, dx=box_len/box_dim, load_snapshot=True)
         else:
@@ -128,21 +121,19 @@ def evolve(run_name,
     # - global_params.XION_at_Z_HEAT_MAX is not set correctly (it is likely set and evolved for a step).
     # - first step ignores any values added to spin_temp.Tk_box and spin_temp.x_e_box.
 
-    # These are the z_edges that we step over coarsely matching the 21cmFAST expectation.
-    z_edges_coarse = get_z_edges(z_start, z_end, p21c.global_params.ZPRIME_STEP_FACTOR)
-    z_edges = get_z_edges(z_edges_coarse[0]+EPSILON, z_end, abscs['zplusone_step_factor'])[1:]
+    z_edges_coarse = get_z_edges(z_start, z_end, p21c.global_params.ZPRIME_STEP_FACTOR) # steps for 21cmFAST
+    z_edges = get_z_edges(z_edges_coarse[0]+EPSILON, z_end, abscs['zplusone_step_factor'])[1:] # steps for DM21cm, with the same first and last redshifts as z_edges_coarse
 
-    # Doing some roundoff for nice behavior. I have included this rounding in 21cmFAST.
-    z_edges_coarse = np.around(z_edges_coarse, decimals = 10)
+    z_edges_coarse = np.around(z_edges_coarse, decimals = 10) # roundoff to avoid floating point issues, the same is done in 21cmFAST
     z_edges = np.around(z_edges, decimals = 10)
-    scrollz = np.copy(z_edges_coarse) # record keeping
+    scrollz = z_edges_coarse.copy() # used in lightcone construction
 
     # Construct the initial state, which will be above Z_HEAT_MAX
     perturbed_field = p21c.perturb_field(redshift=z_edges_coarse[0], init_boxes=p21c_initial_conditions, write=True)
     spin_temp, ionized_box, brightness_temp = p21c_step(perturbed_field=perturbed_field, spin_temp=None, ionized_box=None, astro_params=p21c_astro_params)
 
     # Step past Z_HEAT_MAX to the synchronization point. Remove the initial z_edges from the list as well.
-    z_edges_coarse =  z_edges_coarse[1:]
+    z_edges_coarse = z_edges_coarse[1:]
     z_edges = z_edges[subcycle_factor:]
     z_match = z_edges_coarse[0]
 
@@ -150,7 +141,7 @@ def evolve(run_name,
     spin_temp, ionized_box, brightness_temp = p21c_step(perturbed_field=perturbed_field, spin_temp=spin_temp, ionized_box=ionized_box, astro_params=p21c_astro_params)
 
     if use_DH_init: # still can use DH to get initial conditions if no_injection is set
-        dh = DarkHistoryWrapper(dm_params, prefix=p21c.config[f'direc'])
+        dh = DarkHistoryWrapper(injection, prefix=p21c.config[f'direc'])
         dh.evolve(end_rs=(1+z_match)*0.9, rerun=rerun_DH)
         T_k_DH_init, x_e_DH_init, phot_bath_spec = dh.get_init_cond(rs=1+z_match)
         spin_temp.Tk_box += T_k_DH_init - np.mean(spin_temp.Tk_box)
@@ -158,7 +149,7 @@ def evolve(run_name,
         ionized_box.xH_box = 1 - spin_temp.x_e_box
     else:
         phot_bath_spec = Spectrum(abscs['photE'], np.zeros_like(abscs['photE']), spec_type='N', rs=1+z_match) # [ph / Bavg]
-    if not no_injection:
+    if injection:
         if xray_cache.isresumed:
             phot_bath_spec = xray_cache.saved_phot_bath_spec
 
@@ -184,11 +175,10 @@ def evolve(run_name,
         z_next = z_edges[i_z+1]
         dt = phys.dt_step(z_current, abscs['zplusone_step_factor'])
 
-        #--- for interpolation ---
         delta_plus_one_box = 1 + np.asarray(perturbed_field.density)
         x_e_box = np.asarray(1 - ionized_box.xH_box)
         T_k_box = np.asarray(spin_temp.Tk_box)
-        if not no_injection:
+        if injection:
             tfs.set_params(
                 rs = 1+z_current,
                 delta_plus_one_box = delta_plus_one_box,
@@ -198,17 +188,10 @@ def evolve(run_name,
             )
             tfs.reset_phot() # reset photon each subcycle, but deposition is reset only after populating boxes
             tfs.increase_dt(dt) # increase deposition dt each subcycle
-
-        #--- for dark matter ---
-        nBavg = phys.n_B * (1+z_current)**3 # [Bavg / (physical cm)^3]
-        rho_DM_box = delta_plus_one_box * phys.rho_DM * (1+z_current)**3 # [eV/(physical cm)^3]
-        if homogenize_injection:
-            rho_DM_box = jnp.mean(rho_DM_box) * jnp.ones_like(rho_DM_box)
-        if not no_injection:
-            inj_per_Bavg_box = phys.inj_rate(rho_DM_box, dm_params) * dt * dm_params.struct_boost(1+z_current) / nBavg # [inj/Bavg]
         
-        if (not no_injection) and xray_cache.is_latest_z(z_current):
-            #===== photon injection and energy deposition =====
+        #===== photon injection and energy deposition =====
+        if injection and xray_cache.is_latest_z(z_current):
+            
             #--- xray ---
             # First we dump to bath all cached states whose shell is larger than the box size.
             for state in xray_cache.states:
@@ -241,7 +224,6 @@ def evolve(run_name,
                 smoothed_rel_eng_box = xray_cache.get_smoothed_box(state, z_current)
                 xray_spec = state.spectrum + accumulated_shell_spec
                 tfs.inject_phot(xray_spec, inject_type='xray', weight_box=smoothed_rel_eng_box)
-
                 accumulated_shell_spec *= 0.
 
             profiler.record('xray')
@@ -249,8 +231,19 @@ def evolve(run_name,
             #--- bath and homogeneous portion of xray ---
             tfs.inject_phot(phot_bath_spec, inject_type='bath')
 
-            #--- dark matter (on-the-spot) ---
-            tfs.inject_from_dm(dm_params, inj_per_Bavg_box)
+            #--- injection (on-the-spot) ---
+            n_Bavg = phys.n_B * (1 + z_current)**3 # [Bavg / pcm^3]
+
+            inj_rate_spec, weight_box = injection.inj_phot_spec_box(z_current, delta_plus_one_box=delta_plus_one_box)
+            if homogenize_injection:
+                weight_box = jnp.full_like(weight_box, jnp.mean(weight_box))
+            tfs.inject_phot(inj_rate_spec * dt / n_Bavg, weight_box=weight_box, inject_type='ots') # ingoing spec has [phot / Bavg]
+
+            if injection.is_injecting_elec():
+                inj_rate_spec, weight_box = injection.inj_elec_spec_box(z_current, delta_plus_one_box=delta_plus_one_box)
+                if homogenize_injection:
+                    weight_box = jnp.full_like(weight_box, jnp.mean(weight_box))
+                tfs.inject_elec(inj_rate_spec * dt / n_Bavg, weight_box=weight_box)
 
             profiler.record('bath+dm')
 
@@ -284,8 +277,8 @@ def evolve(run_name,
             assert np.isclose(z_next, z_edges_coarse[i_z_coarse+1]) # cross check redshifts match on cycle
 
             perturbed_field = p21c.perturb_field(redshift=z_edges_coarse[i_z_coarse+1], init_boxes=p21c_initial_conditions)
-            input_heating, input_ionization, input_jalpha = gen_injection_boxes(z_next, p21c_initial_conditions)
-            if not no_injection:
+            input_heating, input_ionization, input_jalpha = init_input_boxes(z_next, p21c_initial_conditions)
+            if injection:
                 tfs.populate_injection_boxes(input_heating, input_ionization, input_jalpha)
             spin_temp, ionized_box, brightness_temp = p21c_step(
                 perturbed_field, spin_temp, ionized_box,
@@ -294,7 +287,7 @@ def evolve(run_name,
                 input_jalpha = input_jalpha,
                 astro_params = p21c_astro_params
             )
-            if not no_injection:
+            if injection:
                 xray_cache.save_snapshot(phot_bath_spec=phot_bath_spec) # only save snapshot once dep_box is cleared
 
             profiler.record('21cmFAST')
@@ -308,14 +301,10 @@ def evolve(run_name,
                 'x_e' : np.mean(spin_temp.x_e_box), # [1]
                 '1-x_H' : np.mean(1 - ionized_box.xH_box), # [1]
             })
-            if not no_injection:
-                dE_inj_per_Bavg = dm_params.eng_per_inj * np.mean(inj_per_Bavg_box) # [eV/Bavg]
-                dE_inj_per_Bavg_unclustered = dE_inj_per_Bavg / dm_params.struct_boost(1+z_current) # [eV/Bavg]
-
+            if injection:
                 records[-1].update({
                     'phot_N' : phot_bath_spec.N, # [ph/Bavg]
-                    'dE_inj_per_B' : dE_inj_per_Bavg, # [eV/Bavg]
-                    'dE_inj_per_Bavg_unclustered' : dE_inj_per_Bavg_unclustered, # [eV/Bavg]
+                    'inj_E_per_Bavg' : injection.inj_power(z_current) * dt / n_Bavg, # [eV/Bavg]
                     'dep_ion'  : np.mean(tfs.dep_box[...,0] + tfs.dep_box[...,1]), # [eV/Bavg]
                     'dep_exc'  : np.mean(tfs.dep_box[...,2]), # [eV/Bavg]
                     'dep_heat' : np.mean(tfs.dep_box[...,3]), # [eV/Bavg]
@@ -372,7 +361,7 @@ def split_xray(phot_N, phot_eng):
     return bath_N, xray_N
 
 
-def gen_injection_boxes(z_next, p21c_initial_conditions):
+def init_input_boxes(z_next, p21c_initial_conditions):
 
     input_heating = p21c.input_heating(redshift=z_next, init_boxes=p21c_initial_conditions, write=False)
     input_ionization = p21c.input_ionization(redshift=z_next, init_boxes=p21c_initial_conditions, write=False)

@@ -63,9 +63,7 @@ class DMDecayInjection (Injection):
         return self.elec_spec_per_inj * self.inj_rate(z) # [elec / pcm^3 s]
     
     def inj_phot_spec_box(self, z, delta_plus_one_box=..., **kwargs):
-        box_avg = float(jnp.mean(delta_plus_one_box)) # [1] | value should be very close to 1
-        return self.inj_phot_spec(z) * box_avg, delta_plus_one_box / box_avg # [phot / pcm^3 s], [1]
+        return self.inj_phot_spec(z), delta_plus_one_box # [phot / pcm^3 s], [1]
 
     def inj_elec_spec_box(self, z, delta_plus_one_box=..., **kwargs):
-        box_avg = float(jnp.mean(delta_plus_one_box))
-        return self.inj_elec_spec(z) * box_avg, delta_plus_one_box / box_avg # [elec / pcm^3 s], [1]
+        return self.inj_elec_spec(z), delta_plus_one_box # [elec / pcm^3 s], [1]

@@ -30,9 +30,6 @@ class DarkHistoryWrapper:
         self.injection = injection
         self.soln_fn = os.path.join(prefix, soln_name)
 
-        if injection.mode not in ['DM decay']:
-            raise NotImplementedError(injection.mode)
-
     def clear_soln(self):
         """Clears cached DarkHistory run."""
         if os.path.exists(self.soln_fn):

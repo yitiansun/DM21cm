@@ -22,6 +22,7 @@ plotting/**/*.h5
 plotting/**/*.p
 scripts/*.out
 step/*.out
+tests/*.h5
 #------------------------
 
 # Byte-compiled / optimized / DLL files

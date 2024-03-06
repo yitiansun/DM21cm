@@ -9,14 +9,16 @@ from astropy.cosmology import Planck18 as cosmo
 import astropy.units as u
 import astropy.constants as const
 
-import jax.numpy as jnp
-
 sys.path.append(os.environ['DH_DIR'])
 from darkhistory.spec.spectrum import Spectrum
 
-sys.path.append(os.environ['DM21CM_DIR'])
+WDIR = os.environ['DM21CM_DIR']
+sys.path.append(WDIR)
 from dm21cm.injections.base import Injection
 import dm21cm.physics as phys
+from dm21cm.utils import load_h5_dict
+
+data_dir = f'{WDIR}/data/pbh'
 
 
 class PBHInjection (Injection):
@@ -33,34 +35,16 @@ class PBHInjection (Injection):
         self.f_PBH = f_PBH
         self.inj_per_sec = 1. # [inj / s] | convention: 1 injection event per second
 
-        self.phot_dNdEdt_table = np.load('/n/home07/yitians/dm21cm/blackhawk/analysis/phot_dNdEdt.npy') # [phot / BH eV s]
-        self.elec_dNdEdt_table = np.load('/n/home07/yitians/dm21cm/blackhawk/analysis/elec_dNdEdt.npy') # [elec / BH eV s]
-        self.t_arr = np.load('/n/home07/yitians/dm21cm/blackhawk/analysis/t.npy') # [s]
-        # self.eng_arr = ... # [eV]
-        self.phot_dNdEdt_interp = interpolate.interp1d(self.t_arr, self.phot_dNdEdt_table, axis=0) # [phot / BH s]
-        self.elec_dNdEdt_interp = interpolate.interp1d(self.t_arr, self.elec_dNdEdt_table, axis=0) # [elec / BH s]
+        self.data = load_h5_dict(f'{data_dir}/pbh_logm{np.log10(m_PBH):.3f}.h5')
+        self.t_arr = self.data['t'] # [s]
+        self.phot_dNdEdt_interp = interpolate.interp1d(self.t_arr, self.data['phot dNdEdt'], axis=0) # [phot / eV s BH]
+        self.elec_dNdEdt_interp = interpolate.interp1d(self.t_arr, self.data['elec dNdEdt'], axis=0) # [elec / eV s BH]
 
     def set_binning(self, abscs):
-        # self.phot_dNdt_table = []
-        # for raw_spec in self.raw_phot_dN_dEdt_per_BH:
-        #     spec = Spectrum(self.eng_arr, raw_spec, spec_type='dNdE')
-        #     spec.switch_spec_type('N') # [phot / BH s]
-        #     spec.rebin_fast(abscs['photE'])
-        #     self.phot_dNdt_table.append(spec.N)
-        # self.phot_dNdt_interp = interpolate.interp1d(self.t_arr, self.phot_dNdt_table, axis=0) # [phot / BH s]
-
-        # self.elec_dNdt_table = []
-        # for raw_spec in self.raw_elec_dN_dEdt_per_BH:
-        #     ind_first = np.where(self.eng_arr > phys.m_e)[0][0]
-        #     spec = Spectrum(self.eng_arr[ind_first:] - phys.m_e, raw_spec[ind_first:], spec_type='dNdE')
-        #     spec.switch_spec_type('N') # [elec / BH s]
-        #     spec.rebin_fast(abscs['elecEk'])
-        #     self.elec_dNdt_table.append(spec.N)
-        # self.elec_dNdt_interp = interpolate.interp1d(self.t_arr, self.elec_dNdt_table, axis=0) # [elec / BH s]
         self.abscs = abscs
 
     def is_injecting_elec(self):
-        return not np.allclose(self.elec_dNdEdt_table, 0.)
+        return True
     
     def get_config(self):
         return {

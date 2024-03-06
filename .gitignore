@@ -8,6 +8,7 @@ cross_check/ionhist_outputs/
 cross_check/run_info/
 cross_check/tmp
 cross_check/xray/*.pdf
+data/pbh
 data/run_info/**
 data/sfrd
 debug/*.npy

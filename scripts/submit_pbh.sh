@@ -1,8 +1,8 @@
 #!/bin/bash
 
 #SBATCH --job-name=p
-#SBATCH --array=2,3,4,5,6,7
-#SBATCH --partition=gpu
+#SBATCH --array=1
+#SBATCH --partition=iaifi_gpu_requeue
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=32
@@ -18,7 +18,7 @@ source /n/home07/yitians/setup_dm21cm.sh
 
 cd /n/home07/yitians/dm21cm/DM21cm/scripts
 
-python pbh_script.py -r pbh -i $SLURM_ARRAY_TASK_ID
+python pbh_script.py -r pbh_test -i $SLURM_ARRAY_TASK_ID
 
 #--array=
 # 0-7 for pbh

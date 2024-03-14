@@ -245,7 +245,7 @@ def evolve(run_name,
                     weight_box = jnp.full_like(weight_box, jnp.mean(weight_box))
                 tfs.inject_elec(inj_rate_spec * dt / n_Bavg, weight_box=weight_box)
 
-            profiler.record('bath+dm')
+            profiler.record('bath+ots')
 
             #===== prepare spectra for next step =====
             #--- bath (separating out xray) ---
@@ -309,6 +309,7 @@ def evolve(run_name,
                     'dep_exc'  : np.mean(tfs.dep_box[...,2]), # [eV/Bavg]
                     'dep_heat' : np.mean(tfs.dep_box[...,3]), # [eV/Bavg]
                 })
+    #===== end of loop =====
 
     #===== construct lightcone =====
     lightcone = p21c.run_lightcone(
@@ -324,7 +325,7 @@ def evolve(run_name,
 
     profiler.record('lightcone')
 
-    #===== end of loop, return results =====
+    #===== return results =====
     global_records = {k: np.array([r[k] for r in records]) for k in records[0].keys()}
     np.save(f'{cache_dir}/global_records', global_records)
 

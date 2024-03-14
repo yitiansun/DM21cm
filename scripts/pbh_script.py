@@ -47,9 +47,13 @@ inj_multiplier = inj_ind + 1 # 1 or 2
 
 m_PBH_s = np.array([1e15, 1e16, 1e17, 1e18])
 f_PBH_s = np.array([1e-10, 3e-7, 1e-2, 1e-0])
+# f_PBH_s = np.array([1e-9, 3e-6, 1e-1, 1e+1])
 
 m_PBH = m_PBH_s[mass_ind]
-f_PBH = f_PBH_s[inj_ind] * inj_multiplier
+f_PBH = f_PBH_s[mass_ind] * inj_multiplier
+
+print('m_PBH:', m_PBH)
+print('f_PBH:', f_PBH)
 
 param_dict['DM'] = inj_multiplier
 astro_params = p21c.AstroParams(param_dict)
@@ -62,7 +66,6 @@ run_name = args.run_name
 run_subname = f'M{mass_ind}D{inj_ind}'
 run_fullname = f'{run_name}_{run_subname}'
 fname = f'LightCone_z5.0_HIIDIM={HII_DIM}_BOXLEN={BOX_LEN}_fisher_DM_{inj_multiplier}_r54321.h5'
-
 
 scratch_dir = f'/n/holyscratch01/iaifi_lab/yitians/dm21cm/prod_outputs/{run_name}/Mass_{mass_ind}/'
 lightcone_direc = scratch_dir + 'LightCones/'

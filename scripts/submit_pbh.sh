@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #SBATCH --job-name=p
-#SBATCH --array=1
+#SBATCH --array=0,1
 #SBATCH --partition=iaifi_gpu_requeue
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks=1
@@ -18,7 +18,13 @@ source /n/home07/yitians/setup_dm21cm.sh
 
 cd /n/home07/yitians/dm21cm/DM21cm/scripts
 
-python pbh_script.py -r pbh_test -i $SLURM_ARRAY_TASK_ID
+export P21C_CACHE_DIR="/n/holylabs/LABS/iaifi_lab/Users/yitians/dm21cm/21cmFAST-cache"
+export DM21CM_DATA_DIR="/n/holylabs/LABS/iaifi_lab/Users/yitians/dm21cm/data/zf002/data"
+export DH_DATA_DIR="/n/holylabs/LABS/iaifi_lab/Users/yitians/darkhistory/DHdata_v1_1"
+
+echo "WARNING: using HOLYLABS paths instead of HOLYSCRATCH"
+
+python pbh_script.py -r pbh -i $SLURM_ARRAY_TASK_ID
 
 #--array=
 # 0-7 for pbh

@@ -8,22 +8,11 @@ import py21cmfast as p21c
 
 WDIR = os.environ['DM21CM_DIR']
 sys.path.append(WDIR)
+from dm21cm.injections.pbh import PBHInjection
 
 
-#===== Default parameters =====
 
-param_names = ['F_STAR10', 'F_STAR7_MINI', 'ALPHA_STAR', 'ALPHA_STAR_MINI', 't_STAR',
-               'F_ESC10', 'F_ESC7_MINI', 'ALPHA_ESC', 'L_X', 'L_X_MINI', 'NU_X_THRESH', 'A_LW']
-default_param_values = [-1.25, -2.5, 0.5, 0.0, 0.5, -1.35, -1.35, -0.3, 40.5, 40.5, 500, 2.0]
-param_shifts = [0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.001, 0.001, 0.03, 0.03]
-
-param_dict = dict(zip(param_names, default_param_values))
-
-HII_DIM = 128
-BOX_LEN = max(256, 2 * HII_DIM)
-
-
-#===== Command line arguments =====
+print('\n===== Command line arguments =====')
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-r', '--run_name', type=str)
@@ -31,76 +20,86 @@ parser.add_argument('-i', '--run_index', type=int)
 parser.add_argument('-z', '--zf', type=str, default='002') # 01 005 002 001 0005 0002
 parser.add_argument('-s', '--sf', type=int, default=10)    #  2   4  10  20   40   80
 parser.add_argument('-n', '--n_threads', type=int, default=32)
+parser.add_argument('-d', '--box_dim', type=int, default=128)
 parser.add_argument('--homogeneous', action='store_true')
 args = parser.parse_args()
+print(args)
 
-print('run name:', args.run_name)
-print('run index:', args.run_index)
-print('zf:', args.zf)
-print('sf:', args.sf)
-print('n_threads:', args.n_threads)
-print('homogeneous:', args.homogeneous)
 
-# injection
-mass_ind, inj_ind = np.unravel_index(args.run_index, (4, 2))
-inj_multiplier = inj_ind + 1 # 1 or 2
+
+print('\n===== Injection parameters =====')
 
 m_PBH_s = np.array([1e15, 1e16, 1e17, 1e18])
 f_PBH_s = np.array([1e-10, 3e-7, 1e-2, 1e-0])
-# f_PBH_s = np.array([1e-9, 3e-6, 1e-1, 1e+1])
-
+mass_ind, inj_ind = np.unravel_index(args.run_index, (4, 2))
+inj_multiplier = inj_ind + 1 # 1 or 2
 m_PBH = m_PBH_s[mass_ind]
 f_PBH = f_PBH_s[mass_ind] * inj_multiplier
-
+injection = PBHInjection(m_PBH=m_PBH, f_PBH=f_PBH)
+print('mass_ind:', mass_ind)
+print('inj_ind:', inj_ind)
 print('m_PBH:', m_PBH)
 print('f_PBH:', f_PBH)
 
+
+
+print('\n===== Default parameters =====')
+
+box_len = max(256, 2 * args.box_dim)
+
+p21c.global_params.CLUMPING_FACTOR = 1.
+
+param_names = ['F_STAR10', 'F_STAR7_MINI', 'ALPHA_STAR', 'ALPHA_STAR_MINI', 't_STAR',
+               'F_ESC10', 'F_ESC7_MINI', 'ALPHA_ESC', 'L_X', 'L_X_MINI', 'NU_X_THRESH', 'A_LW']
+default_param_values = [-1.25, -2.5, 0.5, 0.0, 0.5, -1.35, -1.35, -0.3, 40.5, 40.5, 500, 2.0]
+param_shifts = [0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.001, 0.001, 0.03, 0.03]
+param_dict = dict(zip(param_names, default_param_values))
 param_dict['DM'] = inj_multiplier
 astro_params = p21c.AstroParams(param_dict)
-print('AstroParams:', astro_params)
+
+print('box_len:', box_len)
+print('global_params:', p21c.global_params)
+print('astro_params:', astro_params)
 
 
-#===== Set up save paths =====
+
+print('\n===== Save paths =====')
 
 run_name = args.run_name
 run_subname = f'M{mass_ind}D{inj_ind}'
 run_fullname = f'{run_name}_{run_subname}'
-fname = f'LightCone_z5.0_HIIDIM={HII_DIM}_BOXLEN={BOX_LEN}_fisher_DM_{inj_multiplier}_r54321.h5'
+lc_filename = f'LightCone_z5.0_HIIDIM={args.box_dim}_BOXLEN={box_len}_fisher_DM_{inj_multiplier}_r54321.h5'
 
-scratch_dir = f'/n/holyscratch01/iaifi_lab/yitians/dm21cm/prod_outputs/{run_name}/Mass_{mass_ind}/'
-lightcone_direc = scratch_dir + 'LightCones/'
+# save_dir = f'/n/holyscratch01/iaifi_lab/yitians/dm21cm/prod_outputs/{run_name}/Mass_{mass_ind}/'
+save_dir = f'/n/holylabs/LABS/iaifi_lab/Users/yitians/dm21cm/outputs/{run_name}/Mass_{mass_ind}/LightCones/'
+os.makedirs(save_dir, exist_ok=True)
+
 cache_dir = os.path.join(os.environ['P21C_CACHE_DIR'], run_fullname)
 p21c.config['direc'] = cache_dir
 
-os.makedirs(scratch_dir, exist_ok=True)
-os.makedirs(lightcone_direc, exist_ok=True)
-
-print('Run Name:', run_name)
-print('Run Subname:', run_subname)
-print('Lightcone filename:', fname)
-print('Saving lightcone to:', lightcone_direc)
-print('Cache Dir:', cache_dir)
+print('run_name:', run_name)
+print('run_subname:', run_subname)
+print('run_fullname:', run_fullname)
+print('lc_filename:', lc_filename)
+print('save_dir:', save_dir)
+print('cache_dir:', cache_dir)
 
 
-#===== Evolve =====
 
-os.environ['DM21CM_DATA_DIR'] = f'/n/holyscratch01/iaifi_lab/yitians/dm21cm/DM21cm/data/tf/zf{args.zf}/data'
+print('\n===== Evolve =====')
 
-from dm21cm.injections.pbh import PBHInjection
-from dm21cm.evolve import evolve
-
-p21c.global_params.CLUMPING_FACTOR = 1.
+from dm21cm.evolve import evolve # import late because of cache_dir
 
 return_dict = evolve(
     run_name = run_fullname,
     z_start = 45.,
     z_end = 5.,
-    injection = PBHInjection(m_PBH=m_PBH, f_PBH=f_PBH),
+    injection = injection,
 
     p21c_initial_conditions = p21c.initial_conditions(
         user_params = p21c.UserParams(
-            HII_DIM = HII_DIM,
-            BOX_LEN = BOX_LEN, # [conformal Mpc]
+            HII_DIM = args.box_dim,
+            BOX_LEN = box_len, # [conformal Mpc]
             N_THREADS = args.n_threads,
         ),
         cosmo_params = p21c.CosmoParams(
@@ -122,6 +121,6 @@ return_dict = evolve(
     homogenize_injection = args.homogeneous,
 )
 
-return_dict['lightcone']._write(fname=fname, direc=lightcone_direc, clobber=True)
+return_dict['lightcone']._write(fname=lc_filename, direc=save_dir, clobber=True)
 
 # shutil.rmtree(cache_dir)

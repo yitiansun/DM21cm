@@ -1,8 +1,8 @@
 #!/bin/bash
 
 #SBATCH --job-name=p
-#SBATCH --array=0,1
-#SBATCH --partition=iaifi_gpu_requeue
+#SBATCH --array=2-7
+#SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=32

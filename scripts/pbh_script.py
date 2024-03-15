@@ -1,6 +1,7 @@
 import os
 import sys
 import argparse
+import shutil
 import numpy as np
 
 from astropy.cosmology import Planck18
@@ -123,4 +124,4 @@ return_dict = evolve(
 
 return_dict['lightcone']._write(fname=lc_filename, direc=save_dir, clobber=True)
 
-# shutil.rmtree(cache_dir)
+shutil.rmtree(cache_dir)

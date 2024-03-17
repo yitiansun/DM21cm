@@ -1,60 +1,61 @@
-import sys, os, shutil, time
+import os
+import sys
+import argparse
+import shutil
 import numpy as np
+
 from astropy.cosmology import Planck18
 import py21cmfast as p21c
-from py21cmfast import cache_tools
-
-p21c.global_params.CLUMPING_FACTOR = 1.
-
-is_josh = False
-if is_josh:
-    os.environ['DM21CM_DIR'] ='/u/jwfoster/21CM_Project/DM21cm/'
-    os.environ['DM21CM_DATA_DIR'] = '/u/jwfoster/21CM_Project/Data002/'
-    os.environ['DH_DIR'] ='/u/jwfoster/21CM_Project/DarkHistory/'
-    os.environ['DH_DATA_DIR'] ='/u/jwfoster/21CM_Project/DarkHistory/DHData/'
-else:
-    os.environ['DM21CM_DATA_DIR'] = '/n/holyscratch01/iaifi_lab/yitians/dm21cm/DM21cm/data/tf/zf002/data'
 
 WDIR = os.environ['DM21CM_DIR']
 sys.path.append(WDIR)
+from dm21cm.evolve import evolve
 
-######################################
-###   Default Parameter Settings   ###
-######################################
+
+
+print('\n===== Command line arguments =====')
+
+parser = argparse.ArgumentParser()
+parser.add_argument('-r', '--run_name', type=str, default='bkg')
+parser.add_argument('-i', '--run_index', type=int, default=-1)
+parser.add_argument('-z', '--zf', type=str, default='002') # 01 005 002 001 0005 0002
+parser.add_argument('-s', '--sf', type=int, default=10)    #  2   4  10  20   40   80
+parser.add_argument('-n', '--n_threads', type=int, default=32)
+parser.add_argument('-d', '--box_dim', type=int, default=128)
+args = parser.parse_args()
+print(args)
+
+
+
+print('\n===== Astro parameters =====')
+
+box_len = max(256, 2 * args.box_dim)
+
+p21c.global_params.CLUMPING_FACTOR = 1.
 
 param_names = ['F_STAR10', 'F_STAR7_MINI', 'ALPHA_STAR', 'ALPHA_STAR_MINI', 't_STAR',
                'F_ESC10', 'F_ESC7_MINI', 'ALPHA_ESC', 'L_X', 'L_X_MINI', 'NU_X_THRESH', 'A_LW']
-
 default_param_values = [-1.25, -2.5, 0.5, 0.0, 0.5, -1.35, -1.35, -0.3, 40.5, 40.5, 500, 2.0]
 param_shifts = [0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.001, 0.001, 0.03, 0.03]
-
 param_dict = dict(zip(param_names, default_param_values))
+astro_params = p21c.AstroParams(param_dict)
 
-HII_DIM = 128
-BOX_LEN = max(256, 2 * HII_DIM)
+print('box_len:', box_len)
+print('global_params:', p21c.global_params)
+print('astro_params:', astro_params)
 
-########################################################
-###   Parameter Details and Command Line Arguments   ###
-########################################################
-
-run_index = int(sys.argv[1]) - 1
-print('Run Index:', run_index)
-N_THREADS = int(sys.argv[2])
-print('Number of threads:', N_THREADS)
-
-if run_index == -1:
+if args.run_index == -1:
 
     print('Running the fiducial')
-
-    # Set the file and run names
-    run_name = 'fid/'
-    fname = 'LightCone_z5.0_HIIDIM=' + str(HII_DIM) + '_BOXLEN=' + str(BOX_LEN) + '_fisher_fid_r54321.h5'
+    run_name = args.run_name
+    run_subname = 'fid'
+    run_fullname = f'{run_name}_{run_subname}'
+    lc_filename = f'LightCone_z5.0_HIIDIM={args.box_dim}_BOXLEN={box_len}_fisher_fid_r54321.h5'
 
 else:
-    param_index, shift_index = np.unravel_index(run_index, (12, 2))
+    param_index, shift_index = np.unravel_index(args.run_index, (12, 2))
     shift = param_shifts[param_index] * [-1, 1][shift_index]
 
-    # Modify the value in the parameter dictionary
     param_dict[ param_names[param_index] ] *= (1 + shift)
 
     if param_names[param_index] == 'ALPHA_STAR_MINI':
@@ -64,69 +65,40 @@ else:
     print('Run Parameter Value:', param_dict[ param_names[param_index] ])
     print('Default Parameter Value:', default_param_values[param_index])
 
-    # Set the file and run names
-    run_name = 'P' + str(param_index) + 'S' + str(shift_index) + '/'
-    fname = 'LightCone_z5.0_HIIDIM=' + str(HII_DIM) + '_BOXLEN=' + str(BOX_LEN) + '_fisher_' + param_names[param_index] + '_'+str(shift)+'_r54321.h5'
+    run_name = args.run_name
+    run_subname = f'P{param_index}S{shift_index}'
+    run_fullname = f'{run_name}_{run_subname}'
+    lc_filename = f'LightCone_z5.0_HIIDIM={args.box_dim}_BOXLEN={box_len}_fisher_{param_names[param_index]}_{shift}_r54321.h5'
 
-astro_params = p21c.AstroParams(param_dict)
-print(astro_params)
+# save_dir = f'/n/holyscratch01/iaifi_lab/yitians/dm21cm/prod_outputs/{run_name}/Mass_{mass_ind}/'
+save_dir = f'/n/holylabs/LABS/iaifi_lab/Users/yitians/dm21cm/outputs/{run_name}/{run_subname}/LightCones/'
+os.makedirs(save_dir, exist_ok=True)
 
-###########################################
-###   Setting up the save/cache paths   ###
-###########################################
-if is_josh:
-    scratch_dir = '/scratch/bbta/jwfoster/21cmRuns/N'+str(HII_DIM) + '_L' + str(BOX_LEN) + '/BKG/'
-else:
-    scratch_dir = f'/n/holyscratch01/iaifi_lab/yitians/dm21cm/prod_outputs/bkg/'
+cache_dir = os.path.join(os.environ['P21C_CACHE_DIR'], run_fullname)
+p21c.config['direc'] = cache_dir
 
-lightcone_direc = scratch_dir + 'LightCones/'
-os.makedirs(lightcone_direc, exist_ok=True)
+print('run_name:', run_name)
+print('run_subname:', run_subname)
+print('run_fullname:', run_fullname)
+print('lc_filename:', lc_filename)
+print('save_dir:', save_dir)
+print('cache_dir:', cache_dir)
 
-# Set up the cache dir
-if is_josh:
-    cache_dir = '/tmp/' + run_name # This is the high-performance disk for rapid i/o
-    os.environ['P21C_CACHE_DIR'] = cache_dir
-    p21c.config['direc'] = os.environ['P21C_CACHE_DIR']
-else:
-    cache_dir = os.path.join(os.environ['P21C_CACHE_DIR'], run_name)
-    p21c.config['direc'] = cache_dir
 
-print('Run Name:', run_name)
-print('Lightcone filename:', fname)
-print('Saving lightcone to:', lightcone_direc)
-print('Cache Dir:', cache_dir)
 
-# Don't waste time
-if os.path.isfile(lightcone_direc + fname):
-    print('Already completed')
-    sys.exit()
-
-########################################
-###   Starting the Evaluation Loop   ###
-########################################
-
-# Only do this after all the paths have been set up. We don't want to import p21cmfast until then.
-from dm21cm.dm_params import DMParams
-from dm21cm.evolve import evolve
-
-p21c.global_params.CLUMPING_FACTOR = 1.
+print('\n===== Evolve =====')
 
 return_dict = evolve(
-    run_name = run_name,
+    run_name = run_fullname,
     z_start = 45.,
     z_end = 5.,
-    dm_params = DMParams(
-        mode='decay',
-        primary='phot_delta',
-        m_DM=1e8,
-        lifetime=1e50,
-    ),
+    injection = None,
 
     p21c_initial_conditions = p21c.initial_conditions(
         user_params = p21c.UserParams(
-            HII_DIM = HII_DIM,
-            BOX_LEN = BOX_LEN, # [conformal Mpc]
-            N_THREADS = N_THREADS,
+            HII_DIM = args.box_dim,
+            BOX_LEN = box_len, # [conformal Mpc]
+            N_THREADS = args.n_threads,
         ),
         cosmo_params = p21c.CosmoParams(
             OMm = Planck18.Om0,
@@ -139,40 +111,14 @@ return_dict = evolve(
         write = True,
     ),
     p21c_astro_params = astro_params,
+
     use_DH_init = True,
-    no_injection = True,
-    subcycle_factor = 10,
+    subcycle_factor = args.sf,
+
+    homogenize_deposition = args.homogeneous,
+    homogenize_injection = args.homogeneous,
 )
 
+return_dict['lightcone']._write(fname=lc_filename, direc=save_dir, clobber=True)
 
-##############################
-###   Make the lightcone   ###
-##############################
-
-brightness_temp = return_dict['brightness_temp']
-scrollz = return_dict['scrollz']
-lightcone_quantities = ['brightness_temp', 'Ts_box', 'Tk_box', 'x_e_box', 'xH_box', 'density']
-
-start = time.time()
-lightcone = p21c.run_lightcone(redshift = brightness_temp.redshift,
-                               user_params = brightness_temp.user_params,
-                               cosmo_params = brightness_temp.cosmo_params,
-                               astro_params = brightness_temp.astro_params,
-                               flag_options = brightness_temp.flag_options,
-                               lightcone_quantities = lightcone_quantities,
-                               scrollz = scrollz
-                              )
-end = time.time()
-print('Time to generate lightcone:', end-start)
-
-start = time.time()
-lightcone._write(fname=fname, direc=lightcone_direc, clobber=True)
-end = time.time()
-print('Time to Save lightcone:', end-start)
-
-start = time.time()
-if is_josh:
-    shutil.rmtree(cache_dir)
-end = time.time()
-print('Time to clear cache:', end-start)
-sys.exit()
+shutil.rmtree(cache_dir)

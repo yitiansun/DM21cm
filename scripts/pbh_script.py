@@ -9,6 +9,7 @@ import py21cmfast as p21c
 
 WDIR = os.environ['DM21CM_DIR']
 sys.path.append(WDIR)
+from dm21cm.evolve import evolve
 from dm21cm.injections.pbh import PBHInjection
 
 
@@ -39,8 +40,8 @@ f_PBH = f_PBH_s[mass_ind] * inj_multiplier
 injection = PBHInjection(m_PBH=m_PBH, f_PBH=f_PBH)
 print('mass_ind:', mass_ind)
 print('inj_ind:', inj_ind)
-print('m_PBH:', m_PBH)
-print('f_PBH:', f_PBH)
+print(f'm_PBH: {m_PBH:.3e}')
+print(f'f_PBH: {f_PBH:.3e}')
 
 
 
@@ -88,8 +89,6 @@ print('cache_dir:', cache_dir)
 
 
 print('\n===== Evolve =====')
-
-from dm21cm.evolve import evolve # import late because of cache_dir
 
 return_dict = evolve(
     run_name = run_fullname,

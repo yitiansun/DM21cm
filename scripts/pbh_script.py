@@ -31,9 +31,9 @@ print(args)
 
 print('\n===== Injection parameters =====')
 
-m_PBH_s = np.array([1e15, 1e16, 1e17, 1e18])
-f_PBH_s = np.array([1e-10, 3e-7, 1e-2, 1e-0])
-mass_ind, inj_ind = np.unravel_index(args.run_index, (4, 2))
+m_PBH_s = 10 ** np.array([14.25, 14.5, 14.75, 15, 16, 17]) # [g]
+f_PBH_s = 10 ** (3.5 * np.log10(m_PBH_s) - 63) # [1]
+mass_ind, inj_ind = np.unravel_index(args.run_index, (len(m_PBH_s), 2))
 inj_multiplier = inj_ind + 1 # 1 or 2
 m_PBH = m_PBH_s[mass_ind]
 f_PBH = f_PBH_s[mass_ind] * inj_multiplier
@@ -123,4 +123,10 @@ return_dict = evolve(
 
 return_dict['lightcone']._write(fname=lc_filename, direc=save_dir, clobber=True)
 
-shutil.rmtree(cache_dir)
+
+
+print('\n===== Clear Cache =====')
+
+for entry in os.scandir(cache_dir):
+    if entry.is_file() and entry.name.endswith('.h5') and entry.name != 'lightcones.h5':
+        os.remove(entry.path)

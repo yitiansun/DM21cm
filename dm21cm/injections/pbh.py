@@ -37,8 +37,9 @@ class PBHInjection (Injection):
 
         self.data = load_h5_dict(f'{data_dir}/pbh_logm{np.log10(m_PBH):.3f}.h5')
         self.t_arr = self.data['t'] # [s]
-        self.phot_dNdEdt_interp = interpolate.interp1d(self.t_arr, self.data['phot dNdEdt'], axis=0) # [phot / eV s BH]
-        self.elec_dNdEdt_interp = interpolate.interp1d(self.t_arr, self.data['elec dNdEdt'], axis=0) # [elec / eV s BH]
+        zero_spec = self.data['phot dNdEdt'][0] * 0.
+        self.phot_dNdEdt_interp = interpolate.interp1d(self.t_arr, self.data['phot dNdEdt'], axis=0, bounds_error=False, fill_value=zero_spec) # [phot / eV s BH]
+        self.elec_dNdEdt_interp = interpolate.interp1d(self.t_arr, self.data['elec dNdEdt'], axis=0, bounds_error=False, fill_value=zero_spec) # [elec / eV s BH]
 
     def set_binning(self, abscs):
         self.abscs = abscs
@@ -55,7 +56,7 @@ class PBHInjection (Injection):
     
     #===== injections =====
     def n_PBH(self, z):
-        """Mean number density of PBHs in [BH / pcm^3]."""
+        """Mean number density of PBHs in [BH / pcm^3]. Constant and includes 'dead' PBHs."""
         m_eV = (self.m_PBH * u.g * const.c**2).to(u.eV).value # [eV]
         return phys.rho_DM * (1+z)**3 * self.f_PBH / m_eV # [BH / pcm^3]
 

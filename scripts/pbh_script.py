@@ -1,7 +1,6 @@
 import os
 import sys
 import argparse
-import shutil
 import numpy as np
 
 from astropy.cosmology import Planck18
@@ -31,10 +30,12 @@ print(args)
 
 print('\n===== Injection parameters =====')
 
-m_PBH_s = 10 ** np.array([14.25, 14.5, 14.75, 15, 16, 17]) # [g]
+log10m_PBH_s = np.array([14.25, 14.5, 15.5, 16.5, 17.5])
+m_PBH_s = 10 ** log10m_PBH_s # [g]
 f_PBH_s = 10 ** (3.5 * np.log10(m_PBH_s) - 63) # [1]
 mass_ind, inj_ind = np.unravel_index(args.run_index, (len(m_PBH_s), 2))
 inj_multiplier = inj_ind + 1 # 1 or 2
+log10m_PBH = log10m_PBH_s[mass_ind]
 m_PBH = m_PBH_s[mass_ind]
 f_PBH = f_PBH_s[mass_ind] * inj_multiplier
 injection = PBHInjection(m_PBH=m_PBH, f_PBH=f_PBH)
@@ -68,12 +69,12 @@ print('astro_params:', astro_params)
 print('\n===== Save paths =====')
 
 run_name = args.run_name
-run_subname = f'M{mass_ind}D{inj_ind}'
+run_subname = f'log10m{log10m_PBH:.3f}_injm{inj_multiplier}'
 run_fullname = f'{run_name}_{run_subname}'
 lc_filename = f'LightCone_z5.0_HIIDIM={args.box_dim}_BOXLEN={box_len}_fisher_DM_{inj_multiplier}_r54321.h5'
 
 # save_dir = f'/n/holyscratch01/iaifi_lab/yitians/dm21cm/prod_outputs/{run_name}/Mass_{mass_ind}/'
-save_dir = f'/n/holylabs/LABS/iaifi_lab/Users/yitians/dm21cm/outputs/{run_name}/Mass_{mass_ind}/LightCones/'
+save_dir = f'/n/holylabs/LABS/iaifi_lab/Users/yitians/dm21cm/outputs/{run_name}/log10m{log10m_PBH:.3f}/'
 os.makedirs(save_dir, exist_ok=True)
 
 cache_dir = os.path.join(os.environ['P21C_CACHE_DIR'], run_fullname)

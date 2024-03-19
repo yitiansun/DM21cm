@@ -1,7 +1,7 @@
 #!/bin/bash
 
-#SBATCH --job-name=p
-#SBATCH --array=2-7
+#SBATCH --job-name=pbh
+#SBATCH --array=0-11
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks=1
@@ -18,16 +18,20 @@ source /n/home07/yitians/setup_dm21cm.sh
 
 cd /n/home07/yitians/dm21cm/DM21cm/scripts
 
-export P21C_CACHE_DIR="/n/holylabs/LABS/iaifi_lab/Users/yitians/dm21cm/21cmFAST-cache"
+# export P21C_CACHE_DIR="/n/holylabs/LABS/iaifi_lab/Users/yitians/dm21cm/21cmFAST-cache"
+export P21C_CACHE_DIR="/n/holyscratch01/iaifi_lab/yitians/dm21cm/21cmFAST-cache"
+echo "CACHE: HOLYSCRATCH"
+
 export DM21CM_DATA_DIR="/n/holylabs/LABS/iaifi_lab/Users/yitians/dm21cm/data/zf002/data"
 export DH_DATA_DIR="/n/holylabs/LABS/iaifi_lab/Users/yitians/darkhistory/DHdata_v1_1"
+echo "DATA: HOLYLABS"
 
-echo "WARNING: using HOLYLABS paths instead of HOLYSCRATCH"
+echo "SAVE: HOLYLABS & HOLYSCRATCH"
 
-python pbh_script.py -r pbh -i $SLURM_ARRAY_TASK_ID
+python pbh_script.py -r pbh_run2 -i $SLURM_ARRAY_TASK_ID
 
 #--array=
-# 0-7 for pbh
+# 0-11 for pbh
 # 0-23 for elec
 # 0-21 for elec_mid
 # 0-43 for phot

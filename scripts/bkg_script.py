@@ -114,9 +114,6 @@ return_dict = evolve(
 
     use_DH_init = True,
     subcycle_factor = args.sf,
-
-    homogenize_deposition = args.homogeneous,
-    homogenize_injection = args.homogeneous,
 )
 
 return_dict['lightcone']._write(fname=lc_filename, direc=save_dir, clobber=True)

@@ -23,6 +23,7 @@ from dm21cm.tf_wrapper import TransferFunctionWrapper
 from dm21cm.utils import load_h5_dict, init_logger
 from dm21cm.xray_cache import XrayCache
 from dm21cm.profiler import Profiler
+from dm21cm.injections.zero import ZeroInjection
 
 logging.getLogger('21cmFAST').setLevel(logging.CRITICAL)
 logging.getLogger('py21cmfast._utils').setLevel(logging.CRITICAL)
@@ -141,7 +142,9 @@ def evolve(run_name,
     spin_temp, ionized_box, brightness_temp = p21c_step(perturbed_field=perturbed_field, spin_temp=spin_temp, ionized_box=ionized_box, astro_params=p21c_astro_params)
 
     if use_DH_init: # still can use DH to get initial conditions if no_injection is set
-        dh = DarkHistoryWrapper(injection, prefix=p21c.config[f'direc'])
+        dh_injection = ZeroInjection() if injection is None else injection
+        dh_injection.set_binning(abscs)
+        dh = DarkHistoryWrapper(dh_injection, prefix=p21c.config[f'direc'])
         dh.evolve(end_rs=(1+z_match)*0.9, rerun=rerun_DH)
         T_k_DH_init, x_e_DH_init, phot_bath_spec = dh.get_init_cond(rs=1+z_match)
         spin_temp.Tk_box += T_k_DH_init - np.mean(spin_temp.Tk_box)

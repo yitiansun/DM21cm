@@ -1,9 +1,8 @@
 #!/bin/bash
 
-#SBATCH --job-name=fc_xdecay_xesink_005
+#SBATCH --job-name=fid_debug
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
-#SBATCH --constraint=cc6.0
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=32
 #SBATCH --mem=32GB
@@ -14,10 +13,8 @@
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=yitians@mit.com
 
-source /n/home07/yitians/setup_test-dm21cm.sh
+source /n/home07/yitians/setup_dm21cm.sh
 
 cd /n/home07/yitians/dm21cm/DM21cm/scripts
 
-python run_evolve.py --run_name fc_xdecay_zf005_sf4_xesink --zf 005 --sf 4
-
-# 21cmFAST: 1.02
+python bkg_script.py -r fid_test -i -1

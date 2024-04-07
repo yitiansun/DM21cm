@@ -9,6 +9,7 @@ from jax import jit, vmap, device_put
 
 EPSILON = 1e-6
 
+
 #===== interpolation =====
 
 @jit
@@ -30,8 +31,9 @@ def interp1d(fp, xp, x):
     wl = (xp[il+1] - x) / (xp[il+1] - xp[il])
     return fp[il] * wl + fp[il+1] * (1 - wl)
 
+interp1d_vmap = vmap(interp1d, in_axes=(None, None, 0))
+
 @jit
-@partial(vmap, in_axes=(None, None, None, 0))
 def interp2d(fp, x0p, x1p, x01):
     """Interpolates f(x0, x1), described by points fp, x0p, and x1p, at values in x01.
 
@@ -58,6 +60,8 @@ def interp2d(fp, x0p, x1p, x01):
     wr1 = 1 - wl1
     
     return fp[i0l,i1l]*wl0*wl1 + fp[i0l+1,i1l]*wr0*wl1 + fp[i0l,i1l+1]*wl0*wr1 + fp[i0l+1,i1l+1]*wr0*wr1
+
+interp2d_vmap = vmap(interp2d, in_axes=(None, None, None, 0))
 
 
 #===== utilities =====
@@ -158,7 +162,7 @@ class BatchInterpolator:
         if not sum_result:
             
             nBs_x_in = jnp.stack([nBs_s, x_s], axis=-1)
-            return interp2d(
+            return interp2d_vmap(
                 data_at_rs_at_spec,
                 jnp.array(self.abscs['nBs']),
                 jnp.array(self.abscs['x']),
@@ -175,7 +179,7 @@ class BatchInterpolator:
             nBs_x_in_batches = jnp.array_split(nBs_x_in, split_n)
 
             for i_batch, nBs_x_in_batch in enumerate(nBs_x_in_batches):
-                interp_result = interp2d(
+                interp_result = interp2d_vmap(
                     data_at_rs_at_spec,
                     self.abscs['nBs'],
                     self.abscs['x'],

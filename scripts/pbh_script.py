@@ -30,7 +30,7 @@ print(args)
 
 print('\n===== Injection parameters =====')
 
-log10m_PBH_s = np.array([14.25, 14.5, 15.5, 16.5, 17.5])
+log10m_PBH_s = np.array([13.25, 13.75])
 m_PBH_s = 10 ** log10m_PBH_s # [g]
 f_PBH_s = 10 ** (3.5 * np.log10(m_PBH_s) - 63) # [1]
 mass_ind, inj_ind = np.unravel_index(args.run_index, (len(m_PBH_s), 2))

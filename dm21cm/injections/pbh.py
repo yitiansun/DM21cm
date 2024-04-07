@@ -64,7 +64,7 @@ class PBHInjection (Injection):
         return self.n_PBH(z) * self.inj_per_sec # [inj / pcm^3 s]
     
     def inj_power(self, z):
-        return self.inj_phot_spec(z).toteng() + self.inj_elec_spec(z).toteng() # [eV / pcm^3 s]
+        return max(1e-100, self.inj_phot_spec(z).toteng() + self.inj_elec_spec(z).toteng()) # [eV / pcm^3 s]
 
     def inj_phot_spec(self, z, **kwargs):
         t = cosmo.age(z).to(u.s).value # [s]

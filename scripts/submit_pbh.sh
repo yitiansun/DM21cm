@@ -1,7 +1,7 @@
 #!/bin/bash
 
-#SBATCH --job-name=pbh2
-#SBATCH --array=0-9
+#SBATCH --job-name=pbh
+#SBATCH --array=0-3
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks=1
@@ -23,7 +23,7 @@ echo "CACHE: HOLYSCRATCH"
 echo "DATA:  HOLYLABS"
 echo "SAVE:  HOLYLABS & HOLYSCRATCH"
 
-python pbh_script.py -r pbh_run2 -i $SLURM_ARRAY_TASK_ID
+python pbh_script.py -r pbh -i $SLURM_ARRAY_TASK_ID
 
 #--array=
 # 0-... for pbh

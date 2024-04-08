@@ -32,7 +32,17 @@ print('\n===== Injection parameters =====')
 
 log10m_PBH_s = np.array([13.25, 13.75])
 m_PBH_s = 10 ** log10m_PBH_s # [g]
-f_PBH_s = 10 ** (3.5 * np.log10(m_PBH_s) - 63) # [1]
+
+
+x = log10m_PBH_s
+x0 = 14.75
+est0_s = 10 ** (3.5 * x - 63)
+est1_s = 10 ** (3.5 * x - 63 + 1.5 * (x-x0)**4 *(x<x0))
+est_s = np.where(x < 14.25, est1_s, est0_s)
+
+
+#f_PBH_s = 10 ** (3.5 * np.log10(m_PBH_s) - 63) # [1]
+f_PBH_s = est_s # [1]
 mass_ind, inj_ind = np.unravel_index(args.run_index, (len(m_PBH_s), 2))
 inj_multiplier = inj_ind + 1 # 1 or 2
 log10m_PBH = log10m_PBH_s[mass_ind]

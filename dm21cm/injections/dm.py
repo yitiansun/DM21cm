@@ -78,8 +78,8 @@ class DMPWaveAnnihilationInjection (Injection):
     Args:
         primary (str): Primary injection channel. See darkhistory.pppc.get_pppc_spec
         m_DM (float): DM mass in [eV].
-        c_sigma (float): sigma_v at v=c in [cm^3/s].
-        cell_size (float): Cell size in [Mpc].
+        c_sigma (float): sigma_v at v=c in [pcm^3/s].
+        cell_size (float): Cell size in [cMpc].
     """
 
     def __init__(self, primary=..., m_DM=..., c_sigma=..., cell_size=...):
@@ -123,8 +123,8 @@ class DMPWaveAnnihilationInjection (Injection):
         ps_cond_box = interp1d_vmap(ps_cond_delta, self.data['delta_range'], delta_in)
         ps_uncond_val = interp1d(self.data['ps_uncond_ann_rate_table'], self.data['z_range'], z_in)
         st_val = interp1d(self.data['st_ann_rate_table'], self.data['z_range'], z_in)
-        dNtilde_dt_box = ps_cond_box * st_val / ps_uncond_val # [eV^2 / pcm^6]
-        return dNtilde_dt_box * self.c_sigma / self.m_DM**2 # [inj / pcm^3 s]
+        dNtilde_dt_box = ps_cond_box * st_val / ps_uncond_val # [eV^2 / ccm^3 pcm^3]
+        return dNtilde_dt_box * self.c_sigma / self.m_DM**2 * (1 + z)**3 # [inj / pcm^3 s]
     
     def inj_rate(self, z):
         z_in = bound_action(z, self.data['z_range'], 'clip')

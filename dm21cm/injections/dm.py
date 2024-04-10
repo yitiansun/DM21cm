@@ -121,7 +121,7 @@ class DMPWaveAnnihilationInjection (Injection):
         delta_in = bound_action(delta_plus_one_box - 1, self.data['delta_range'], 'clip')
         ps_cond_delta = interp1d(self.ps_cond_table_fixed_cell, self.data['z_range'], z_in)
         ps_cond_box = interp1d_vmap(ps_cond_delta, self.data['delta_range'], delta_in)
-        ps_uncond_val = interp1d(self.data['ps_uncond_ann_rate_table'], self.data['z_range'], z_in)
+        ps_uncond_val = interp1d(self.data['ps_ann_rate_table'], self.data['z_range'], z_in)
         st_val = interp1d(self.data['st_ann_rate_table'], self.data['z_range'], z_in)
         dNtilde_dt_box = ps_cond_box * st_val / ps_uncond_val # [eV^2 / ccm^3 pcm^3]
         return dNtilde_dt_box * self.c_sigma / self.m_DM**2 * (1 + z)**3 # [inj / pcm^3 s]
@@ -129,25 +129,25 @@ class DMPWaveAnnihilationInjection (Injection):
     def inj_rate(self, z):
         z_in = bound_action(z, self.data['z_range'], 'clip')
         st_val = interp1d(self.data['st_ann_rate_table'], self.data['z_range'], z_in) # [eV^2 / pcm^6]
-        return st_val * self.c_sigma / self.m_DM**2 # [inj / pcm^3 s]
+        return float(st_val * self.c_sigma / self.m_DM**2) # [inj / pcm^3 s]
     
     def inj_power(self, z):
-        return self.inj_rate(z) * 2 * self.m_DM # [eV / pcm^3 s]
+        return float(self.inj_rate(z) * 2 * self.m_DM) # [eV / pcm^3 s]
     
     def inj_phot_spec(self, z, **kwargs):
-        return self.phot_spec_per_inj * self.inj_rate(z) # [phot / pcm^3 s]
+        return self.phot_spec_per_inj * float(self.inj_rate(z)) # [phot / pcm^3 s]
     
     def inj_elec_spec(self, z, **kwargs):
-        return self.elec_spec_per_inj * self.inj_rate(z) # [elec / pcm^3 s]
+        return self.elec_spec_per_inj * float(self.inj_rate(z)) # [elec / pcm^3 s]
     
     def inj_phot_spec_box(self, z, delta_plus_one_box=..., **kwargs):
         rate_box = self.cond_ann_rate_fixed_cell(z, delta_plus_one_box)
-        spec = self.phot_spec_per_inj * jnp.mean(rate_box)
+        spec = self.phot_spec_per_inj * float(jnp.mean(rate_box))
         weight = rate_box / jnp.mean(rate_box)
         return spec, weight # [phot / pcm^3 s], [1]
 
     def inj_elec_spec_box(self, z, delta_plus_one_box=..., **kwargs):
         rate_box = self.cond_ann_rate_fixed_cell(z, delta_plus_one_box)
-        spec = self.elec_spec_per_inj * jnp.mean(rate_box)
+        spec = self.elec_spec_per_inj * float(jnp.mean(rate_box))
         weight = rate_box / jnp.mean(rate_box)
         return spec, weight # [phot / pcm^3 s], [1]

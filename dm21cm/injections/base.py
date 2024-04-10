@@ -49,6 +49,10 @@ class Injection:
     def __eq__(self, other):
         """Equality comparison using self.get_config."""
         return self.get_config() == other.get_config()
+    
+    def __repr__(self):
+        """Representation of the injection."""
+        return f"{self.__class__.__name__}({self.get_config()})"
 
     #===== injections =====
     def inj_rate(self, z):

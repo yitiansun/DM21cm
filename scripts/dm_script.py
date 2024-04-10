@@ -10,7 +10,8 @@ import py21cmfast as p21c
 WDIR = os.environ['DM21CM_DIR']
 sys.path.append(WDIR)
 from dm21cm.evolve import evolve
-from dm21cm.injections.dm import DMDecayInjection
+from dm21cm.injections.dm import DMPWaveAnnihilationInjection
+from preprocessing.limit_estimates import pwave_phot_c_sigma, pwave_elec_c_sigma
 
 
 
@@ -32,48 +33,77 @@ print(args)
 
 print('\n===== Injection parameters =====')
 
-if args.channel == 'elec':
-    primary = 'elec_delta'
-    # masses = np.logspace(6.5, 12, 12)
-    # log_lifetimes = np.array([27.994, 28.591, 28.935, 29.061, 29.004, 28.801, 28.487, 28.098, 27.670, 27.238, 26.838, 26.507]) # calibrated for fisher
-    # mass_ind, inj_ind = np.unravel_index(args.run_index, (12, 2))
-    masses = np.logspace(6.5, 12, 12)
-    masses = np.sqrt(masses[:-1] * masses[1:]) # midpoints
-    log_lifetimes = np.array([28.327, 28.793, 29.023, 29.053, 28.919, 28.656, 28.300, 27.887, 27.452, 27.032, 26.662]) # calibrated for fisher
-    mass_ind, inj_ind = np.unravel_index(args.run_index, (11, 2))
+if args.channel.startswith('pwave'):
+    if args.channel == 'pwave-phot':
+        m_s = 10**np.array([1.5, 12])
+        c_s = pwave_phot_c_sigma(m_s)
+        mass_ind, inj_ind = np.unravel_index(args.run_index, (len(m_s), 2))
+        primary = 'phot_delta'
 
-if args.channel == 'elec':
-    primary = 'elec_delta'
-    # masses = np.logspace(6.5, 12, 12)
-    # log_lifetimes = np.array([27.994, 28.591, 28.935, 29.061, 29.004, 28.801, 28.487, 28.098, 27.670, 27.238, 26.838, 26.507]) # calibrated for fisher
-    # mass_ind, inj_ind = np.unravel_index(args.run_index, (12, 2))
-    masses = np.logspace(6.5, 12, 12)
-    masses = np.sqrt(masses[:-1] * masses[1:]) # midpoints
-    log_lifetimes = np.array([28.327, 28.793, 29.023, 29.053, 28.919, 28.656, 28.300, 27.887, 27.452, 27.032, 26.662]) # calibrated for fisher
-    mass_ind, inj_ind = np.unravel_index(args.run_index, (11, 2))
+    elif args.channel == 'pwave-elec':
+        m_s = 10**np.array([6.5, 8.5, 10.5, 12])
+        c_s = pwave_elec_c_sigma(m_s)
+        mass_ind, inj_ind = np.unravel_index(args.run_index, (len(m_s), 2))
+        primary = 'elec_delta'
+    else:
+        raise ValueError('Invalid channel')
 
-elif args.channel == 'phot':
-    primary = 'phot_delta'
-    masses = np.logspace(1.5, 12, 22)
-    log_lifetimes = np.array([
-        29.393, 29.202, 29.012, 28.821, 28.631, 28.440, 28.250, 28.059, 27.868, 27.678, 27.487,
-        27.297, 27.106, 26.916, 26.725, 26.535, 26.344, 26.153, 25.963, 25.772, 25.582, 25.391
-    ])
-    mass_ind, inj_ind = np.unravel_index(args.run_index, (22, 2))
+    m_DM = m_s[mass_ind]
+    inj_multiplier = inj_ind + 1 # 1 or 2
+    print('mass_ind, inj_ind:', mass_ind, inj_ind)
+    injection = DMPWaveAnnihilationInjection(
+        primary = primary,
+        m_DM = m_s[mass_ind],
+        c_sigma = c_s[mass_ind] * (inj_ind + 1),
+        cell_size = 2,
+    )
+    print('injection:', injection)
 
 else:
     raise ValueError('Invalid channel')
 
-m_DM = masses[mass_ind]
-inj_multiplier = inj_ind + 1 # 1 or 2
-decay_rate = inj_multiplier * 10**(-log_lifetimes[mass_ind])
-lifetime = 1 / decay_rate
-injection = DMDecayInjection(m_DM=m_DM, lifetime=lifetime)
+# if args.channel == 'elec':
+#     primary = 'elec_delta'
+#     # masses = np.logspace(6.5, 12, 12)
+#     # log_lifetimes = np.array([27.994, 28.591, 28.935, 29.061, 29.004, 28.801, 28.487, 28.098, 27.670, 27.238, 26.838, 26.507]) # calibrated for fisher
+#     # mass_ind, inj_ind = np.unravel_index(args.run_index, (12, 2))
+#     masses = np.logspace(6.5, 12, 12)
+#     masses = np.sqrt(masses[:-1] * masses[1:]) # midpoints
+#     log_lifetimes = np.array([28.327, 28.793, 29.023, 29.053, 28.919, 28.656, 28.300, 27.887, 27.452, 27.032, 26.662]) # calibrated for fisher
+#     mass_ind, inj_ind = np.unravel_index(args.run_index, (11, 2))
 
-print('mass_ind:', mass_ind)
-print('inj_ind:', inj_ind)
-print(f'm_DM: {m_DM:.3e}')
-print(f'lifetime: {lifetime:.3e}')
+# if args.channel == 'elec':
+#     primary = 'elec_delta'
+#     # masses = np.logspace(6.5, 12, 12)
+#     # log_lifetimes = np.array([27.994, 28.591, 28.935, 29.061, 29.004, 28.801, 28.487, 28.098, 27.670, 27.238, 26.838, 26.507]) # calibrated for fisher
+#     # mass_ind, inj_ind = np.unravel_index(args.run_index, (12, 2))
+#     masses = np.logspace(6.5, 12, 12)
+#     masses = np.sqrt(masses[:-1] * masses[1:]) # midpoints
+#     log_lifetimes = np.array([28.327, 28.793, 29.023, 29.053, 28.919, 28.656, 28.300, 27.887, 27.452, 27.032, 26.662]) # calibrated for fisher
+#     mass_ind, inj_ind = np.unravel_index(args.run_index, (11, 2))
+
+# elif args.channel == 'phot':
+#     primary = 'phot_delta'
+#     masses = np.logspace(1.5, 12, 22)
+#     log_lifetimes = np.array([
+#         29.393, 29.202, 29.012, 28.821, 28.631, 28.440, 28.250, 28.059, 27.868, 27.678, 27.487,
+#         27.297, 27.106, 26.916, 26.725, 26.535, 26.344, 26.153, 25.963, 25.772, 25.582, 25.391
+#     ])
+#     mass_ind, inj_ind = np.unravel_index(args.run_index, (22, 2))
+
+# else:
+#     raise ValueError('Invalid channel')
+
+# m_DM = masses[mass_ind]
+# inj_multiplier = inj_ind + 1 # 1 or 2
+# decay_rate = inj_multiplier * 10**(-log_lifetimes[mass_ind])
+# lifetime = 1 / decay_rate
+# injection = DMDecayInjection(m_DM=m_DM, lifetime=lifetime)
+
+# print('mass_ind:', mass_ind)
+# print('inj_ind:', inj_ind)
+# print(f'm_DM: {m_DM:.3e}')
+# print(f'lifetime: {lifetime:.3e}')
 
 
 

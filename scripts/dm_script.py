@@ -11,7 +11,7 @@ WDIR = os.environ['DM21CM_DIR']
 sys.path.append(WDIR)
 from dm21cm.evolve import evolve
 from dm21cm.injections.dm import DMPWaveAnnihilationInjection
-from preprocessing.limit_estimates import pwave_phot_c_sigma, pwave_elec_c_sigma
+from preprocessing.step_size import pwave_phot_c_sigma, pwave_elec_c_sigma
 
 
 

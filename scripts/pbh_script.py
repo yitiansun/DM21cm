@@ -10,7 +10,7 @@ WDIR = os.environ['DM21CM_DIR']
 sys.path.append(WDIR)
 from dm21cm.evolve import evolve
 from dm21cm.injections.pbh import PBHInjection
-from preprocessing.limit_estimates import pbh_f
+from preprocessing.step_size import pbh_f
 
 
 
@@ -31,7 +31,7 @@ print(args)
 
 print('\n===== Injection parameters =====')
 
-log10m_PBH_s = np.array([13.20, 13.25])
+log10m_PBH_s = np.linspace(13.5, 18, 19)
 m_PBH_s = 10 ** log10m_PBH_s # [g]
 f_PBH_s = pbh_f(m_PBH_s)
 mass_ind, inj_ind = np.unravel_index(args.run_index, (len(m_PBH_s), 2))
@@ -42,8 +42,7 @@ f_PBH = f_PBH_s[mass_ind] * inj_multiplier
 injection = PBHInjection(m_PBH=m_PBH, f_PBH=f_PBH)
 print('mass_ind:', mass_ind)
 print('inj_ind:', inj_ind)
-print(f'm_PBH: {m_PBH:.3e}')
-print(f'f_PBH: {f_PBH:.3e}')
+print('injection:', injection)
 
 
 

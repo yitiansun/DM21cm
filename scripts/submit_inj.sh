@@ -18,21 +18,12 @@ source /n/home07/yitians/setup_dm21cm.sh
 
 cd /n/home07/yitians/dm21cm/DM21cm/scripts
 
-# export P21C_CACHE_DIR="/n/holylabs/LABS/iaifi_lab/Users/yitians/dm21cm/21cmFAST-cache"
+# export P21C_CACHE_DIR="/n/holylabs/LABS/iaifi_lab/Users/yitians/dm21cm/21cmFAST-cache" # if scratch is down
 echo "CACHE: HOLYSCRATCH"
 echo "DATA:  HOLYLABS"
 echo "SAVE:  HOLYLABS & HOLYSCRATCH"
 
-python dm_script.py -r pwave-phot-test -c pwave-phot -i $SLURM_ARRAY_TASK_ID
-
-#--array=
-# 0-... for pbh
-# 0-23 for elec
-# 0-21 for elec_mid
-# 0-43 for phot
-# 0-3  for inhom
+python inj_script.py -r pwave-phot-test -c pwave-phot -i $SLURM_ARRAY_TASK_ID
 
 #SBATCH --constraint=cc8.0
 #SABTCH --exclude=holygpu7c26305
-
-# inhom fiducial values: photdecay mass 5e3, 1e25 s. elecdecay mass 1e7, 1e25 s.

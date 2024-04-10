@@ -1,7 +1,6 @@
 import os
 import sys
 import argparse
-import shutil
 import numpy as np
 
 from astropy.cosmology import Planck18
@@ -10,8 +9,9 @@ import py21cmfast as p21c
 WDIR = os.environ['DM21CM_DIR']
 sys.path.append(WDIR)
 from dm21cm.evolve import evolve
+from dm21cm.injections.pbh import PBHInjection
 from dm21cm.injections.dm import DMPWaveAnnihilationInjection
-from preprocessing.step_size import pwave_phot_c_sigma, pwave_elec_c_sigma
+from preprocessing.step_size import pbh_f, pwave_phot_c_sigma, pwave_elec_c_sigma
 
 
 
@@ -20,11 +20,11 @@ print('\n===== Command line arguments =====')
 parser = argparse.ArgumentParser()
 parser.add_argument('-r', '--run_name', type=str)
 parser.add_argument('-i', '--run_index', type=int)
+parser.add_argument('-c', '--channel', type=str)
 parser.add_argument('-z', '--zf', type=str, default='002') # 01 005 002 001 0005 0002
 parser.add_argument('-s', '--sf', type=int, default=10)    #  2   4  10  20   40   80
 parser.add_argument('-n', '--n_threads', type=int, default=32)
 parser.add_argument('-d', '--box_dim', type=int, default=128)
-parser.add_argument('-c', '--channel', type=str)
 parser.add_argument('--homogeneous', action='store_true')
 args = parser.parse_args()
 print(args)
@@ -35,75 +35,51 @@ print('\n===== Injection parameters =====')
 
 if args.channel.startswith('pwave'):
     if args.channel == 'pwave-phot':
-        m_s = 10**np.array([1.5, 12])
-        c_s = pwave_phot_c_sigma(m_s)
-        mass_ind, inj_ind = np.unravel_index(args.run_index, (len(m_s), 2))
+        m_DM_s = 10**np.array([1.5, 12]) # [eV]
+        c_s = pwave_phot_c_sigma(m_DM_s) # [pcm^3/s]
+        mass_ind, inj_ind = np.unravel_index(args.run_index, (len(m_DM_s), 2))
         primary = 'phot_delta'
 
     elif args.channel == 'pwave-elec':
-        m_s = 10**np.array([6.5, 8.5, 10.5, 12])
-        c_s = pwave_elec_c_sigma(m_s)
-        mass_ind, inj_ind = np.unravel_index(args.run_index, (len(m_s), 2))
+        m_DM_s = 10**np.array([6.5, 8.5, 10.5, 12])
+        c_s = pwave_elec_c_sigma(m_DM_s)
+        mass_ind, inj_ind = np.unravel_index(args.run_index, (len(m_DM_s), 2))
         primary = 'elec_delta'
     else:
         raise ValueError('Invalid channel')
 
-    m_DM = m_s[mass_ind]
+    m_DM = m_DM_s[mass_ind]
+    c_sigma = c_s[mass_ind]
     inj_multiplier = inj_ind + 1 # 1 or 2
-    print('mass_ind, inj_ind:', mass_ind, inj_ind)
     injection = DMPWaveAnnihilationInjection(
         primary = primary,
-        m_DM = m_s[mass_ind],
-        c_sigma = c_s[mass_ind] * (inj_ind + 1),
+        m_DM = m_DM,
+        c_sigma = c_sigma * inj_multiplier,
         cell_size = 2,
     )
-    print('injection:', injection)
+    m_fn = m_DM
+
+elif args.channel == 'pbh':
+
+    log10m_PBH_s = np.linspace(13.5, 18, 19)
+    m_PBH_s = 10 ** log10m_PBH_s # [g]
+    f_PBH_s = pbh_f(m_PBH_s) # [1]
+    mass_ind, inj_ind = np.unravel_index(args.run_index, (len(m_PBH_s), 2))
+    inj_multiplier = inj_ind + 1
+    log10m_PBH = log10m_PBH_s[mass_ind]
+    m_PBH = m_PBH_s[mass_ind]
+    f_PBH = f_PBH_s[mass_ind] * inj_multiplier
+    injection = PBHInjection(
+        m_PBH = m_PBH,
+        f_PBH = f_PBH,
+    )
+    m_fn = m_PBH
 
 else:
     raise ValueError('Invalid channel')
 
-# if args.channel == 'elec':
-#     primary = 'elec_delta'
-#     # masses = np.logspace(6.5, 12, 12)
-#     # log_lifetimes = np.array([27.994, 28.591, 28.935, 29.061, 29.004, 28.801, 28.487, 28.098, 27.670, 27.238, 26.838, 26.507]) # calibrated for fisher
-#     # mass_ind, inj_ind = np.unravel_index(args.run_index, (12, 2))
-#     masses = np.logspace(6.5, 12, 12)
-#     masses = np.sqrt(masses[:-1] * masses[1:]) # midpoints
-#     log_lifetimes = np.array([28.327, 28.793, 29.023, 29.053, 28.919, 28.656, 28.300, 27.887, 27.452, 27.032, 26.662]) # calibrated for fisher
-#     mass_ind, inj_ind = np.unravel_index(args.run_index, (11, 2))
-
-# if args.channel == 'elec':
-#     primary = 'elec_delta'
-#     # masses = np.logspace(6.5, 12, 12)
-#     # log_lifetimes = np.array([27.994, 28.591, 28.935, 29.061, 29.004, 28.801, 28.487, 28.098, 27.670, 27.238, 26.838, 26.507]) # calibrated for fisher
-#     # mass_ind, inj_ind = np.unravel_index(args.run_index, (12, 2))
-#     masses = np.logspace(6.5, 12, 12)
-#     masses = np.sqrt(masses[:-1] * masses[1:]) # midpoints
-#     log_lifetimes = np.array([28.327, 28.793, 29.023, 29.053, 28.919, 28.656, 28.300, 27.887, 27.452, 27.032, 26.662]) # calibrated for fisher
-#     mass_ind, inj_ind = np.unravel_index(args.run_index, (11, 2))
-
-# elif args.channel == 'phot':
-#     primary = 'phot_delta'
-#     masses = np.logspace(1.5, 12, 22)
-#     log_lifetimes = np.array([
-#         29.393, 29.202, 29.012, 28.821, 28.631, 28.440, 28.250, 28.059, 27.868, 27.678, 27.487,
-#         27.297, 27.106, 26.916, 26.725, 26.535, 26.344, 26.153, 25.963, 25.772, 25.582, 25.391
-#     ])
-#     mass_ind, inj_ind = np.unravel_index(args.run_index, (22, 2))
-
-# else:
-#     raise ValueError('Invalid channel')
-
-# m_DM = masses[mass_ind]
-# inj_multiplier = inj_ind + 1 # 1 or 2
-# decay_rate = inj_multiplier * 10**(-log_lifetimes[mass_ind])
-# lifetime = 1 / decay_rate
-# injection = DMDecayInjection(m_DM=m_DM, lifetime=lifetime)
-
-# print('mass_ind:', mass_ind)
-# print('inj_ind:', inj_ind)
-# print(f'm_DM: {m_DM:.3e}')
-# print(f'lifetime: {lifetime:.3e}')
+print('mass_ind, inj_ind:', mass_ind, inj_ind)
+print('injection:', injection)
 
 
 
@@ -130,12 +106,11 @@ print('astro_params:', astro_params)
 print('\n===== Save paths =====')
 
 run_name = args.run_name
-run_subname = f'M{mass_ind}D{inj_ind}'
+run_subname = f'log10m{np.log10(m_fn):.3f}_injm{inj_multiplier}'
 run_fullname = f'{run_name}_{run_subname}'
 lc_filename = f'LightCone_z5.0_HIIDIM={args.box_dim}_BOXLEN={box_len}_fisher_DM_{inj_multiplier}_r54321.h5'
 
-# save_dir = f'/n/holyscratch01/iaifi_lab/yitians/dm21cm/prod_outputs/{run_name}/Mass_{mass_ind}/'
-save_dir = f'/n/holylabs/LABS/iaifi_lab/Users/yitians/dm21cm/outputs/{run_name}/Mass_{mass_ind}/LightCones/'
+save_dir = f'/n/holylabs/LABS/iaifi_lab/Users/yitians/dm21cm/outputs/{run_name}/log10m{log10m_PBH:.3f}/'
 os.makedirs(save_dir, exist_ok=True)
 
 cache_dir = os.path.join(os.environ['P21C_CACHE_DIR'], run_fullname)
@@ -185,4 +160,10 @@ return_dict = evolve(
 
 return_dict['lightcone']._write(fname=lc_filename, direc=save_dir, clobber=True)
 
-shutil.rmtree(cache_dir)
+
+
+print('\n===== Clear Cache =====')
+
+for entry in os.scandir(cache_dir):
+    if entry.is_file() and entry.name.endswith('.h5') and entry.name != 'lightcones.h5':
+        os.remove(entry.path)

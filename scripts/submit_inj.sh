@@ -24,7 +24,7 @@ echo "DATA:  HOLYLABS"
 echo "SAVE:  HOLYLABS & HOLYSCRATCH"
 
 #python inj_script.py -r pwave-phot-test -c pwave-phot -i $SLURM_ARRAY_TASK_ID
-python inj_script.py -r decay-test -c decay-test -i 0 -d 64
+python inj_script.py -r decay-test-2 -c decay-test-2 -i 0 -d 64
 
 #SBATCH --constraint=cc8.0
 #SABTCH --exclude=holygpu7c26305

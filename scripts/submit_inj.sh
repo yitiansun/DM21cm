@@ -1,7 +1,7 @@
 #!/bin/bash
 
-#SBATCH --job-name=pwave-phot
-#SBATCH --array=0
+#SBATCH --job-name=pp
+#SBATCH --array=0-3
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks=1

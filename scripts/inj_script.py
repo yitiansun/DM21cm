@@ -10,7 +10,7 @@ WDIR = os.environ['DM21CM_DIR']
 sys.path.append(WDIR)
 from dm21cm.evolve import evolve
 from dm21cm.injections.pbh import PBHInjection
-from dm21cm.injections.dm import DMPWaveAnnihilationInjection
+from dm21cm.injections.dm import DMDecayInjection, DMPWaveAnnihilationInjection
 from preprocessing.step_size import pbh_f, pwave_phot_c_sigma, pwave_elec_c_sigma
 
 
@@ -33,7 +33,20 @@ print(args)
 
 print('\n===== Injection parameters =====')
 
-if args.channel.startswith('pwave'):
+if args.channel.startswith('decay'):
+    if args.channel == 'decay-test':
+        injection = DMDecayInjection(
+            primary='phot_delta',
+            m_DM = 5e3,
+            lifetime = 1e26,
+        )
+        inj_multiplier = 1
+        mass_ind, inj_ind = 0, 0
+        m_fn = 5e3
+    else:
+        raise ValueError('Invalid channel')
+
+elif args.channel.startswith('pwave'):
     if args.channel == 'pwave-phot':
         m_DM_s = 10**np.array([1.5, 12]) # [eV]
         c_s = pwave_phot_c_sigma(m_DM_s) # [pcm^3/s]

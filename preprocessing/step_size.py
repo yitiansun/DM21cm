@@ -14,13 +14,13 @@ def decay_elec_lifetime(m):
 
 def pwave_phot_c_sigma(m):
     log10m = np.log10(m)
-    log10c = (log10m-9) * 1.3 - 15
+    log10c = (log10m-12) * 1.6 - 12.1
     return 10 ** log10c
 
-def pwave_elec_c_sigma(m):
-    log10m = np.log10(m)
-    log10c = (log10m-9) * 1.5 - 16
-    return 10 ** log10c
+# def pwave_elec_c_sigma(m):
+#     log10m = np.log10(m)
+#     log10c = (log10m-9) * 1.5 - 19
+#     return 10 ** log10c
 
 
 def bernstein_poly(i, n, t):
@@ -73,3 +73,9 @@ def pbh_f(m):
     r_func = lambda x: 3.5 * (x - 14) - 14
     log10f = interp_between(l_func, r_func, 13.6, 14.2, log10m)
     return 10 ** log10f
+
+
+def pwave_elec_c_sigma(m):
+    log10m = np.log10(m)
+    log10c = bezier_curve([[6.5, -23], [10.5, -23], [12, -14.5]], log10m)
+    return 10 ** log10c

@@ -43,6 +43,15 @@ if args.channel.startswith('decay'):
         inj_multiplier = 1
         mass_ind, inj_ind = 0, 0
         m_fn = 5e3
+    elif args.channel == 'decay-test-2':
+        injection = DMDecayInjection(
+            primary='phot_delta',
+            m_DM = 5e3,
+            lifetime = 1e28,
+        )
+        inj_multiplier = 1
+        mass_ind, inj_ind = 0, 0
+        m_fn = 5e3
     else:
         raise ValueError('Invalid channel')
 

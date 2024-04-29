@@ -43,6 +43,7 @@ if args.channel.startswith('decay'):
         inj_multiplier = 1
         mass_ind, inj_ind = 0, 0
         m_fn = 5e3
+
     elif args.channel == 'decay-test-2':
         injection = DMDecayInjection(
             primary='phot_delta',
@@ -52,6 +53,7 @@ if args.channel.startswith('decay'):
         inj_multiplier = 1
         mass_ind, inj_ind = 0, 0
         m_fn = 5e3
+
     else:
         raise ValueError('Invalid channel')
 
@@ -61,7 +63,6 @@ elif args.channel.startswith('pwave'):
         c_s = pwave_phot_c_sigma(m_DM_s) # [pcm^3/s]
         mass_ind, inj_ind = np.unravel_index(args.run_index, (len(m_DM_s), 2))
         primary = 'phot_delta'
-
     elif args.channel == 'pwave-elec':
         m_DM_s = 10**np.array([6.5, 8.5, 10.5, 12])
         c_s = pwave_elec_c_sigma(m_DM_s)

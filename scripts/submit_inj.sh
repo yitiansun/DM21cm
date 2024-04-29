@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=decay-test
+#SBATCH --job-name=xc26
 #SBATCH --array=0
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
@@ -24,7 +24,7 @@ echo "DATA:  HOLYLABS"
 echo "SAVE:  HOLYLABS & HOLYSCRATCH"
 
 #python inj_script.py -r pwave-phot-test -c pwave-phot -i $SLURM_ARRAY_TASK_ID
-python inj_script.py -r decay-test-2 -c decay-test-2 -i 0 -d 64
+python inj_script.py -r xc-lt1e26-d128 -c decay-test -i 0
 
 #SBATCH --constraint=cc8.0
 #SABTCH --exclude=holygpu7c26305

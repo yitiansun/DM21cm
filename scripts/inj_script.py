@@ -59,12 +59,12 @@ if args.channel.startswith('decay'):
 
 elif args.channel.startswith('pwave'):
     if args.channel == 'pwave-phot':
-        m_DM_s = 10**np.array([1.5, 12]) # [eV]
+        m_DM_s = 10**np.array([1.5, 4, 6, 8, 10, 12]) # [eV]
         c_s = pwave_phot_c_sigma(m_DM_s) # [pcm^3/s]
         mass_ind, inj_ind = np.unravel_index(args.run_index, (len(m_DM_s), 2))
         primary = 'phot_delta'
     elif args.channel == 'pwave-elec':
-        m_DM_s = 10**np.array([6.5, 8.5, 10.5, 12])
+        m_DM_s = 10**np.array([6.5, 8, 9, 10, 11, 12])
         c_s = pwave_elec_c_sigma(m_DM_s)
         mass_ind, inj_ind = np.unravel_index(args.run_index, (len(m_DM_s), 2))
         primary = 'elec_delta'

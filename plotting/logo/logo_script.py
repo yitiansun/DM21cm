@@ -8,39 +8,32 @@ import py21cmfast as p21c
 
 WDIR = os.environ['DM21CM_DIR']
 sys.path.append(WDIR)
-from dm21cm.dm_params import DMParams
-from evolve_logo import evolve
+from dm21cm.evolve import evolve
+
+from logo_injection import LogoInjection
 
 
 if __name__ == '__main__':
 
-    run_name = 'logo_fine'
-
-    os.environ['DM21CM_DATA_DIR'] = '/n/holyscratch01/iaifi_lab/yitians/dm21cm/DM21cm/data/tf/zf002/data'
-
-    ref_image = np.load("source_128.npy")
-    ref_image /= np.mean(ref_image)
+    run_name = 'logo_64'
 
     # set global params
     p21c.global_params.CLUMPING_FACTOR = 1.
     #p21c.global_params.Pop2_ion = 0.
 
+    box_dim = 64
+    box_len = max(256, 2 * box_dim)
+
     return_dict = evolve(
         run_name = run_name,
         z_start = 25.,
         z_end = 5.,
-        dm_params = DMParams(
-            mode='decay',
-            primary='phot_delta',
-            m_DM=1e3, # [eV]
-            lifetime=3e25, # [s]
-        ),
-        enable_elec = False,
+        injection = LogoInjection(box_dim),
         
         p21c_initial_conditions = p21c.initial_conditions(
             user_params = p21c.UserParams(
-                HII_DIM = 128,
-                BOX_LEN = 128 * 2, # [conformal Mpc]
+                HII_DIM = box_dim,
+                BOX_LEN = box_len, # [conformal Mpc]
                 N_THREADS = 32,
             ),
             cosmo_params = p21c.CosmoParams(
@@ -55,11 +48,9 @@ if __name__ == '__main__':
         ),
         p21c_astro_params = p21c.AstroParams(L_X = 40.), # log10 value
         
-        resume = False,
-        subcycle_factor = 1,
+        use_DH_init = False,
+        subcycle_factor = 10,
         max_n_shell = 40,
-        ref_image = ref_image,
     )
 
-    np.save(f'{WDIR}/outputs/dm21cm/{run_name}_records.npy', return_dict['records'])
-    np.save(f'{WDIR}/plotting/logo/{run_name}_records.npy', return_dict['records'])
+    np.save(f'{WDIR}/plotting/logo/{run_name}_records.npy', return_dict['global'])

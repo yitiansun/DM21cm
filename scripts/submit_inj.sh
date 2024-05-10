@@ -1,7 +1,7 @@
 #!/bin/bash
 
-#SBATCH --job-name=xc26
-#SBATCH --array=0
+#SBATCH --job-name=pwavephot
+#SBATCH --array=0-11
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks=1
@@ -14,7 +14,7 @@
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=yitians@mit.com
 
-source /n/home07/yitians/setup_dm21cm.sh
+source /n/home07/yitians/setup/dm21cm.sh
 
 cd /n/home07/yitians/dm21cm/DM21cm/scripts
 
@@ -23,8 +23,8 @@ echo "CACHE: HOLYSCRATCH"
 echo "DATA:  HOLYLABS"
 echo "SAVE:  HOLYLABS & HOLYSCRATCH"
 
-#python inj_script.py -r pwave-phot-test -c pwave-phot -i $SLURM_ARRAY_TASK_ID
-python inj_script.py -r xc-lt1e26-d128 -c decay-test -i 0
+python inj_script.py -r pwave-elec-iter-3 -c pwave-elec -i $SLURM_ARRAY_TASK_ID
+#python inj_script.py -r xc-lt1e26-d128 -c decay-test -i 0
 
 #SBATCH --constraint=cc8.0
 #SABTCH --exclude=holygpu7c26305

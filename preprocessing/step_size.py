@@ -2,26 +2,7 @@ import numpy as np
 from scipy import special, optimize, interpolate
 
 
-def decay_phot_lifetime(m):
-    p = np.array([-0.38111888, 29.96460369])
-    log10tau = np.polyval(p, np.log10(m))
-    return 10 ** log10tau
-
-def decay_elec_lifetime(m):
-    p = np.array([  0.04765605,  -1.50826951,  15.03947904, -19.12576774])
-    log10tau = np.polyval(p, np.log10(m))
-    return 10 ** log10tau
-
-def pwave_phot_c_sigma(m):
-    log10m = np.log10(m)
-    log10c = (log10m-12) * 1.6 - 12.1
-    return 10 ** log10c
-
-# def pwave_elec_c_sigma(m):
-#     log10m = np.log10(m)
-#     log10c = (log10m-9) * 1.5 - 19
-#     return 10 ** log10c
-
+#===== helper functions =====
 
 def bernstein_poly(i, n, t):
     """The Bernstein polynomial of n, i as a function of t"""
@@ -54,6 +35,7 @@ def bezier_curve(points, x_in):
     return interpolate.interp1d(xvals, yvals, fill_value='extrapolate')(x_in)
 
 def interp_between(l_func, r_func, l_bound, r_bound, x):
+    """Interpolate between two functions."""
     p_l = [l_bound, l_func(l_bound)]
     p_r = [r_bound, r_func(r_bound)]
     x_intersect = optimize.brentq(lambda x: l_func(x) - r_func(x), l_bound, r_bound)
@@ -67,15 +49,43 @@ def interp_between(l_func, r_func, l_bound, r_bound, x):
         )
     )
 
+
+#===== step sizes =====
+
+def decay_phot_lifetime(m):
+    """Decay to photons lifetime step size [s] for a given DM mass [eV]."""
+    p = np.array([-0.38111888, 29.96460369])
+    log10tau = np.polyval(p, np.log10(m))
+    return 10 ** log10tau
+
+def decay_elec_lifetime(m):
+    """Decay to electrons lifetime step size [s] for a given DM mass [eV]."""
+    p = np.array([  0.04765605,  -1.50826951,  15.03947904, -19.12576774])
+    log10tau = np.polyval(p, np.log10(m))
+    return 10 ** log10tau
+
+def pwave_phot_c_sigma(m):
+    """P-wave annihilation to photons cross section at v=c step size [pcm^3/s] for a given DM mass [eV]."""
+    log10m = np.log10(m)
+    log10c = (log10m-12) * 1.6 - 12.1
+    return 10 ** log10c
+
+# def pwave_elec_c_sigma(m):
+# """P-wave annihilation to electrons cross section at v=c step size [pcm^3/s] for a given DM mass [eV]."""
+#     log10m = np.log10(m)
+#     log10c = (log10m-9) * 1.5 - 19
+#     return 10 ** log10c
+
+def pwave_elec_c_sigma(m):
+    """P-wave annihilation to electrons cross section at v=c step size [pcm^3/s] for a given DM mass [eV]."""
+    log10m = np.log10(m)
+    log10c = bezier_curve([[6.5, -23], [10.5, -20], [12, -14.5]], log10m)
+    return 10 ** log10c
+
 def pbh_f(m):
+    """PBH fraction step size [1] for a given PBH mass [g]."""
     log10m = np.log10(m)
     l_func = lambda x: - 8 * (x - 14) - 16
     r_func = lambda x: 3.5 * (x - 14) - 14
     log10f = interp_between(l_func, r_func, 13.6, 14.2, log10m)
     return 10 ** log10f
-
-
-def pwave_elec_c_sigma(m):
-    log10m = np.log10(m)
-    log10c = bezier_curve([[6.5, -23], [10.5, -23], [12, -14.5]], log10m)
-    return 10 ** log10c

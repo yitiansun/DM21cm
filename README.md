@@ -2,10 +2,37 @@
 
 [![arXiv](https://img.shields.io/badge/arXiv-2312.11608%20-green.svg)](https://arxiv.org/abs/2312.11608)
 
-![](resources/logo.gif)
+<p align="center"><img src="resources/logo.gif" /></p>
 
-## HERA sensitivity to dark matter monochromatic decays
+## HERA sensitivity to dark matter monochromatic decays in 21-cm power spectrum
 <img src="resources/limits.png" width="1000"/>
+
+## Usage
+
+```
+from dm21cm.injections.decay import DMDecayInjection
+from dm21cm.evolve import evolve
+
+import py21cmfast as p21c
+
+return_dict = evolve(
+    run_name = 'test_injection',
+    z_start = 45.,
+    z_end = 5.,
+    injection = DMDecayInjection(
+        primary='phot_delta',
+        m_DM=1e8, # [eV]
+        lifetime=1e28, # [s]
+    ),
+    p21c_initial_conditions = p21c.initial_conditions(
+        user_params = p21c.UserParams(
+            HII_DIM = 64,
+            BOX_LEN = 256, # [conformal Mpc]
+        ),
+    ),
+    p21c_astro_params = p21c.AstroParams(),
+)
+```
 
 ## Installation
 
@@ -30,6 +57,60 @@
 - Install the require packages via `pip install -r requirements.txt`. We recommend installing `JAX` according to your hardware (e.g. GPU) specification.
 - Set environment variable `DM21CM_DIR` to point to the project folder (directory containing `README.md`).
 - Set environment variable `DM21CM_DATA_DIR` to point to the data folder (directory containing `abscissas.h5`).
+
+## Defining your custom injection
+
+```
+from dm21cm.injections.base import Injection
+from darkhistory.spec import pppc
+
+class CustomInjection (Injection):
+
+    def __init__(self):
+        self.mode = 'Decay implemented again'
+        self.primary = primary
+        self.m_DM = m_DM
+        self.lifetime = lifetime
+
+    def set_binning(self, abscs):
+        self.phot_spec_per_inj = pppc.get_pppc_spec(
+            self.m_DM, abscs['photE'], self.primary, 'phot', decay=True
+        ) # [phot / inj]
+        self.elec_spec_per_inj = pppc.get_pppc_spec(
+            self.m_DM, abscs['elecEk'], self.primary, 'elec', decay=True
+        ) # [elec / inj]
+
+    def is_injecting_elec(self):
+        return not np.allclose(self.elec_spec_per_inj.N, 0.)
+    
+    def get_config(self):
+        return {
+            'mode': self.mode,
+            'primary': self.primary,
+            'm_DM': self.m_DM,
+            'lifetime': self.lifetime
+        }
+
+    #===== injections =====
+    def inj_rate(self, z):
+        rho_DM = phys.rho_DM * (1+z)**3 # [eV / pcm^3]
+        return float((rho_DM/self.m_DM) / self.lifetime) # [inj / pcm^3 s]
+    
+    def inj_power(self, z):
+        return self.inj_rate(z) * self.m_DM # [eV / pcm^3 s]
+    
+    def inj_phot_spec(self, z, **kwargs):
+        return self.phot_spec_per_inj * self.inj_rate(z) # [phot / pcm^3 s]
+    
+    def inj_elec_spec(self, z, **kwargs):
+        return self.elec_spec_per_inj * self.inj_rate(z) # [elec / pcm^3 s]
+    
+    def inj_phot_spec_box(self, z, delta_plus_one_box=..., **kwargs):
+        return self.inj_phot_spec(z), delta_plus_one_box # [phot / pcm^3 s], [1]
+
+    def inj_elec_spec_box(self, z, delta_plus_one_box=..., **kwargs):
+        return self.inj_elec_spec(z), delta_plus_one_box # [elec / pcm^3 s], [1]
+```
 
 ## Authors
 Yitian Sun, Joshua W. Foster, Hongwan Liu, Julian B. Muñoz, and Tracy R. Slatyer

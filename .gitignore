@@ -9,6 +9,7 @@ debug/
 outputs/
 plotting/
 scripts/
+tests/*.h5
 #------------------------
 
 # Byte-compiled / optimized / DLL files

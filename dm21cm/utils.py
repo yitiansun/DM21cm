@@ -1,5 +1,6 @@
 """Some utilities for the whole project."""
 
+import os
 import logging
 import h5py
 
@@ -29,3 +30,5 @@ def init_logger(name):
     logger.addHandler(handler)
     
     return logger
+
+abscs = load_h5_dict(f"{os.environ['DM21CM_DATA_DIR']}/abscissas.h5")

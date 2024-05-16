@@ -9,7 +9,7 @@
 
 ## Usage
 
-```
+```python
 from dm21cm.injections.decay import DMDecayInjection
 from dm21cm.evolve import evolve
 
@@ -60,7 +60,7 @@ return_dict = evolve(
 
 ## Defining your custom injection
 
-```
+```python
 from dm21cm.injections.base import Injection
 from darkhistory.spec import pppc
 

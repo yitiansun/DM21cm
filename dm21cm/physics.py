@@ -178,7 +178,7 @@ def dt_step(z, zplusone_factor):
 
 #===== Dark Matter =====
         
-def struct_boost_func(model=...):
+def struct_boost_func(model=None):
     """Structure formation boost factor 1+B(z). (Copied from darkhistory.physics.struct_boost_func)
 
     Args:

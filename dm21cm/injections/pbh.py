@@ -76,8 +76,8 @@ class PBHInjection (Injection):
         dNdEdt = self.elec_dNdEdt_interp(t) * self.n_PBH(z) # [elec / pcm^3 eV s]
         return Spectrum(self.abscs['elecEk'], dNdEdt, spec_type='dNdE')
     
-    def inj_phot_spec_box(self, z, delta_plus_one_box=..., **kwargs):
+    def inj_phot_spec_box(self, z, delta_plus_one_box=None, **kwargs):
         return self.inj_phot_spec(z), delta_plus_one_box # [phot / pcm^3 s], [1]
 
-    def inj_elec_spec_box(self, z, delta_plus_one_box=..., **kwargs):
+    def inj_elec_spec_box(self, z, delta_plus_one_box=None, **kwargs):
         return self.inj_elec_spec(z), delta_plus_one_box # [elec / pcm^3 s], [1]

@@ -45,8 +45,8 @@ class ZeroInjection (Injection):
     def inj_elec_spec(self, z, **kwargs):
         return self.zero_elec_spec
     
-    def inj_phot_spec_box(self, z, delta_plus_one_box=..., **kwargs):
+    def inj_phot_spec_box(self, z, delta_plus_one_box=None, **kwargs):
         return self.zero_phot_spec, delta_plus_one_box
 
-    def inj_elec_spec_box(self, z, delta_plus_one_box=..., **kwargs):
+    def inj_elec_spec_box(self, z, delta_plus_one_box=None, **kwargs):
         return self.zero_elec_spec, delta_plus_one_box

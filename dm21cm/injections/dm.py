@@ -25,7 +25,7 @@ class DMDecayInjection (Injection):
         lifetime (float, optional): Decay lifetime in [s].
     """
 
-    def __init__(self, primary=..., m_DM=..., lifetime=...):
+    def __init__(self, primary=None, m_DM=None, lifetime=None):
         self.mode = 'DM decay'
         self.primary = primary
         self.m_DM = m_DM
@@ -64,10 +64,10 @@ class DMDecayInjection (Injection):
     def inj_elec_spec(self, z, **kwargs):
         return self.elec_spec_per_inj * self.inj_rate(z) # [elec / pcm^3 s]
     
-    def inj_phot_spec_box(self, z, delta_plus_one_box=..., **kwargs):
+    def inj_phot_spec_box(self, z, delta_plus_one_box=None, **kwargs):
         return self.inj_phot_spec(z), delta_plus_one_box # [phot / pcm^3 s], [1]
 
-    def inj_elec_spec_box(self, z, delta_plus_one_box=..., **kwargs):
+    def inj_elec_spec_box(self, z, delta_plus_one_box=None, **kwargs):
         return self.inj_elec_spec(z), delta_plus_one_box # [elec / pcm^3 s], [1]
     
 
@@ -82,7 +82,7 @@ class DMPWaveAnnihilationInjection (Injection):
         cell_size (float): Cell size in [cMpc].
     """
 
-    def __init__(self, primary=..., m_DM=..., c_sigma=..., cell_size=...):
+    def __init__(self, primary=None, m_DM=None, c_sigma=None, cell_size=None):
         self.mode = 'DM p-wave annihilation'
         self.primary = primary
         self.m_DM = m_DM
@@ -140,13 +140,13 @@ class DMPWaveAnnihilationInjection (Injection):
     def inj_elec_spec(self, z, **kwargs):
         return self.elec_spec_per_inj * float(self.inj_rate(z)) # [elec / pcm^3 s]
     
-    def inj_phot_spec_box(self, z, delta_plus_one_box=..., **kwargs):
+    def inj_phot_spec_box(self, z, delta_plus_one_box=None, **kwargs):
         rate_box = self.cond_ann_rate_fixed_cell(z, delta_plus_one_box)
         spec = self.phot_spec_per_inj * float(jnp.mean(rate_box))
         weight = rate_box / jnp.mean(rate_box)
         return spec, weight # [phot / pcm^3 s], [1]
 
-    def inj_elec_spec_box(self, z, delta_plus_one_box=..., **kwargs):
+    def inj_elec_spec_box(self, z, delta_plus_one_box=None, **kwargs):
         rate_box = self.cond_ann_rate_fixed_cell(z, delta_plus_one_box)
         spec = self.elec_spec_per_inj * float(jnp.mean(rate_box))
         weight = rate_box / jnp.mean(rate_box)

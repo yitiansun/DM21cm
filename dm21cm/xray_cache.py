@@ -120,7 +120,7 @@ class XrayCache:
         if os.path.exists(self.snapshot_path):
             os.remove(self.snapshot_path)
 
-    def save_snapshot(self, phot_bath_spec=...):
+    def save_snapshot(self, phot_bath_spec=None):
         """Save the current cache to a snapshot file with the photon bath spectrum."""
         pickle.dump((self.states, phot_bath_spec), open(self.snapshot_path, 'wb'))
 

@@ -53,7 +53,7 @@ class TransferFunctionWrapper:
         else:
             logger.info('Skipping electron transfer functions.')
             
-    def set_params(self, rs=..., delta_plus_one_box=..., x_e_box=..., T_k_box=..., homogenize_deposition=False):
+    def set_params(self, rs=None, delta_plus_one_box=None, x_e_box=None, T_k_box=None, homogenize_deposition=False):
         """Initializes parameters for deposition."""
         delta_plus_one_box = jnp.clip(
             delta_plus_one_box,
@@ -87,7 +87,7 @@ class TransferFunctionWrapper:
         self.dep_box = np.zeros((self.box_dim, self.box_dim, self.box_dim, len(self.abscs['dep_c']))) # [eV / Bavg]
         self.dep_dt = 0.
 
-    def inject_phot(self, in_spec, inject_type=..., weight_box=...):
+    def inject_phot(self, in_spec, inject_type=None, weight_box=None):
         """Inject photons into (prop_phot_N,) emit_phot_N, and dep_box.
 
         Args:
@@ -126,7 +126,7 @@ class TransferFunctionWrapper:
             in_spec=in_spec.N, sum_result=False, **self.tf_kwargs
         ).reshape(self.dep_box.shape) # [eV / Bavg]
 
-    def inject_elec(self, in_spec, weight_box=...):
+    def inject_elec(self, in_spec, weight_box=None):
         """Inject electrons into emit_phot_N and dep_box.
 
         Args:

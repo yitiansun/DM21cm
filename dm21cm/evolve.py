@@ -33,15 +33,15 @@ logger = init_logger(__name__)
 
 
 def evolve(run_name,
-           z_start=...,
-           z_end=...,
+           z_start=None,
+           z_end=None,
            subcycle_factor=10,
            max_n_shell=None,
            resume=False,
            use_tqdm=True,
 
            injection=None,
-           p21c_initial_conditions=...,
+           p21c_initial_conditions=None,
            p21c_astro_params=None,
 
            use_DH_init=True,

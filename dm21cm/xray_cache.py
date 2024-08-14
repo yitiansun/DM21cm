@@ -10,9 +10,6 @@ sys.path.append(os.environ['DM21CM_DIR'])
 import dm21cm.physics as phys
 from dm21cm.utils import init_logger
 
-sys.path.append(os.environ['DH_DIR'])
-from darkhistory.spec.spectrum import Spectrum
-
 
 USE_JAX_FFT = True
 if USE_JAX_FFT:
@@ -31,15 +28,17 @@ class CachedState:
     """Cached data for xray spectrum and emissivity.
 
     Args:
+        key (str):           Key to box in cache file.
         z_start (float):     The starting redshift of the step that hosts the emissivity.
         z_end (float):       The ending redshift of the step, at which the spectrum is saved.
         spectrum (Spectrum): The X-ray spectrum in units of photon per averaged baryon.
-        box (array):         The X-ray relative emissivity box.
+
+    Attributes:
         isinbath (bool):     Whether the spectrum has been deposited to the bath.
     """
 
     def __init__(self, key, z_start, z_end, spectrum):
-        self.key = key # key to box in the cache file
+        self.key = key
         self.z_start = z_start
         self.z_end = z_end
         self.spectrum = spectrum

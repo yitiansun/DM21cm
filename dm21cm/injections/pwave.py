@@ -67,7 +67,6 @@ class DeltaCache:
     Attributes:
         box_len (float): Length of box [cfMpc].
         states (list): List of CachedDeltaBox objects.
-        z_start_end_list (list): List of z_start and z_end for CachedDeltaBox.
     """
 
     def __init__(self, data_dir, box_dim=None, dx=None):
@@ -80,7 +79,6 @@ class DeltaCache:
         self.box_len = self.box_dim * self.dx
 
         self.states = []
-        self.z_start_end_list = []
         self.init_fft()
 
     def init_fft(self):
@@ -94,7 +92,6 @@ class DeltaCache:
         with h5py.File(self.box_cache_path, 'a') as hf:
             state.append_box(hf, box, overwrite=False)
         self.states.append(state)
-        self.z_start_end_list.append((z_start, z_end))
 
     def clear_cache(self):
         self.states = []
@@ -177,8 +174,8 @@ class DMPWaveAnnihilationInjection (Injection):
         # tables have unit [eV^2 / cm^6]
         # initialize fixed cell interpolation data
         r = self.cell_size / jnp.cbrt(4*jnp.pi/3) # [Mpc] | r of sphere with volume cell_size^3
-        data_rzd = jnp.einsum('zdr->rzd', self.data['ps_cond_ann_rate_table']) # radius, z, delta
-        self.ps_cond_table_fixed_cell = interp1d(data_rzd, self.data['r_range'], r)
+        self.ps_cond_table_rzd = jnp.einsum('zdr->rzd', self.data['ps_cond_ann_rate_table']) # radius, z, delta # TODO: fix data order to rzd
+        self.ps_cond_table_fixed_cell = interp1d(self.ps_cond_table_rzd, self.data['r_range'], r)
 
     def set_binning(self, abscs):
         self.phot_spec_per_inj = pppc.get_pppc_spec(
@@ -211,31 +208,61 @@ class DMPWaveAnnihilationInjection (Injection):
         """Computes injection rate density with PS halo boost for halos larger than fixed cell size.
         Fixed cell contributions are subtracted."""
 
+        z_range = self.data['z_range']
+        delta_range = self.data['delta_range']
+        r_range = self.data['r_range']
+
+        total_rate_box = jnp.zeros_like(delta_plus_one_box)
+
         # For each layer, up to largest
-        for z_start, z_end in self.delta_cache.z_start_list[::-1]:
-            if np.isclose(z, z_start):
+        for state in self.delta_cache.states[::-1]:
+            # print(f'> > delta shell {state.z_start:.3f} - {state.z_end:.3f} -> {z:.3f}')
+            if np.isclose(z, state.z_start):
                 continue # only need past shells
-            r_start = phys.conformal_dx_between_z(z, z_start)
-            r_end = phys.conformal_dx_between_z(z, z_end)
+            r_start = phys.conformal_dx_between_z(z, state.z_start)
+            r_end = phys.conformal_dx_between_z(z, state.z_end)
             r_to_interp = (r_start + r_end) / 2
+            z_to_interp = (state.z_start + state.z_end) / 2
             if r_start > self.delta_cache.box_len / 2:
                 break # don't care about halos larger than the simulation box
-        # Get smoothed box
-        # Apply ST-normed PS table: big halo rate
-        # Subtract cutoff at fixed cell scale.
-        # return
-        return box # [inj / pcm^3 s]
+
+            # Get smoothed box
+            delta_plus_one_box_smoothed = self.delta_cache.get_smoothed_box(state, z)
+            
+            # Apply ST-normed PS table: big halo rate
+            z_in = bound_action(z_to_interp, z_range, 'clip') # emission z
+            r_in = bound_action(r_to_interp, r_range, 'clip')
+            delta_in = bound_action(delta_plus_one_box_smoothed - 1, delta_range, 'clip')
+
+            ps_cond_zd  = interp1d(self.ps_cond_table_rzd, r_range, r_in)
+            ps_cond_d   = interp1d(ps_cond_zd, z_range, z_in)
+            ps_cond_box = interp1d_vmap(ps_cond_d, delta_range, delta_in)
+            ps_uncond_val = interp1d(self.data['ps_ann_rate_table'], z_range, z_in)
+            st_val        = interp1d(self.data['st_ann_rate_table'], z_range, z_in)
+            dNtilde_dt_box = ps_cond_box * st_val / ps_uncond_val # [eV^2 / ccm^3 pcm^3]
+            total_rate_box += dNtilde_dt_box * self.c_sigma / self.m_DM**2 * (1 + z)**3 # [inj / pcm^3 s]
+
+            # Subtract fixed cell contributions
+            # pass for now
+
+        return total_rate_box # [inj / pcm^3 s]
+
     
     def cond_ann_rate_fixed_cell(self, z, delta_plus_one_box):
         """Computes injection rate density with PS halo boost up to fixed cell size."""
-        z_in = bound_action(z, self.data['z_range'], 'clip')
-        delta_in = bound_action(delta_plus_one_box - 1, self.data['delta_range'], 'clip')
-        ps_cond_delta = interp1d(self.ps_cond_table_fixed_cell, self.data['z_range'], z_in)
-        ps_cond_box = interp1d_vmap(ps_cond_delta, self.data['delta_range'], delta_in)
-        ps_uncond_val = interp1d(self.data['ps_ann_rate_table'], self.data['z_range'], z_in)
-        st_val = interp1d(self.data['st_ann_rate_table'], self.data['z_range'], z_in)
+
+        z_range = self.data['z_range']
+        delta_range = self.data['delta_range']
+        z_in     = bound_action(z, z_range, 'clip')
+        delta_in = bound_action(delta_plus_one_box - 1, delta_range, 'clip')
+
+        ps_cond_delta = interp1d(self.ps_cond_table_fixed_cell, z_range, z_in)
+        ps_cond_box   = interp1d_vmap(ps_cond_delta, delta_range, delta_in)
+        ps_uncond_val = interp1d(self.data['ps_ann_rate_table'], z_range, z_in)
+        st_val        = interp1d(self.data['st_ann_rate_table'], z_range, z_in)
         dNtilde_dt_box = ps_cond_box * st_val / ps_uncond_val # [eV^2 / ccm^3 pcm^3]
         return dNtilde_dt_box * self.c_sigma / self.m_DM**2 * (1 + z)**3 # [inj / pcm^3 s]
+
     
     def inj_rate(self, z):
         z_in = bound_action(z, self.data['z_range'], 'clip')

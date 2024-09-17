@@ -58,24 +58,19 @@ class DarkHistoryWrapper:
         logger.info('Running DarkHistory to generate initial conditions...')
 
         # Custom injection API of DarkHistory
+        start_rs = 3000
+        coarsen_factor = 10
+        if self.injection.mode == 'PBH':
+            self.injection.init_final_inj(self.get_evolve_z_s(start_rs, end_rs, coarsen_factor))
+
         default_kwargs = dict(
             in_spec_phot = lambda rs: self.injection.inj_phot_spec(rs-1) / self.injection.inj_rate(rs-1), # [phot / inj]
             in_spec_elec = lambda rs: self.injection.inj_elec_spec(rs-1) / self.injection.inj_rate(rs-1), # [elec / inj]
             rate_func_N   = lambda rs: self.injection.inj_rate(rs-1), # [inj / pcm^3 s]
             rate_func_eng = lambda rs: self.injection.inj_power(rs-1), # [eV / pcm^3 s]
-            start_rs = 3000, end_rs = end_rs, coarsen_factor = 10, verbose = 1,
+            start_rs = start_rs, end_rs = end_rs, coarsen_factor = coarsen_factor, verbose = 1,
             clean_up_tf = True,
         ) # default parameters use case B coefficients
-
-        # DM API of DarkHistory
-        # default_kwargs = dict(
-        #     DM_process='decay',
-        #     mDM=self.injection.m_DM,
-        #     primary=self.injection.primary,
-        #     lifetime=self.injection.lifetime,
-        #     start_rs=3000, end_rs=end_rs, coarsen_factor=10, verbose=1,
-        #     clean_up_tf=True,
-        # ) # default parameters use case B coefficients
 
         default_kwargs.update(kwargs)
         self.soln = evolve_DH(**default_kwargs)
@@ -105,3 +100,23 @@ class DarkHistoryWrapper:
         spec = Spectrum(spec_eng, spec_N, rs=rs, spec_type='N')
 
         return T_k, x_e, spec
+    
+    def get_evolve_z_s(self, start_rs, end_rs, coarsen_factor, dlnz=0.001):
+        """Returns redshift array for DarkHistory injection steps, plus a final boundary z.
+        
+        Args:
+            start_rs (float): Starting redshift rs = 1 + z.
+            end_rs (float): Final redshift rs = 1 + z.
+            coarsen_factor (int): Coarsening factor. See darkhistory.main.evolve.
+            dlnz (float): Redshift log step size for redshift array. See darkhistory.main.evolve.
+
+        Returns:
+            z_s (array): Redshift array at which injection happens, plus a final boundary z.
+        """
+        rs_s = []
+        rs = start_rs
+        while rs > end_rs:
+            rs_s.append(rs)
+            rs = np.exp(np.log(rs) - dlnz * coarsen_factor)
+        rs_s.append(rs)
+        return np.array(rs_s) - 1

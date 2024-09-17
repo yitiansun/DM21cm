@@ -154,6 +154,8 @@ def evolve(run_name,
         spin_temp.Tk_box += T_k_DH_init - np.mean(spin_temp.Tk_box)
         spin_temp.x_e_box += x_e_DH_init - np.mean(spin_temp.x_e_box)
         ionized_box.xH_box = 1 - spin_temp.x_e_box
+        if injection.mode == 'PBH':
+            injection.init_final_inj(z_edges) # after darkhistory evolution, for DM21cm
     else:
         phot_bath_spec = Spectrum(abscs['photE'], np.zeros_like(abscs['photE']), spec_type='N', rs=1+z_match) # [ph / Bavg]
     if injection:

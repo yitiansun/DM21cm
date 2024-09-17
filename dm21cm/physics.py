@@ -175,6 +175,17 @@ def dt_step(z, zplusone_factor):
     z_next = (1+z) / zplusone_factor - 1
     return np.abs((cosmo.age(z) - cosmo.age(z_next)).to('s').value)
 
+def t_z(z):
+    """Convert redshift to time [s].
+
+    Args:
+        rs (float): The redshift of interest (rs = 1+z).
+
+    Returns:
+        float: Time in s.
+    """
+    return cosmo.age(z).to('s').value
+
 
 #===== Dark Matter =====
         

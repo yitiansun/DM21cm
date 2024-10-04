@@ -10,7 +10,7 @@ description = "DM21cm test build"
 requires-python = ">=3.10"
 dependencies = [
     "astropy>=5.3",
-    "darkhistory>=1.1.2"
+    "darkhistory>=1.1.2",
     "h5py>=3.9",
     "jax>=0.4.14",
     "jaxlib",

@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dm21cm"
+version = "0.0.0.20241004"
+readme = "README.md"
+description = "DM21cm"
+requires-python = ">=3.10"
+dependencies = [
+    "astropy>=5.3",
+    "darkhistory>=1.1.2"
+    "h5py>=3.9",
+    "jax>=0.4.14",
+    "jaxlib",
+    "matplotlib>=3.7",
+    "numpy>=1.25.2",
+    "powerbox>=0.7.3",
+    "scipy>=1.11.2, <=1.13.1",
+    "tqdm"
+]
+
+[project.urls]
+Homepage = "https://github.com/yitiansun/dm21cm"
+
+[tool.setuptools.packages.find]
+include = [
+    "dm21cm",
+    "examples",
+    "README.md",
+    "LICENSE"
+]
+exclude = [
+    "tests",
+    "dist",
+    "build",
+    "*.pyc",
+    "*.pyo",
+    "__pycache__"
+]

@@ -1,9 +1,10 @@
-astropy~=5.3.3
-h5py~=3.9.0
-jax~=0.4.14
+astropy>=5.3
+darkhistory>=1.1.2
+h5py>=3.9
+jax>=0.4.14
 jaxlib
-matplotlib~=3.7.3
-numpy~=1.25.2
-powerbox~=0.7.3
-scipy~=1.11.2
-tqdm~=4.66.1
+matplotlib>=3.7
+numpy>=1.25.2
+powerbox>=0.7.3
+scipy>=1.11.2, <=1.13.1
+tqdm

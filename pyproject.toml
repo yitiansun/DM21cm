@@ -6,11 +6,11 @@ build-backend = "setuptools.build_meta"
 name = "dm21cm"
 version = "0.0.0.20241004"
 readme = "README.md"
-description = "DM21cm"
+description = "DM21cm test build"
 requires-python = ">=3.10"
 dependencies = [
     "astropy>=5.3",
-    "darkhistory>=1.1.2"
+    "darkhistory>=1.1.2",
     "h5py>=3.9",
     "jax>=0.4.14",
     "jaxlib",
@@ -28,13 +28,22 @@ Homepage = "https://github.com/yitiansun/dm21cm"
 include = [
     "dm21cm",
     "examples",
+    "resources",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "matplotlibrc"
 ]
 exclude = [
-    "tests",
-    "dist",
     "build",
+    "build_tf",
+    "dist",
+    "cooling",
+    "cross_check",
+    "data",
+    "outputs",
+    "plotting",
+    "preprocessing",
+    "tests",
     "*.pyc",
     "*.pyo",
     "__pycache__"

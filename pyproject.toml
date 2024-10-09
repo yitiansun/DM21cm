@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dm21cm"
-version = "0.0.0.20241004"
+version = "1.1.0.20241004"
 readme = "README.md"
 description = "DM21cm test build"
 requires-python = ">=3.10"
@@ -34,12 +34,15 @@ include = [
     "matplotlibrc"
 ]
 exclude = [
+    "benchmarking",
     "build",
     "build_tf",
-    "dist",
     "cooling",
     "cross_check",
     "data",
+    "dist",
+    "dm21cm.egg-info",
+    "notebooks",
     "outputs",
     "plotting",
     "preprocessing",

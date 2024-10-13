@@ -4,10 +4,7 @@
 
 <p align="center"><img src="resources/logo.gif" /></p>
 
-## HERA sensitivity to dark matter monochromatic decays in 21-cm power spectrum
-<img src="resources/limits.png" width="1000"/>
-
-## Usage
+# Usage
 
 ```python
 from dm21cm.injections.decay import DMDecayInjection
@@ -20,9 +17,9 @@ return_dict = evolve(
     z_start = 45.,
     z_end = 5.,
     injection = DMDecayInjection(
-        primary='phot_delta',
-        m_DM=1e8, # [eV]
-        lifetime=1e28, # [s]
+        primary = 'phot_delta',
+        m_DM = 1e8, # [eV]
+        lifetime = 1e28, # [s]
     ),
     p21c_initial_conditions = p21c.initial_conditions(
         user_params = p21c.UserParams(
@@ -34,31 +31,38 @@ return_dict = evolve(
 )
 ```
 
-## Installation
+# Installation
 
-### Prerequisite: DarkHistory
-- Clone the DarkHistory repository [here](https://github.com/hongwanliu/DarkHistory/tree/DM21cm). Checkout branch `DM21cm`.
-- Install the require packages via `pip install -r requirements.txt`.
-- Set environment variable `DH_DIR` to point to the project folder (directory containing `README.md`).
-- Set environment variable `DH_DATA_DIR` to point to the DarkHistory data (v1.1) folder (directory containing `binning.p`). The data files can be downloaded [here](https://zenodo.org/records/6819310).
+### 1. Create a virtual environment
+- We recommend creating a new environment for `DM21cm` and its dependencies. To do so via `conda`, run
+```bash
+conda create -n dm21cm python=3.12 pip
+```
 
-### Prerequisite: 21cmFAST
-- Clone the 21cmFAST fork [here](https://github.com/joshwfoster/21cmFAST). Checkout branch `master`.
-- Install 21cmFAST according to README.md
-  - Install gcc and have environment variable `CC` point to the binary.
-  - Install gsl (GNU Scientific Library) and have `GSL_LIB` point to the directory of the library.
-  - Install fftw and have `FFTW_INC` point to the directory containing fftw header files.
-  - Install `21cmFAST` via `pip install .` in the project directory.
-- Set environment variable `P21C_CACHE_DIR` to a directory for storing cached files (requries at least 10G for a 128^3 box 1.01 redshift step run).
+### 2. Install the modified 21cmFAST
+- Clone the `21cmFAST` fork [here](https://github.com/joshwfoster/21cmFAST). Checkout branch `master`.
+- Make sure `gcc` is available through the environment variable `CC`. This can be set via `export CC=/path/to/gcc/binary` in your `~/.bashrc` file, for example.
+- Make sure the GNU Scientific Library (GSL) is avaiable. Set the environment variable `GSL_LIB` to the directory of the library.
+- Make sure `fftw` is available. Set the environment variable `FFTW_INC` to the directory containing FFTW headers.
+- Install `21cmFAST` from the project directory
+```bash
+pip install .
+```
+- Set the environment variable `P21C_CACHE_DIR` to a directory to store cache files.
 
-### DM21cm
-- Clone this repository. Checkout branch `main`.
-- Download data files from [here](https://doi.org/10.5281/zenodo.10397814).
-- Install the require packages via `pip install -r requirements.txt`. We recommend installing `JAX` according to your hardware (e.g. GPU) specification.
-- Set environment variable `DM21CM_DIR` to point to the project folder (directory containing `README.md`).
-- Set environment variable `DM21CM_DATA_DIR` to point to the data folder (directory containing `abscissas.h5`).
+### 3. Install DM21cm and DarkHistory (WIP)
 
-## Defining your custom injection
+- For GPU acceleration, install `jax>=0.4.14` according to your hardware specifications. See [JAX's repository](https://github.com/jax-ml/jax) for a guide. CPU-only installs can skip this step.
+- Install `DM21cm` and associated packages (including `DarkHistory`) by
+```bash
+pip install dm21cm
+```
+- Download the data files required to run `DarkHistory` [here](), and set the environment variable `DH_DATA_DIR` to the directory.
+- Download the data files required to run `DM21cm` [here](), and set the environment variable `DM21CM_DATA_DIR` to the directory.
+- `DM21cm` should be available to run! You can test it with the example code above.
+
+
+# Defining your custom injection
 
 ```python
 import dm21cm.physics as phys
@@ -132,5 +136,8 @@ class CustomInjection (Injection):
         }
 ```
 
-## Authors
+# HERA sensitivity to dark matter monochromatic decays in 21-cm power spectrum
+<img src="resources/limits.png" width="1000"/>
+
+# Authors
 Yitian Sun, Joshua W. Foster, Hongwan Liu, Julian B. Muñoz, and Tracy R. Slatyer

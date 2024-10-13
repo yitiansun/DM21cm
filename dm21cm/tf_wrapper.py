@@ -91,11 +91,11 @@ class TransferFunctionWrapper:
         """Inject photons into (prop_phot_N,) emit_phot_N, and dep_box.
 
         Args:
-            in_spec (Spectrum): Input photon spectrum.
+            in_spec (Spectrum): Input photon spectrum. In 'N' mode, [N / Bavg].
             inject_type {'bath', 'ots', 'xray'}: Injection type.
-            weight_box (ndarray): Injection weight box.
+            weight_box (ndarray): Injection weight box. Dimensionless.
         """
-        unif_norm = 1 / self.box_dim**3
+        unif_norm = 1 / self.box_dim**3 # convert sum to average
 
         # Apply phot_prop_tf
         if inject_type == 'bath':
@@ -130,10 +130,10 @@ class TransferFunctionWrapper:
         """Inject electrons into emit_phot_N and dep_box.
 
         Args:
-            in_spec (Spectrum): Input electron spectrum.
-            weight_box (ndarray): Injection weight box.
+            in_spec (Spectrum): Input electron spectrum. In 'N' mode, [N / Bavg].
+            weight_box (ndarray): Injection weight box. Dimensionless.
         """
-        unif_norm = 1 / self.box_dim**3
+        unif_norm = 1 / self.box_dim**3 # convert sum to average
 
         self.emit_phot_N += unif_norm * self.elec_scat_tf(
             in_spec=in_spec.N, sum_result=True, sum_weight=weight_box.ravel(), **self.tf_kwargs

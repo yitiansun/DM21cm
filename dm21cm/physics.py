@@ -4,6 +4,8 @@ import os
 import sys
 import numpy as np
 from astropy.cosmology import Planck18 as cosmo
+from astropy.cosmology import z_at_value
+from astropy import units as u
 from astropy import constants as const
 from scipy import interpolate
 from scipy import integrate
@@ -176,15 +178,12 @@ def dt_step(z, zplusone_factor):
     return np.abs((cosmo.age(z) - cosmo.age(z_next)).to('s').value)
 
 def t_z(z):
-    """Convert redshift to time [s].
-
-    Args:
-        rs (float): The redshift of interest (rs = 1+z).
-
-    Returns:
-        float: Time in s.
-    """
+    """Convert redshift to time [s]."""
     return cosmo.age(z).to('s').value
+
+def z_t(t):
+    """Convert time [s] to redshift."""
+    return z_at_value(cosmo.age, t * u.s, zmax=1e4).value
 
 
 #===== Dark Matter =====

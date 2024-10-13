@@ -33,20 +33,20 @@ class ZeroInjection (Injection):
         }
 
     #===== injections =====
-    def inj_rate(self, z):
+    def inj_rate(self, z_start, z_end=None):
         return 1e-100
     
-    def inj_power(self, z):
+    def inj_power(self, z_start, z_end=None):
         return 1e-100
     
-    def inj_phot_spec(self, z, **kwargs):
+    def inj_phot_spec(self, z_start, z_end=None, **kwargs):
         return self.zero_phot_spec
     
-    def inj_elec_spec(self, z, **kwargs):
+    def inj_elec_spec(self, z_start, z_end=None, **kwargs):
         return self.zero_elec_spec
     
-    def inj_phot_spec_box(self, z, delta_plus_one_box=None, **kwargs):
+    def inj_phot_spec_box(self, z_start, z_end=None, delta_plus_one_box=None, **kwargs):
         return self.zero_phot_spec, delta_plus_one_box
 
-    def inj_elec_spec_box(self, z, delta_plus_one_box=None, **kwargs):
+    def inj_elec_spec_box(self, z_start, z_end=None, delta_plus_one_box=None, **kwargs):
         return self.zero_elec_spec, delta_plus_one_box

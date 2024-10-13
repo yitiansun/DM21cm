@@ -60,14 +60,32 @@ class DarkHistoryWrapper:
         # Custom injection API of DarkHistory
         start_rs = 3000
         coarsen_factor = 10
-        if self.injection.mode == 'PBH':
-            self.injection.init_final_inj(self.get_evolve_z_s(start_rs, end_rs, coarsen_factor))
+
+        def input_in_spec_phot(rs, next_rs=None, dt=None):
+            """Injected photon spectrum per injection event [phot / inj]."""
+            z_end = next_rs - 1 if next_rs is not None else None
+            return self.injection.inj_phot_spec(rs-1, z_end=z_end) / self.injection.inj_rate(rs-1, z_end=z_end)
+        
+        def input_in_spec_elec(rs, next_rs=None, dt=None):
+            """Injected electron spectrum per injection event [elec / inj]."""
+            z_end = next_rs - 1 if next_rs is not None else None
+            return self.injection.inj_elec_spec(rs-1, z_end=z_end) / self.injection.inj_rate(rs-1, z_end=z_end)
+        
+        def input_rate_func_N(rs, next_rs=None, dt=None):
+            """Injection event rate density [inj / pcm^3 s]."""
+            z_end = next_rs - 1 if next_rs is not None else None
+            return self.injection.inj_rate(rs-1, z_end=z_end)
+        
+        def input_rate_func_eng(rs, next_rs=None, dt=None):
+            """Injection power density [eV / pcm^3 s]."""
+            z_end = next_rs - 1 if next_rs is not None else None
+            return self.injection.inj_power(rs-1, z_end=z_end)
 
         default_kwargs = dict(
-            in_spec_phot = lambda rs: self.injection.inj_phot_spec(rs-1) / self.injection.inj_rate(rs-1), # [phot / inj]
-            in_spec_elec = lambda rs: self.injection.inj_elec_spec(rs-1) / self.injection.inj_rate(rs-1), # [elec / inj]
-            rate_func_N   = lambda rs: self.injection.inj_rate(rs-1), # [inj / pcm^3 s]
-            rate_func_eng = lambda rs: self.injection.inj_power(rs-1), # [eV / pcm^3 s]
+            in_spec_phot  = input_in_spec_phot, # [phot / inj]
+            in_spec_elec  = input_in_spec_elec, # [elec / inj]
+            rate_func_N   = input_rate_func_N,  # [inj / pcm^3 s]
+            rate_func_eng = input_rate_func_eng, # [eV / pcm^3 s]
             start_rs = start_rs, end_rs = end_rs, coarsen_factor = coarsen_factor, verbose = 1,
             clean_up_tf = True,
         ) # default parameters use case B coefficients
@@ -101,22 +119,22 @@ class DarkHistoryWrapper:
 
         return T_k, x_e, spec
     
-    def get_evolve_z_s(self, start_rs, end_rs, coarsen_factor, dlnz=0.001):
-        """Returns redshift array for DarkHistory injection steps, plus a final boundary z.
+    # def get_evolve_z_s(self, start_rs, end_rs, coarsen_factor, dlnz=0.001):
+    #     """Returns redshift array for DarkHistory injection steps, plus a final boundary z.
         
-        Args:
-            start_rs (float): Starting redshift rs = 1 + z.
-            end_rs (float): Final redshift rs = 1 + z.
-            coarsen_factor (int): Coarsening factor. See darkhistory.main.evolve.
-            dlnz (float): Redshift log step size for redshift array. See darkhistory.main.evolve.
+    #     Args:
+    #         start_rs (float): Starting redshift rs = 1 + z.
+    #         end_rs (float): Final redshift rs = 1 + z.
+    #         coarsen_factor (int): Coarsening factor. See darkhistory.main.evolve.
+    #         dlnz (float): Redshift log step size for redshift array. See darkhistory.main.evolve.
 
-        Returns:
-            z_s (array): Redshift array at which injection happens, plus a final boundary z.
-        """
-        rs_s = []
-        rs = start_rs
-        while rs > end_rs:
-            rs_s.append(rs)
-            rs = np.exp(np.log(rs) - dlnz * coarsen_factor)
-        rs_s.append(rs)
-        return np.array(rs_s) - 1
+    #     Returns:
+    #         z_s (array): Redshift array at which injection happens, plus a final boundary z.
+    #     """
+    #     rs_s = []
+    #     rs = start_rs
+    #     while rs > end_rs:
+    #         rs_s.append(rs)
+    #         rs = np.exp(np.log(rs) - dlnz * coarsen_factor)
+    #     rs_s.append(rs)
+    #     return np.array(rs_s) - 1

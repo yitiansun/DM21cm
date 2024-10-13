@@ -154,8 +154,6 @@ def evolve(run_name,
         spin_temp.Tk_box += T_k_DH_init - np.mean(spin_temp.Tk_box)
         spin_temp.x_e_box += x_e_DH_init - np.mean(spin_temp.x_e_box)
         ionized_box.xH_box = 1 - spin_temp.x_e_box
-        if injection.mode == 'PBH':
-            injection.init_final_inj(z_edges) # after darkhistory evolution, for DM21cm
     else:
         phot_bath_spec = Spectrum(abscs['photE'], np.zeros_like(abscs['photE']), spec_type='N', rs=1+z_match) # [ph / Bavg]
     if injection:
@@ -243,13 +241,13 @@ def evolve(run_name,
             #--- injection (on-the-spot) ---
             n_Bavg = phys.n_B * (1 + z_current)**3 # [Bavg / pcm^3]
 
-            inj_rate_spec, weight_box = injection.inj_phot_spec_box(z_current, delta_plus_one_box=delta_plus_one_box)
+            inj_rate_spec, weight_box = injection.inj_phot_spec_box(z_current, z_end=z_next, delta_plus_one_box=delta_plus_one_box)
             if homogenize_injection:
                 weight_box = jnp.full_like(weight_box, jnp.mean(weight_box))
             tfs.inject_phot(inj_rate_spec * dt / n_Bavg, weight_box=weight_box, inject_type='ots') # ingoing spec has [phot / Bavg]
 
             if injection.is_injecting_elec():
-                inj_rate_spec, weight_box = injection.inj_elec_spec_box(z_current, delta_plus_one_box=delta_plus_one_box)
+                inj_rate_spec, weight_box = injection.inj_elec_spec_box(z_current, z_end=z_next, delta_plus_one_box=delta_plus_one_box)
                 if homogenize_injection:
                     weight_box = jnp.full_like(weight_box, jnp.mean(weight_box))
                 tfs.inject_elec(inj_rate_spec * dt / n_Bavg, weight_box=weight_box)

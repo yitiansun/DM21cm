@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=fid_debug
+#SBATCH --job-name=zero
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks=1
@@ -17,4 +17,4 @@ source /n/home07/yitians/setup/dm21cm.sh
 
 cd /n/home07/yitians/dm21cm/DM21cm/scripts
 
-python bkg_script.py -r fid_test -i -1
+python bkg_script.py -r bkg_cmp_20241014 -i -1

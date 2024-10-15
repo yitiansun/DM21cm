@@ -188,6 +188,6 @@ return_dict['lightcone']._write(fname=lc_filename, direc=save_dir, clobber=True)
 
 print('\n===== Clear Cache =====')
 
-for entry in os.scandir(cache_dir):
-    if entry.is_file() and entry.name.endswith('.h5') and entry.name != 'lightcones.h5':
-        os.remove(entry.path)
+# for entry in os.scandir(cache_dir):
+#     if entry.is_file() and entry.name.endswith('.h5') and entry.name != 'lightcones.h5':
+#         os.remove(entry.path)

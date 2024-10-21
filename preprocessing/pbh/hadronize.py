@@ -11,6 +11,19 @@ from pppc import get_pppc_tf
 from read import read_pbh
 
 
+#===== main =====
+
+def main():
+
+    log10m_list = [15, 16.5, 18]
+
+    for log10m in log10m_list:
+        ddir = f"/n/home07/yitians/dm21cm/blackhawk/BlackHawk_v2.3/results/m{log10m:.3f}_pri"
+
+        print(f'{log10m:.3f}', end=' ')
+        hadronize(ddir)
+
+
 #===== transfer function =====
 
 dh_pri_dict = {
@@ -133,3 +146,8 @@ def hadronize(ddir):
     np.savetxt(f"{ddir}/nugr_secondary_spectrum.txt", pack_data(dNdEdt_nugr, eng, t), header='PPPC hadronization')
 
     return
+
+
+if __name__ == '__main__':
+    
+    main()

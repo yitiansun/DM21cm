@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import astropy.units as u
+import astropy.constants as c
 
 def output_specs(results_dir):
     fl = os.listdir(results_dir)
@@ -68,3 +69,39 @@ def read_pbh(results_dir, data_type, particle=None):
     
     else:
         raise ValueError(f"Invalid data_type: {data_type}.")
+
+
+def run_dir(version=None, log10m=None, hadron_code=None):
+    return f"/n/home07/yitians/dm21cm/blackhawk/BlackHawk_{version}/results/m{log10m:.3f}_{hadron_code}"
+
+
+def get_E_t(particle, pri_or_sec, **kwargs):
+    rdir = run_dir(**kwargs)
+    if particle == 'total':
+
+        spec = read_pbh(rdir, 'primary', particle='graviton')
+        spec_tot_eng = np.trapz(spec['dN_dEdt'] * spec['E'][None, :], x=spec['E'], axis=-1)
+
+        if pri_or_sec == 'primary':
+            p_list = [f.split('_')[0] for f in os.listdir(rdir) if '_primary_' in f and 'graviton' not in f]
+        elif pri_or_sec == 'secondary':
+            if kwargs['hadron_code'] in ['pythia']:
+                p_list = ['photon', 'electron', 'proton', 'nu_e', 'nu_mu', 'nu_tau']
+            elif kwargs['hadron_code'] in ['hazma']:
+                p_list = ['photon', 'electron']
+            elif kwargs['hadron_code'] in ['pri']:
+                p_list = ['photon', 'electron', 'nugr']
+            else:
+                raise ValueError(f"Invalid hadron code.")
+        else:
+            raise ValueError(f"Invalid primary/secondary.")
+        
+        for p in p_list:
+            spec = read_pbh(rdir, pri_or_sec, particle=p)
+            spec_tot_eng += np.trapz(spec['dN_dEdt'] * spec['E'][None, :], x=spec['E'], axis=-1)
+        spec_tot_eng = (spec_tot_eng * u.eV / c.c**2).to('g').value
+    else:
+        spec = read_pbh(rdir, pri_or_sec, particle=particle)
+        spec_tot_eng = np.trapz(spec['dN_dEdt'] * spec['E'][None, :], x=spec['E'], axis=-1)
+        spec_tot_eng = (spec_tot_eng * u.eV / c.c**2).to('g').value
+    return spec['t'], spec_tot_eng

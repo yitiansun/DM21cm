@@ -10,7 +10,7 @@ import py21cmfast as p21c
 
 WDIR = os.environ['DM21CM_DIR']
 sys.path.append(WDIR)
-from dm21cm.injections.pbh import PBHInjection
+from dm21cm.injections.pbh import PBHHRInjection
 from dm21cm.evolve import evolve
 
 
@@ -35,7 +35,7 @@ if __name__ == '__main__':
         run_name = run_name,
         z_start = 45.,
         z_end = 5.,
-        injection = PBHInjection(
+        injection = PBHHRInjection(
             m_PBH=1e15, # [g]
             f_PBH=args.f_PBH,
         ),

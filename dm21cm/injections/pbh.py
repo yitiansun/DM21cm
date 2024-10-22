@@ -18,11 +18,11 @@ from dm21cm.injections.base import Injection
 import dm21cm.physics as phys
 from dm21cm.utils import load_h5_dict
 
-data_dir = f'{WDIR}/data/pbh'
+data_dir = f'{WDIR}/data'
 
 
-class PBHInjection (Injection):
-    """Primordial Black Hole (PBH) injection object. See parent class for details.
+class PBHHRInjection (Injection):
+    """Primordial Black Hole (PBH) Hawking radiation (HR) injection object. See parent class for details.
 
     Args:
         m_PBH (float): PBH mass in [g].
@@ -30,7 +30,7 @@ class PBHInjection (Injection):
     """
 
     def __init__(self, m_PBH, f_PBH=1.):
-        self.mode = 'PBH'
+        self.mode = 'PBH-HR'
         self.m_PBH = m_PBH # [g]
         self.f_PBH = f_PBH
         self.inj_per_sec = 1. # [inj / s] | convention: 1 injection event per second
@@ -40,7 +40,7 @@ class PBHInjection (Injection):
 
         #----- Load PBH data -----
         try:
-            self.data = load_h5_dict(f'{data_dir}/pbh_logm{np.log10(m_PBH):.3f}.h5')
+            self.data = load_h5_dict(f'{data_dir}/pbh-hr/pbh_logm{np.log10(m_PBH):.3f}.h5')
         except FileNotFoundError:
             raise FileNotFoundError(f'PBH data for log10(m_PBH/g)={np.log10(m_PBH):.3f} not found.')
         

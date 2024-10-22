@@ -82,7 +82,7 @@ def pwave_elec_c_sigma(m):
     log10c = bezier_curve([[6.5, -23], [10.5, -20], [12, -14.5]], log10m)
     return 10 ** log10c
 
-def pbh_f(m):
+def pbh_hr_f(m):
     """PBH fraction step size [1] for a given PBH mass [g]."""
     log10m = np.log10(m)
     l_func = lambda x: - 8 * (x - 14) - 16

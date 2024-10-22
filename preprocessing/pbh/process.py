@@ -32,18 +32,20 @@ def interp_dNdEdt(t_s, src_E, src_dNdEdt, tar_Ek, mass=0):
 
 if __name__ == '__main__':
 
-    results_dir = '/n/home07/yitians/dm21cm/blackhawk/BlackHawk_v2.2/results'
-    logm_s = [float(f.split('m')[1].split('_sec')[0]) for f in os.listdir(results_dir)]
+    results_dir = '/n/home07/yitians/dm21cm/blackhawk/BlackHawk_v2.3/results'
+    f_list = [f for f in os.listdir(results_dir) if f.startswith('m') and f.endswith('_pri')]
+    logm_s = [float(f.split('m')[1].split('_pri')[0]) for f in f_list]
     logm_s.sort()
-    print('Processing ', logm_s)
+    print('Processing log10m = ', logm_s)
+    input('(enter) > ')
 
     abscs = load_h5_dict(f"{os.environ['DM21CM_DATA_DIR']}/abscissas.h5")
 
     for logm in logm_s:
 
-        print(f'Processing logm = {logm:.3f}...', end='', flush=True)
+        print(f'Processing log10m = {logm:.3f}...', end='', flush=True)
 
-        run_name = f'm{logm:.3f}_sec'
+        run_name = f'm{logm:.3f}_pri'
         run_dir = f"{results_dir}/{run_name}"
 
         evol_data = read_pbh(run_dir, 'evolution')
@@ -67,6 +69,6 @@ if __name__ == '__main__':
             'elec dNdEdt': dNdEdt_elec_sec,
             'units' : 't: [s]; dNdEdt: [1/eV s BH]; M: [g]; M0: [g]'
         }
-        save_h5_dict(f"{os.environ['DM21CM_DIR']}/data/pbh/pbh_logm{logm:.3f}.h5", data)
+        save_h5_dict(f"{os.environ['DM21CM_DIR']}/data/pbh-hr/pbh_logm{logm:.3f}.h5", data)
 
-        print('Done!', flush=True)
+        print('done!', flush=True)

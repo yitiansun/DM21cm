@@ -9,9 +9,9 @@ import py21cmfast as p21c
 WDIR = os.environ['DM21CM_DIR']
 sys.path.append(WDIR)
 from dm21cm.evolve import evolve
-from dm21cm.injections.pbh import PBHInjection
+from dm21cm.injections.pbh import PBHHRInjection
 from dm21cm.injections.dm import DMDecayInjection, DMPWaveAnnihilationInjection
-from preprocessing.step_size import pbh_f, pwave_phot_c_sigma, pwave_elec_c_sigma
+from preprocessing.step_size import pbh_hr_f, pwave_phot_c_sigma, pwave_elec_c_sigma
 
 
 
@@ -71,10 +71,12 @@ elif args.channel.startswith('pwave'):
         primary = 'elec_delta'
     else:
         raise ValueError('Invalid channel')
+    
+    inj_multiplier_s = [1, 2]
 
     m_DM = m_DM_s[mass_ind]
     c_sigma = c_s[mass_ind]
-    inj_multiplier = inj_ind + 1 # 1 or 2
+    inj_multiplier = inj_multiplier_s[inj_ind]
     injection = DMPWaveAnnihilationInjection(
         primary = primary,
         m_DM = m_DM,
@@ -83,17 +85,16 @@ elif args.channel.startswith('pwave'):
     )
     m_fn = m_DM
 
-elif args.channel == 'pbh':
+elif args.channel == 'pbh-hr':
 
-    log10m_PBH_s = np.linspace(13.5, 18, 19)
-    m_PBH_s = 10 ** log10m_PBH_s # [g]
-    f_PBH_s = pbh_f(m_PBH_s) # [1]
-    mass_ind, inj_ind = np.unravel_index(args.run_index, (len(m_PBH_s), 2))
-    inj_multiplier = inj_ind + 1
-    log10m_PBH = log10m_PBH_s[mass_ind]
-    m_PBH = m_PBH_s[mass_ind]
-    f_PBH = f_PBH_s[mass_ind] * inj_multiplier
-    injection = PBHInjection(
+    log10m_PBH_s = np.array([13.5, 15., 16.5, 18.])
+    inj_multiplier_s = [1, 2]
+
+    mass_ind, inj_ind = np.unravel_index(args.run_index, (len(log10m_PBH_s), 2))
+    m_PBH = 10 ** log10m_PBH_s[mass_ind] # [g]
+    inj_multiplier = inj_multiplier_s[inj_ind]
+    f_PBH = pbh_hr_f(m_PBH) * inj_multiplier # [1]
+    injection = PBHHRInjection(
         m_PBH = m_PBH,
         f_PBH = f_PBH,
     )
@@ -187,6 +188,9 @@ return_dict['lightcone']._write(fname=lc_filename, direc=save_dir, clobber=True)
 
 
 print('\n===== Clear Cache =====')
+
+print("cache_dir:", cache_dir)
+print("cache currently not cleared")
 
 # for entry in os.scandir(cache_dir):
 #     if entry.is_file() and entry.name.endswith('.h5') and entry.name != 'lightcones.h5':

@@ -15,7 +15,7 @@ from read import read_pbh
 
 def main():
 
-    log10m_list = [15, 16.5, 18]
+    log10m_list = [13.25, 13.75, 14.25, 14.75, 15.25, 15.75, 16.25, 16.75, 17.25, 17.75]
 
     for log10m in log10m_list:
         ddir = f"/n/home07/yitians/dm21cm/blackhawk/BlackHawk_v2.3/results/m{log10m:.3f}_pri"

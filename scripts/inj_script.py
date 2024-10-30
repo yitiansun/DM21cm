@@ -87,7 +87,8 @@ elif args.channel.startswith('pwave'):
 
 elif args.channel == 'pbh-hr':
 
-    log10m_PBH_s = np.array([13.5, 15., 16.5, 18.])
+    # log10m_PBH_s = np.array([13.5, 15., 16.5, 18.])
+    log10m_PBH_s = np.array([14, 14.5, 15.5, 16, 17, 17.5])
     inj_multiplier_s = [1, 2]
 
     mass_ind, inj_ind = np.unravel_index(args.run_index, (len(log10m_PBH_s), 2))

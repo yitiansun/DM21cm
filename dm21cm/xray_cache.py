@@ -6,18 +6,12 @@ import h5py
 import pickle
 import numpy as np
 
+from jax.numpy import fft
+import jax.numpy as jnp
+
 sys.path.append(os.environ['DM21CM_DIR'])
 import dm21cm.physics as phys
 from dm21cm.utils import init_logger
-
-
-USE_JAX_FFT = True
-if USE_JAX_FFT:
-    from jax.numpy import fft
-    import jax.numpy as jnp
-else:
-    from numpy import fft
-    jnp = np
 
 EPSILON = 1e-6
 
@@ -67,8 +61,8 @@ class XrayCache:
 
     Args:
         data_dir (str): Path to the cache directory.
-        box_dim (int): The dimension of the box.
-        dx (float): The size of each cell [cfMpc].
+        box_dim (int): Cell number on a side of the box.
+        dx (float): The size of each cell [cMpc].
         load_snapshot (bool): If True, load the snapshot at data_dir/xray_cache_snapshot.p.
 
     Attributes:

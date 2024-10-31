@@ -52,6 +52,9 @@ def interp_between(l_func, r_func, l_bound, r_bound, x):
 
 #===== step sizes =====
 
+decay_phot_log10m_s = np.linspace(1.5, 12, 22) # runs for 2312 paper
+decay_elec_log10m_s = np.linspace(6.5, 12, 23) # runs for 2312 paper
+
 def decay_phot_lifetime(m):
     """Decay to photons lifetime step size [s] for a given DM mass [eV]."""
     p = np.array([-0.38111888, 29.96460369])

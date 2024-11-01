@@ -5,22 +5,8 @@ import logging
 import h5py
 
 
-# def load_h5_dict(fn):
-#     """Load a dictionary from an HDF5 file."""
-#     d = {}
-#     with h5py.File(fn, 'r') as hf:
-#         for k, v in hf.items():
-#             d[k] = v[()]
-#     return d
-
-# def save_h5_dict(fn, d):
-#     """Save a dictionary to an HDF5 file."""
-#     with h5py.File(fn, 'w') as hf:
-#         for key, item in d.items():
-#             hf.create_dataset(key, data=item)
-
 def load_h5_dict(filename):
-    """Load an HDF5 file into a (nested) dictionary."""
+    """Load an HDF5 file into a (nested) dictionary with auto conversion of byte strings to normal strings."""
     
     def recursive_load(group):
         """Recursive function to load a group from an HDF5 file into a nested dictionary."""
@@ -29,12 +15,14 @@ def load_h5_dict(filename):
             if isinstance(item, h5py.Group):
                 result[key] = recursive_load(item)
             else:
-                result[key] = item[()]  # Load the dataset (use [()] to retrieve the actual data)
+                data = item[()]
+                if isinstance(data, bytes):
+                    data = data.decode('utf-8')  # Convert byte strings to normal strings
+                result[key] = data
         return result
 
     with h5py.File(filename, 'r') as hf:
         return recursive_load(hf)
-
 
 def save_h5_dict(filename, data):
     """Save a (nested) dictionary to an HDF5 file."""

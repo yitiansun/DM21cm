@@ -109,9 +109,32 @@ print('injection:', injection)
 
 
 
-print('\n===== Default parameters =====')
+print('\n===== Save paths =====')
 
 box_len = max(256, 2 * args.box_dim)
+
+run_name = args.run_name
+run_subname = f'log10m{np.log10(m_fn):.3f}_injm{inj_multiplier}'
+run_fullname = f'{run_name}_{run_subname}'
+lc_filename = f'LightCone_z5.0_HIIDIM={args.box_dim}_BOXLEN={box_len}_fisher_DM_{inj_multiplier}_r54321.h5'
+
+save_dir = f'/n/holylabs/LABS/iaifi_lab/Users/yitians/dm21cm/outputs/{run_name}/log10m{np.log10(m_fn):.3f}/'
+os.makedirs(save_dir, exist_ok=True)
+
+cache_dir = os.path.join(os.environ['P21C_CACHE_DIR'], run_fullname)
+p21c.config['direc'] = cache_dir
+os.makedirs(cache_dir, exist_ok=True)
+
+print('run_name:', run_name)
+print('run_subname:', run_subname)
+print('run_fullname:', run_fullname)
+print('lc_filename:', lc_filename)
+print('save_dir:', save_dir)
+print('cache_dir:', cache_dir)
+
+
+
+print('\n===== Default parameters =====')
 
 p21c.global_params.CLUMPING_FACTOR = 1.
 
@@ -126,28 +149,6 @@ astro_params = p21c.AstroParams(param_dict)
 print('box_len:', box_len)
 print('global_params:', p21c.global_params)
 print('astro_params:', astro_params)
-
-
-
-print('\n===== Save paths =====')
-
-run_name = args.run_name
-run_subname = f'log10m{np.log10(m_fn):.3f}_injm{inj_multiplier}'
-run_fullname = f'{run_name}_{run_subname}'
-lc_filename = f'LightCone_z5.0_HIIDIM={args.box_dim}_BOXLEN={box_len}_fisher_DM_{inj_multiplier}_r54321.h5'
-
-save_dir = f'/n/holylabs/LABS/iaifi_lab/Users/yitians/dm21cm/outputs/{run_name}/log10m{np.log10(m_fn):.3f}/'
-os.makedirs(save_dir, exist_ok=True)
-
-cache_dir = os.path.join(os.environ['P21C_CACHE_DIR'], run_fullname)
-p21c.config['direc'] = cache_dir
-
-print('run_name:', run_name)
-print('run_subname:', run_subname)
-print('run_fullname:', run_fullname)
-print('lc_filename:', lc_filename)
-print('save_dir:', save_dir)
-print('cache_dir:', cache_dir)
 
 
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=ph
+#SBATCH --job-name=pbh-hr
 #SBATCH --array=0-11
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1

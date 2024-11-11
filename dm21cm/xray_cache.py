@@ -156,12 +156,9 @@ class XrayCache:
         # Construct the smoothing functions in the frequency domain
         W1 = 3*(jnp.sin(self.kMag*R1) - self.kMag*R1 * jnp.cos(self.kMag*R1)) / (self.kMag*R1)**3
         W2 = 3*(jnp.sin(self.kMag*R2) - self.kMag*R2 * jnp.cos(self.kMag*R2)) / (self.kMag*R2)**3
-        if USE_JAX_FFT:
-            W1.at[0, 0, 0].set(1.)
-            W2.at[0, 0, 0].set(1.)
-        else:
-            W1[0, 0, 0] = 1.
-            W2[0, 0, 0] = 1.
+
+        W1.at[0, 0, 0].set(1.)
+        W2.at[0, 0, 0].set(1.)
 
         # Combine the window functions
         W = w2*W2 - w1*W1

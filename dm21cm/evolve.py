@@ -103,9 +103,6 @@ def evolve(run_name,
 
     if injection:
         injection.set_binning(abscs)
-        if injection.mode == 'DM p-wave annihilation' and injection.big_halo_contribution:
-            logger.warning('This run cannot be resumed.')
-            injection.init_delta_cache(data_dir=cache_dir, box_dim=box_dim, dx=box_len/box_dim)
 
         tfs = TransferFunctionWrapper(
             box_dim = box_dim,
@@ -275,10 +272,6 @@ def evolve(run_name,
             else:
                 xray_rel_eng_box = np.zeros_like(tfs.xray_eng_box) # [1 (relative energy)/Bavg]
             xray_cache.cache(z_current, z_next, xray_spec, xray_rel_eng_box)
-
-            #--- p-wave delta cache ---
-            if injection.mode == 'DM p-wave annihilation' and injection.big_halo_contribution:
-                injection.delta_cache.cache(z_current, z_next, delta_plus_one_box)
 
             profiler.record('prep next')
 

@@ -81,7 +81,7 @@ elif args.channel.startswith('pwave'):
         primary = primary,
         m_DM = m_DM,
         c_sigma = c_sigma * inj_multiplier,
-        cell_size = 2,
+        cell_size = 2, # [cMpc]
     )
     m_fn = m_DM
 

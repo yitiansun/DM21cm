@@ -67,8 +67,10 @@ def get_sigma_v(r, rho_s, r_s, r_delta):
     """Returns sigma_v [pc / s].
     
     Args:
+        r (float): Radius [pc]
+        rho_s (float): Density at scale radius [M_sun / pc^3]
+        r_s (float): Scale radius [pc]
         r_delta (float): Radius at Delta [pc]
-        See nfw_density for other args.
     """
     logr_arr = jnp.linspace(jnp.log(r), jnp.log(r_delta), 300)
     r_arr = jnp.exp(logr_arr)
@@ -88,3 +90,11 @@ def rel_v_disp(r, rho_s, r_s, r_delta):
     v0 = jnp.sqrt(2/3) * sigma_v # [pc / s]
     vsq = 3 * v0**2 + (24/5 * ve**5) / (6 * v0**2 * ve + 4 * ve**3 - 3 * jnp.exp((ve/v0)**2) * jnp.sqrt(jnp.pi) * v0**3 * jsp.special.erf(ve/v0)) # [pc^2 / s^2]
     return vsq
+
+def dm_dm_v_rel_dist_unnorm(r, rho_s, r_s, r_delta):
+    """Returns DM-DM |v_rel| distribution [(pc / s)^-1]. Args see get_sigma_v."""
+    pass
+
+def dm_rest_v_rel_dist_unnorm(r, rho_s, r_s, r_delta):
+    """Returns DM-rest |v_rel| distribution [(pc / s)^-1]. Args see get_sigma_v."""
+    pass

@@ -10,7 +10,7 @@ import jax.scipy as jsp
 #===== Constants =====
 
 _G = c.G.to(u.pc**3/ u.M_sun / u.s**2).value # [pc^3 / M_sun / s^2]
-_C = c.c.to(u.pc/u.s).value # [pc / s]
+# _C = c.c.to(u.pc/u.s).value # [pc / s]
 
 _RHO_C_Z_ARR = jnp.linspace(0, 100, 1000)
 _RHO_C_ARR = cosmo.critical_density(_RHO_C_Z_ARR).to('M_sun / pc^3').value # [M_sun / pc^3]

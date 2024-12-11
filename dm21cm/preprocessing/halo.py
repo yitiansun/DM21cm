@@ -1,4 +1,5 @@
 import numpy as np
+from scipy import interpolate
 import astropy.units as u
 import astropy.constants as c
 from astropy.cosmology import Planck18 as cosmo
@@ -38,7 +39,7 @@ def nfw_info(M, c, z):
     return rho_s, r_s, r_delta
 
 def nfw_density(r, rho_s, r_s):
-    """Returns rho [M_sun / pc^3]
+    """NFW density [M_sun / pc^3]
     
     Args:
         r (float): Radius [pc]
@@ -48,11 +49,11 @@ def nfw_density(r, rho_s, r_s):
     return 4 * rho_s / ((r/r_s) * (1 + r/r_s)**2)
 
 def nfw_enclosed(r, rho_s, r_s):
-    """Returns M_enc [M_sun]. Args see nfw_density."""
+    """M_enc [M_sun]. Args see nfw_density."""
     return 16 * jnp.pi * r_s**3 * rho_s * (-(r / (r + r_s)) - jnp.log(r_s) + jnp.log(r + r_s))
 
 def nfw_phi(r, rho_s, r_s):
-    """Returns phi [pc^2 / s^2]. Args see nfw_density."""
+    """phi [pc^2 / s^2]. Args see nfw_density."""
     return - 16 * jnp.pi * _G * rho_s * r_s**3 / r * jnp.log(1 + r / r_s)
 
 
@@ -72,7 +73,7 @@ def get_sigma_v(r, rho_s, r_s, r_delta):
         r_s (float): Scale radius [pc]
         r_delta (float): Radius at Delta [pc]
     """
-    logr_arr = jnp.linspace(jnp.log(r), jnp.log(r_delta), 300)
+    logr_arr = jnp.linspace(jnp.log(r), jnp.log(r_delta), 1000)
     r_arr = jnp.exp(logr_arr)
     integral = jnp.trapz(r_arr * jeans_integrand(r_arr, rho_s, r_s), logr_arr) # [M_sun^2 / pc^4]
     v_disp = 3 * _G / nfw_density(r, rho_s, r_s) * integral # [pc^2 / s^2]
@@ -80,11 +81,15 @@ def get_sigma_v(r, rho_s, r_s, r_delta):
 
 def get_ve(r, rho_s, r_s, r_delta):
     """Returns v_e [pc / s]. Args see get_sigma_v."""
-    psi = nfw_phi(r_delta, rho_s, r_s)- nfw_phi(r, rho_s, r_s) # [pc^2 / s^2]
+    psi = nfw_phi(r_delta, rho_s, r_s) - nfw_phi(r, rho_s, r_s) # [pc^2 / s^2]
     return jnp.sqrt(2*psi)
 
+def get_v0_jeans(r, rho_s, r_s, r_delta):
+    """Returns v0 [pc / s] for Jeans model (2.21). Args see get_sigma_v."""
+    return jnp.sqrt(2/3) * get_sigma_v(r, rho_s, r_s, r_delta)
+
 def rel_v_disp(r, rho_s, r_s, r_delta):
-    """Returns <v_rel^2> [pc^2 / s^2]. Args see get_sigma_v."""
+    """<v_rel^2> [pc^2 / s^2]. Args see get_sigma_v."""
     ve = get_ve(r, rho_s, r_s, r_delta) # [pc / s]
     sigma_v = get_sigma_v(r, rho_s, r_s, r_delta) # [pc / s]
     v0 = jnp.sqrt(2/3) * sigma_v # [pc / s]
@@ -92,9 +97,40 @@ def rel_v_disp(r, rho_s, r_s, r_delta):
     return vsq
 
 def dm_dm_v_rel_dist_unnorm(r, rho_s, r_s, r_delta):
-    """Returns DM-DM |v_rel| distribution [(pc / s)^-1]. Args see get_sigma_v."""
+    """DM-DM |v_rel| distribution [(pc / s)^-1]. Args see get_sigma_v."""
     pass
 
-def dm_rest_v_rel_dist_unnorm(r, rho_s, r_s, r_delta):
-    """Returns DM-rest |v_rel| distribution [(pc / s)^-1]. Args see get_sigma_v."""
-    pass
+def dm_rest_v_rel_dist_unnorm(v, ve, v0):
+    """DM-rest |v_rel| distribution [(pc / s)^-1] (2.20).
+    
+    Args:
+        v (float): Velocity [pc / s]
+        ve (float): Escape velocity [pc / s]
+        v0 (float): Characteristic velocity [pc / s]
+    """
+    return v**2 * jnp.clip(jnp.exp(- v**2 / v0**2) - jnp.exp(- ve**2 / v0**2), 0, None)
+
+
+#===== HMF utils =====
+
+def fix_cmz_numerical_issues(xs, ys):
+
+    def accepted(xs, ys):
+        m_max = 1.25
+        m_min = 0.75
+        xs_accepted = []
+        ys_accepted = []
+
+        for i, (x, y) in enumerate(zip(xs, ys)):
+            if i == 0:
+                xs_accepted.append(x)
+                ys_accepted.append(y)
+                continue
+            if m_min < y/ys_accepted[-1] and y/ys_accepted[-1] < m_max:
+                xs_accepted.append(x)
+                ys_accepted.append(y)
+        return xs_accepted, ys_accepted
+
+    xas, yas = accepted(xs, ys)
+    ys_fixed = interpolate.interp1d(xas, yas, kind='linear', bounds_error=False, fill_value=np.min(ys))(xs)
+    return xs, ys_fixed

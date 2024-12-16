@@ -3,8 +3,8 @@ from astropy import units as u
 from astropy import constants as c
 
 import jax
+jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp
-from functools import partial
 
 
 #===== M dot: PR and BHL =====

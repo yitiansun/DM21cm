@@ -9,6 +9,8 @@ jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp
 import jax.scipy as jsp
 
+import halomod
+
 #===== Constants =====
 
 _G = c.G.to(u.pc**3/ u.M_sun / u.s**2).value # [pc^3 / M_sun / s^2]
@@ -135,3 +137,12 @@ def fix_cmz_numerical_issues(xs, ys):
     xas, yas = accepted(xs, ys)
     ys_fixed = interpolate.interp1d(xas, yas, kind='linear', bounds_error=False, fill_value=np.min(ys))(xs)
     return xs, ys_fixed
+
+def cmz(m, z, model='Ludlow16'):
+    hm = halomod.DMHaloModel(
+        halo_concentration_model=model,
+        z = z, Mmin = 0., Mmax = 19, dlog10m = 0.025,
+        mdef_model='SOCritical', halo_profile_model = halomod.profiles.NFW
+    )
+    hm_m_s, hm_cmz_s = fix_cmz_numerical_issues(hm.m, hm.cmz_relation)
+    return np.interp(np.log(m), np.log(hm_m_s), hm_cmz_s)

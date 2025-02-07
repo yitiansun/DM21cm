@@ -99,19 +99,32 @@ def rel_v_disp(r, rho_s, r_s, r_delta):
     vsq = 3 * v0**2 + (24/5 * ve**5) / (6 * v0**2 * ve + 4 * ve**3 - 3 * jnp.exp((ve/v0)**2) * jnp.sqrt(jnp.pi) * v0**3 * jsp.special.erf(ve/v0)) # [pc^2 / s^2]
     return vsq
 
-def dm_dm_v_rel_dist_unnorm(r, rho_s, r_s, r_delta):
-    """DM-DM |v_rel| distribution [(pc / s)^-1]. Args see get_sigma_v."""
-    pass
-
 def dm_rest_v_rel_dist_unnorm(v, ve, v0):
-    """DM-rest |v_rel| distribution [(pc / s)^-1] (2.20).
+    """Unnormalized DM-rest |v_rel| distribution v^2 f(v) [(pc / s)^-1] (2.20).
     
     Args:
         v (float): Velocity [pc / s]
         ve (float): Escape velocity [pc / s]
         v0 (float): Characteristic velocity [pc / s]
     """
-    return v**2 * jnp.clip(jnp.exp(- v**2 / v0**2) - jnp.exp(- ve**2 / v0**2), 0, None)
+    f = jnp.exp(- v**2 / v0**2) - jnp.exp(- ve**2 / v0**2)
+    return v**2 * jnp.clip(f, 0, None)
+
+def dm_dm_v_rel_dist_unnorm(v, ve, v0):
+    """Unnormalized DM-DM |v_rel| distribution v^2 f(v) [(pc / s)^-1] (App.A).
+    
+    Args:
+        v (float): Relative velocity [pc / s]
+        ve (float): Escape velocity [pc / s]
+        v0 (float): Characteristic velocity [pc / s]
+    """
+    b = ve / v0
+    u = v / v0
+    f = jnp.sqrt(8*jnp.pi) * jnp.exp(-u**2/2) * jsp.special.erf((2*b-u)/jnp.sqrt(2)) \
+    + 4 / u * jnp.exp(-2*b**2) * (jnp.exp((2*b-u)*u) - 1) \
+    + 8 * jnp.sqrt(jnp.pi) * jnp.exp(-b**2) * (jsp.special.erf(u-b) - jsp.special.erf(b)) \
+    + 2 / 3 * jnp.exp(-2*b**2) * (16*b**3 - 12*b**2*u + u**3 + 24*b - 12*u)
+    return v**2 * jnp.nan_to_num(jnp.clip(f, 0, None))
 
 
 #===== HMF utils =====

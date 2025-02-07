@@ -111,11 +111,11 @@ def Mdot_BHL(M, rho_inf, v, c_in, c_inf):
 
 #===== Luminosity: ADAF & Thin disk =====
 
-def e0_a(ratio, delta):
+def e0_a(Mdot_MdotEdd, delta):
     """epsilon_0 and a according to Table 1 of Xie & Yuan 2012 (Radiative efficiency of hot accretion flows).
     
     Args:
-        ratio (float): ratio = Mdot / Mdot_Edd = Mdot / (10*L_Edd/c^2)
+        Mdot_MdotEdd (float): Mdot / Mdot_Edd = Mdot / (10*L_Edd/c^2)
         delta (float): electron heating fraction
     """
     ratio_range_data = {
@@ -125,14 +125,12 @@ def e0_a(ratio, delta):
         1e-3: jnp.array([7.6e-5, 4.5e-3, 7.1e-3]),
     }
     e0_a_data = {
-        0.5:  jnp.array([[1.58 , 0.65], [0.055, 0.076], [0.17, 1.12]]),
-        0.1:  jnp.array([[0.12 , 0.59], [0.026, 0.27 ], [0.50, 4.53]]),
-        1e-2: jnp.array([[0.069, 0.69], [0.027, 0.54 ], [0.42, 4.85]]),
-        1e-3: jnp.array([[0.065, 0.71], [0.020, 0.47 ], [0.26, 3.67]]),
+        0.5:  jnp.array([[1.58 , 0.65], [0.055, 0.076], [0.17, 1.12], [0.0835, 0]]),
+        0.1:  jnp.array([[0.12 , 0.59], [0.026, 0.27 ], [0.50, 4.53], [0.0761, 0]]),
+        1e-2: jnp.array([[0.069, 0.69], [0.027, 0.54 ], [0.42, 4.85], [0.0798, 0]]),
+        1e-3: jnp.array([[0.065, 0.71], [0.020, 0.47 ], [0.26, 3.67], [0.0740, 0]]),
     }
-    i = jnp.searchsorted(ratio_range_data[delta], ratio)
-    # if i == 3:
-    #     raise ValueError('ratio is too large')
+    i = jnp.searchsorted(ratio_range_data[delta], Mdot_MdotEdd)
     return e0_a_data[delta][i]
 
 
@@ -146,6 +144,14 @@ def L_Edd(M):
     """
     return _L_EDD_UNIT_FACTOR * M
 
+def Mdot_Edd(M):
+    """Eddington accretion rate [M_sun/yr]
+    
+    Args:
+        M (float): Mass of the PBH [M_sun]
+    """
+    return 10 * L_Edd(M)
+
 def L_ADAF(Mdot, M, delta=0.1):
     """ADAF luminosity / c^2 [M_sun/yr]
     
@@ -154,9 +160,9 @@ def L_ADAF(Mdot, M, delta=0.1):
         M (float): Mass of the PBH [M_sun]
         delta (float): electron heating fraction
     """
-    ratio = Mdot / (10 * L_Edd(M))
-    e0, a = e0_a(ratio, delta)
-    epsilon = e0 * ratio**a
+    Mdot_MdotEdd = Mdot / Mdot_Edd(M)
+    e0, a = e0_a(Mdot_MdotEdd, delta)
+    epsilon = e0 * (100 * Mdot_MdotEdd)**a
     return epsilon * Mdot
 
 def L_thin(Mdot, M):

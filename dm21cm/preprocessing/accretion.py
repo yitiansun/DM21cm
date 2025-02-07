@@ -259,7 +259,6 @@ class PBHAccretionModel:
         self.rho_inf_ref = F_BM * (self.rho_m_ref * u.M_sun / u.pc**3).to(u.g/u.cm**3).value # [g/cm^3]
 
 
-
     def L_cosmo_single_PBH(self, z):
         """PBH accretion luminosity due to single PBH not in halos [M_sun/yr]
         
@@ -328,9 +327,9 @@ class PBHAccretionModel:
             c_inf = jnp.sqrt(5/9) * v0 * KM_PER_PC # [km/s]
         
             # v integral
-            v_pc_s = jnp.linspace(1e-3 * v0, ve, 100)
+            v_pc_s = jnp.linspace(1e-3 * v0, 2*ve, 100)
             v_km_s = v_pc_s * KM_PER_PC
-            f_s = halo.dm_rest_v_rel_dist_unnorm(v_pc_s, ve, v0)
+            f_s = halo.dm_dm_v_rel_dist_unnorm(v_km_s, ve*KM_PER_PC, v0*KM_PER_PC)
             f_s /= jnp.trapz(f_s, v_km_s)
             L_s = self.L_func_v(self.m_PBH, rho_inf, v_km_s, self.c_in, c_inf) # [M_sun/yr]
             L_s = jnp.nan_to_num(L_s)

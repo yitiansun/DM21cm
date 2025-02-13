@@ -1,3 +1,5 @@
+"""Halo mass function evaluation."""
+
 import os
 import sys
 from tqdm import tqdm

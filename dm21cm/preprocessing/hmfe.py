@@ -179,7 +179,7 @@ class SigmaMInterpSphere:
             dRdM = R / (3*M)
             return jnp.trapz(k_s * k2P_s * 2 * w.W(k_s, R) * w.dWdR(k_s, R) * dRdM, np.log(k_s))
 
-        self.m_s = jnp.geomspace(M_MIN, M_MAX, res)
+        self.m_s = jnp.geomspace(M_MIN, M_MAX, res) # [M_sun]
         self.sigma_s = sigma_z0_raw(self.m_s)
         self.dsigmasqdm_s = dsigmasqdm_z0_raw(self.m_s)
 
@@ -319,6 +319,9 @@ class HMFEvaluator:
     def dNdM_Conditional(self, MR, deltaR, z):
         """Conditional Press-Schechter mass function.
         See Eq. 7.81 in Galaxy.
+
+        Returns:
+            dNdM : [1/M_sun cMpc^3]
         """
         
         delta2 = deltaR / self.dicke(z)

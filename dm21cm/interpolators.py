@@ -19,7 +19,7 @@ def interp1d(fp, xp, x):
     Args:
         fp (array): n(>=1)D array of function values. First dimension will be interpolated.
         xp (array): 1D array of x values.
-        x (array): x values to interpolate.
+        x (array): anyD array of x values to interpolate.
 
     Return:
         Interpolated values.
@@ -30,8 +30,6 @@ def interp1d(fp, xp, x):
     il = jnp.searchsorted(xp, x, side='right') - 1
     wl = (xp[il+1] - x) / (xp[il+1] - xp[il])
     return fp[il] * wl + fp[il+1] * (1 - wl)
-
-interp1d_vmap = vmap(interp1d, in_axes=(None, None, 0))
 
 @jit
 def interp2d(fp, x0p, x1p, x01):

@@ -10,7 +10,7 @@ sys.path.append(os.environ['DM21CM_DIR'])
 import dm21cm.physics as phys
 from dm21cm.injections.base import Injection
 from dm21cm.utils import load_h5_dict
-from dm21cm.interpolators import interp1d, interp1d_vmap, bound_action
+from dm21cm.interpolators import interp1d, bound_action
 
 sys.path.append(os.environ['DH_DIR'])
 from darkhistory.spec import pppc
@@ -89,13 +89,12 @@ class DMPWaveAnnihilationInjection (Injection):
         self.c_sigma = c_sigma
         self.cell_size = cell_size
 
-        self.data = load_h5_dict(os.environ['DM21CM_DATA_DIR'] + '/pwave_ann_rate.h5') # tables have unit [eV^2 / cm^6]
-        self.z_range = self.data['z_range']
-        self.d_range = self.data['delta_range']
-        self.r_range = self.data['r_range']
-        ps_cond_table_rzd = jnp.einsum('zdr->rzd', self.data['ps_cond_ann_rate_table']) # radius, z, delta # TODO: fix data order to rzd
-        r = self.cell_size / jnp.cbrt(4*jnp.pi/3) # [Mpc] | r of sphere with volume cell_size^3
-        self.ps_cond_table_fixed_cell = interp1d(ps_cond_table_rzd, self.r_range, r)
+        self.data = load_h5_dict(os.environ['DM21CM_DATA_DIR'] + '/pwave_partial_ann_rate_sphere.h5') # tables have unit [eV^2 / pcm^3 / cfcm^3]
+        self.z_range = self.data['z']
+        self.d_range = self.data['d']
+        self.r_range = self.data['r']
+        r = self.cell_size / jnp.cbrt(4*jnp.pi/3) # [cMpc] | r of sphere with volume cell_size^3
+        self.ps_cond_table_fixed_cell = interp1d(self.data['ps_cond_ann_rate'], self.r_range, r) # table: r z d
 
     def set_binning(self, abscs):
         self.phot_spec_per_inj = pppc.get_pppc_spec(
@@ -126,18 +125,18 @@ class DMPWaveAnnihilationInjection (Injection):
         d_box_in = bound_action(delta_plus_one_box - 1, self.d_range, 'clip')
 
         ps_cond_delta = interp1d(self.ps_cond_table_fixed_cell, self.z_range, z_in)
-        ps_cond_box   = interp1d_vmap(ps_cond_delta, self.d_range, d_box_in)
-        ps_uncond_val = interp1d(self.data['ps_ann_rate_table'], self.z_range, z_in)
-        st_val        = interp1d(self.data['st_ann_rate_table'], self.z_range, z_in)
-        dNtilde_dt_box = ps_cond_box * st_val / ps_uncond_val # [eV^2 / ccm^3 pcm^3]
+        ps_cond_box   = interp1d(ps_cond_delta, self.d_range, d_box_in)
+        ps_uncond_val = interp1d(self.data['ps_ann_rate'], self.z_range, z_in)
+        st_val        = interp1d(self.data['st_ann_rate'], self.z_range, z_in)
+        dNtilde_dt_box = ps_cond_box * st_val / ps_uncond_val # [eV^2 / pcm^3 ccm^3]
         return dNtilde_dt_box * self.c_sigma / self.m_DM**2 * (1 + z)**3 # [inj / pcm^3 s]
 
     
     def inj_rate(self, z_start, z_end=None):
         """Instantaneous rate in a homogeneous universe. Use ST table."""
         z_in = bound_action(z_start, self.z_range, 'clip')
-        st_val = interp1d(self.data['st_ann_rate_table'], self.z_range, z_in) # [eV^2 / pcm^6]
-        return float(st_val * self.c_sigma / self.m_DM**2) # [inj / pcm^3 s]
+        st_val = interp1d(self.data['st_ann_rate'], self.z_range, z_in) # [eV^2 / pcm^3 ccm^3]
+        return float(st_val * self.c_sigma / self.m_DM**2 * (1 + z_start)**3) # [inj / pcm^3 s]
     
     def inj_power(self, z_start, z_end=None):
         """Instantaneous rate in a homogeneous universe. Use ST table."""

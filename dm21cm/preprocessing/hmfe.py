@@ -26,9 +26,9 @@ from dm21cm.utils import load_h5_dict, save_h5_dict
 RHO_M = cosmo.Om0 * cosmo.critical_density0.to(u.M_sun / u.Mpc**3).value
 
 # Default Duty Cycle Parametrization
-M_TURN = 5.012e8
+# M_TURN = 5.012e8 # [M_sun]
 M_MIN = 1 # [M_sun]
-M_MAX = 2.211912255032272e+19 # [M_sun] | mass in a sphere of radius 512 cMpc
+M_MAX = RHO_M * (4/3) * np.pi * 512**3 # [M_sun]
 
 
 #===== Window functions =====

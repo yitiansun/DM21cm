@@ -153,6 +153,13 @@ def fix_cmz_numerical_issues(xs, ys):
     return xs, ys_fixed
 
 def cmz(m, z, model='Ludlow16'):
+    """CMZ relation interpolator.
+    
+    Args:
+        m (array): Array of halo mass to interpolate over [Msun].
+        z (float): Redshift.
+        model (str, optional): Concentration model. Defaults to 'Ludlow16'.
+    """
     hm = halomod.DMHaloModel(
         halo_concentration_model=model,
         z = z, Mmin = 0., Mmax = 19, dlog10m = 0.025,

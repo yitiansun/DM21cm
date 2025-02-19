@@ -10,6 +10,7 @@ cross_check/tmp
 cross_check/xray/*.pdf
 data/pbh*
 data/pppc
+data/production
 data/pwave
 data/run_info/**
 data/sfrd

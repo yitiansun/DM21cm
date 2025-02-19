@@ -11,6 +11,7 @@ import jax.numpy as jnp
 from functools import partial
 from tqdm import tqdm
 import h5py
+import logging
 
 sys.path.append(os.environ['DM21CM_DIR'])
 from dm21cm.preprocessing.accretion import PBHAccretionModel
@@ -27,9 +28,11 @@ if __name__ == '__main__':
     d_s = hmfdata['d'][()] # [1]    | delta (overdensity)
     m_s = hmfdata['m'][()] # [Msun] | halo mass
 
-    mPBH_s = np.logspace(0, 4, 5)      # [Msun] | mass of PBH
-    T_s = jnp.geomspace(10, 1e4, 128)  # [K]    | gas temperature
-    T_eV_s = (1 * u.K * c.k_B).to(u.eV).value * T_s
+    mPBH_s = np.logspace(0, 4, 5)                  # [Msun] | mass of PBH
+    T_K_s = jnp.geomspace(10, 1e4, 128)            # [K]    | gas temperature
+    T_s = (1 * u.K * c.k_B).to(u.eV).value * T_K_s # [eV]   | gas temperature in eV
+
+    am = PBHAccretionModel(accretion_type='PR-ADAF', c_in=23)
 
 
     #===== Halo luminosity table =====
@@ -42,23 +45,21 @@ if __name__ == '__main__':
         print("Cache not found. Calculating L_table...")
         L_table = np.zeros((len(mPBH_s), len(z_s), len(m_s)))
             
+        L_halo_vmap = jax.jit(jax.vmap(am.L_halo, in_axes=(None, 0, 0, None)))
         for i_mPBH, mPBH in enumerate(mPBH_s):
-            am = PBHAccretionModel(m_PBH=mPBH, f_PBH=1, accretion_type='PR-ADAF', c_in=23)
-            L_halo_vmap = jax.jit(jax.vmap(am.L_halo, in_axes=(0, 0, None)))
-
             for i_z, z in enumerate(tqdm(z_s, desc=f'm_PBH={mPBH:.1e}')):
                 m_halo_s = jnp.asarray(m_s) # [Msun]
                 c_halo_s = jnp.asarray(cmz(m_s, z))
-                L_table[i_mPBH, i_z] = L_halo_vmap(m_halo_s, c_halo_s, z)
+                L_table[i_mPBH, i_z] = L_halo_vmap(mPBH, m_halo_s, c_halo_s, z)
         np.save(cache_file, L_table)
 
 
     #===== Halo PBH: Summing HMF =====
-    print("Halo PBH tables:")
+    print("Halo PBH: Summing HMF...", end='')
     # Conditional PS: (mPBH, z, d) [Msun/yr / cMpc^3]
     cond_table = np.zeros((len(mPBH_s), len(z_s), len(d_s)))
     dndm = hmfdata['ps_cond'] # [1 / cMpc^3 Msun]
-    for i_mPBH, mPBH in enumerate(tqdm(mPBH_s, desc='Conditional PS')):
+    for i_mPBH, mPBH in enumerate(mPBH_s):
         for i_z, z in enumerate(z_s):
             for i_d, d in enumerate(d_s):
                 cond_table[i_mPBH,i_z,i_d] = np.trapz(L_table[i_mPBH, i_z] * dndm[i_z, i_d], m_s)
@@ -66,16 +67,17 @@ if __name__ == '__main__':
     # Unconditional PS: (mPBH, z) [Msun/yr / cMpc^3]
     ps_table = np.zeros((len(mPBH_s), len(z_s)))
     dndm = hmfdata['ps'] # [1 / cMpc^3 Msun]
-    for i_mPBH, mPBH in enumerate(tqdm(mPBH_s, desc='Unconditional PS')):
+    for i_mPBH, mPBH in enumerate(mPBH_s):
         for i_z, z in enumerate(z_s):
             ps_table[i_mPBH,i_z] = np.trapz(L_table[i_mPBH, i_z] * dndm[i_z], m_s)
 
     # Sheth-Tormen: (mPBH, z) [Msun/yr / cMpc^3]
     st_table = np.zeros((len(mPBH_s), len(z_s)))
     dndm = hmfdata['st'] # [1 / cMpc^3 Msun]
-    for i_mPBH, mPBH in enumerate(tqdm(mPBH_s, desc='Unconditional ST')):
+    for i_mPBH, mPBH in enumerate(mPBH_s):
         for i_z, z in enumerate(z_s):
             st_table[i_mPBH,i_z] = np.trapz(L_table[i_mPBH, i_z] * dndm[i_z], m_s)
+    print("Done.")
 
     #===== Halo PBH: Save =====
     unit_conversion = (1 * c.M_sun * c.c**2 / u.yr / u.Mpc**3).to(u.eV / u.s / u.cm**3)
@@ -94,76 +96,64 @@ if __name__ == '__main__':
         'shapes' : 'ps_cond: (mPBH, z, d). ps, st: (mPBH, z).',
     }
     save_h5_dict("../../data/production/pbhacc_halo_hmf_summed_rate.h5", data)
-    print("Saved halo PBH tables.")
+    print("Halo PBH: Tables saved.")
 
 
     #===== Cosmo PBH: HMF f_coll =====
-    print("Cosmo PBH tables:")
+    print("Cosmo PBH: Evaluating f_coll...", end='')
+
+    # Function preparation
+    L_cosmo_density_vmap = jax.jit(jax.vmap(am.L_cosmo_density, in_axes=(0, None, None, None, 0)))
+    mPBH_in, T_in = jnp.meshgrid(mPBH_s, T_s, indexing='ij')
+    mPBH_in = mPBH_in.flatten()
+    T_in = T_in.flatten()
+    def L_cosmo_density_wrapper(z, rho_dm, rho_b):
+        return L_cosmo_density_vmap(mPBH_in, z, rho_dm, rho_b, T_in).reshape((len(mPBH_s), len(T_s)))
+    
+    def get_rho_dm_rho_b(dndm, z, d=0.):
+        """Returns rho_dm [Msun / cMpc^3] and rho_b [g/cm^3].
+        
+        Args:
+            dndm (array): Halo mass function [1 / cMpc^3 Msun]
+            z (float): Redshift
+            d (float): Overdensity
+        """
+        if d == -1:
+            return 0., 0.
+        rho_coll = np.trapz(m_s * dndm, m_s) # [Msun / cMpc^3]
+        rho_tot = (1 + d) * RHO_M # [Msun / cMpc^3]
+        f_coll = rho_coll / rho_tot # [1]
+        if f_coll >= 1:
+            logging.warning(f"Warning: f_coll={f_coll} >= 1 at z={z}, d={d}. Setting to 1.")
+            return 0., 0.
+        rho_dm = cosmo.Odm0 / cosmo.Om0 * rho_tot * (1 - f_coll) # [Msun / cMpc^3]
+        # Note: baryon density is not in conformal units!
+        rho_b_avg = (cosmo.Ob(z) * cosmo.critical_density(z)).to(u.g/u.cm**3).value # [g/cm^3]
+        rho_b = (1 + d) * rho_b_avg * (1 - f_coll) # [g/cm^3]
+        return rho_dm, rho_b
+
     # Conditional PS: (mPBH, z, d, T) [Msun/yr / cMpc^3]
     cond_table = np.zeros((len(mPBH_s), len(z_s), len(d_s), len(T_s)))
     dndm = hmfdata['ps_cond'] # [1 / cMpc^3 Msun]
-
     for i_z, z in enumerate(tqdm(z_s, desc='Conditional PS')):
         for i_d, d in enumerate(d_s):
-            if 1 + d == 0:
-                continue
-            rho_coll = np.trapz(m_s * dndm[i_z, i_d], m_s) # [Msun / cMpc^3]
-            rho_tot = (1 + d) * RHO_M # [Msun / cMpc^3]
-            f_coll = rho_coll / rho_tot # [1]
-            if f_coll > 1:
-                print(f"Warning: Cond PS f_coll={f_coll} > 1 at z={z}, d={d}. Setting to 1.")
-                f_coll = 1
-            rho_dm = cosmo.Odm0 / cosmo.Om0 * rho_tot * (1 - f_coll) # [Msun / cMpc^3]
-            # Note: baryon density is not in conformal units!
-            rho_b_avg = (cosmo.Ob(z) * cosmo.critical_density(z)).to(u.g/u.cm**3).value # [g/cm^3]
-            rho_b = (1 + d) * rho_b_avg * (1 - f_coll) # [g/cm^3]
-
-            for i_mPBH, mPBH in enumerate(mPBH_s):
-                am = PBHAccretionModel(m_PBH=mPBH, f_PBH=1, accretion_type='PR-ADAF', c_in=23)
-                for i_T, T in enumerate(T_eV_s):
-                    cond_table[i_mPBH,i_z,i_d,i_T] = am.L_cosmo_density(z, rho_dm, rho_b, T)
+            rho_dm, rho_b = get_rho_dm_rho_b(dndm[i_z,i_d], z, d)
+            cond_table[:,i_z,i_d,:] = L_cosmo_density_wrapper(z, rho_dm, rho_b)
 
     # Unconditional PS: (mPBH, z, T) [Msun/yr / cMpc^3]
     ps_table = np.zeros((len(mPBH_s), len(z_s), len(T_s)))
     dndm = hmfdata['ps'] # [1 / cMpc^3 Msun]
-
     for i_z, z in enumerate(tqdm(z_s, desc='Unconditional PS')):
-        rho_coll = np.trapz(m_s * dndm[i_z], m_s) # [Msun / cMpc^3]
-        rho_tot = RHO_M # [Msun / cMpc^3]
-        f_coll = rho_coll / rho_tot # [1]
-        if f_coll > 1:
-            print(f"Warning: Uncond PS f_coll={f_coll} > 1 at z={z}. Setting to 1.")
-            f_coll = 1
-        rho_dm = cosmo.Odm0 / cosmo.Om0 * rho_tot * (1 - f_coll) # [Msun / cMpc^3]
-        # Note: baryon density is not in conformal units!
-        rho_b_avg = (cosmo.Ob(z) * cosmo.critical_density(z)).to(u.g/u.cm**3).value # [g/cm^3]
-        rho_b = rho_b_avg * (1 - f_coll) # [g/cm^3]
-
-        for i_mPBH, mPBH in enumerate(mPBH_s):
-            am = PBHAccretionModel(m_PBH=mPBH, f_PBH=1, accretion_type='PR-ADAF', c_in=23)
-            for i_T, T in enumerate(T_eV_s):
-                ps_table[i_mPBH,i_z,i_T] = am.L_cosmo_density(z, rho_dm, rho_b, T)
+        rho_dm, rho_b = get_rho_dm_rho_b(dndm[i_z], z)
+        ps_table[:,i_z,:] = L_cosmo_density_wrapper(z, rho_dm, rho_b)
 
     # Unconditional Sheth-Tormen: (mPBH, z, T) [Msun/yr / cMpc^3]
     st_table = np.zeros((len(mPBH_s), len(z_s), len(T_s)))
     dndm = hmfdata['st'] # [1 / cMpc^3 Msun]
-
     for i_z, z in enumerate(tqdm(z_s, desc='Unconditional ST')):
-        rho_coll = np.trapz(m_s * dndm[i_z], m_s) # [Msun / cMpc^3]
-        rho_tot = RHO_M # [Msun / cMpc^3]
-        f_coll = rho_coll / rho_tot # [1]
-        if f_coll > 1:
-            print(f"Warning: Uncond ST f_coll={f_coll} > 1 at z={z}. Setting to 1.")
-            f_coll = 1
-        rho_dm = cosmo.Odm0 / cosmo.Om0 * rho_tot * (1 - f_coll) # [Msun / cMpc^3]
-        # Note: baryon density is not in conformal units!
-        rho_b_avg = (cosmo.Ob(z) * cosmo.critical_density(z)).to(u.g/u.cm**3).value # [g/cm^3]
-        rho_b = rho_b_avg * (1 - f_coll) # [g/cm^3]
-
-        for i_mPBH, mPBH in enumerate(mPBH_s):
-            am = PBHAccretionModel(m_PBH=mPBH, f_PBH=1, accretion_type='PR-ADAF', c_in=23)
-            for i_T, T in enumerate(T_eV_s):
-                st_table[i_mPBH,i_z,i_T] = am.L_cosmo_density(z, rho_dm, rho_b, T)
+        rho_dm, rho_b = get_rho_dm_rho_b(dndm[i_z], z)
+        st_table[:,i_z,:] = L_cosmo_density_wrapper(z, rho_dm, rho_b)
+    print("Done.")
 
     #===== Save =====
     unit_conversion = (1 * c.M_sun * c.c**2 / u.yr / u.Mpc**3).to(u.eV / u.s / u.cm**3)

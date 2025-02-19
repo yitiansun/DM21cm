@@ -226,18 +226,14 @@ _T_K_TO_C_INF_FACTOR = np.sqrt(5/3 * 1 * u.eV / c.m_p).to(u.km/u.s).value
 
 class PBHAccretionModel:
 
-    def __init__(self, m_PBH, f_PBH, accretion_type, c_in=None):
+    def __init__(self, accretion_type, c_in=None):
         """PBH accretion model
         
         Args:
-            m_PBH (float): PBH mass [M_sun]
-            f_PBH (float): PBH fraction of DM
             accretion_type (str): supports 'PR-ADAF', 'BHL-ADAF'
             c_in (float): Sound speed inside the I-front [km/s]. Required for PR models.
         """
 
-        self.m_PBH = m_PBH
-        self.f_PBH = f_PBH
         self.accretion_type = accretion_type
         self.c_in = c_in
 
@@ -257,14 +253,16 @@ class PBHAccretionModel:
         self.L_func_v = jax.jit(jax.vmap(L_func_full, in_axes=(None, None, 0, None, None)))
 
         self.rho_m_ref = 1 # reference physical total matter density in halos [M_sun/pc^3]
-        self.n_PBH_ref = self.f_PBH * F_DM * (self.rho_m_ref * u.M_sun / u.pc**3 / (self.m_PBH * u.M_sun)).to(u.pc**-3).value # [pc^-3]
+        self.m_PBH_ref = 1 # reference PBH mass [M_sun]
+        self.n_PBH_ref = F_DM * (self.rho_m_ref * u.M_sun / u.pc**3 / (self.m_PBH_ref * u.M_sun)).to(u.pc**-3).value # [pc^-3]
         self.rho_inf_ref = F_BM * (self.rho_m_ref * u.M_sun / u.pc**3).to(u.g/u.cm**3).value # [g/cm^3]
 
 
-    def L_cosmo_single_PBH(self, z, rho_inf, T_k):
+    def L_cosmo_single_PBH(self, m_PBH, z, rho_inf, T_k):
         """PBH accretion luminosity due to single unbound PBH [M_sun/yr]
         
         Args:
+            m_PBH (float): Mass of the PBH [M_sun]
             z (float): Redshift
             rho_inf (float): Ambient gas density [g/cm^3]
             T_k (float): Gas kinetic temperature [eV]
@@ -273,10 +271,10 @@ class PBHAccretionModel:
         v_cb = v_cb_cosmo(z) # [km/s]
         v_s = jnp.linspace(0.1 * v_cb, 10 * v_cb, 1000)
         fv_s = f_MB(v_s, v_cb)
-        v_integrand = self.L_func_v(self.m_PBH, rho_inf, v_s, self.c_in, c_inf)
+        v_integrand = self.L_func_v(m_PBH, rho_inf, v_s, self.c_in, c_inf)
         return jnp.trapz(fv_s * v_integrand, v_s)
     
-    def L_cosmo_single_PBH_std(self, z):
+    def L_cosmo_single_PBH_std(self, m_PBH, z):
         """PBH accretion luminosity due to single unbound PBH in standard cosmology [M_sun/yr]
         
         Args:
@@ -284,9 +282,9 @@ class PBHAccretionModel:
         """
         rho_inf = (cosmo.critical_density(z) * cosmo.Ob(z)).to(u.g/u.cm**3).value # [g/cm^3]
         T_k = dh_phys.Tm_std(1+z) # [eV]
-        return self.L_cosmo_single_PBH(z, rho_inf, T_k)
+        return self.L_cosmo_single_PBH(m_PBH, z, rho_inf, T_k)
     
-    def Mdot_cosmo_single_PBH(self, z, rho_inf, T_k):
+    def Mdot_cosmo_single_PBH(self, m_PBH, z, rho_inf, T_k):
         """PBH accretion rate due to single unbound PBH [M_sun/yr]
         May be deprecated
         
@@ -299,10 +297,10 @@ class PBHAccretionModel:
         v_cb = v_cb_cosmo(z) # [km/s]
         v_s = jnp.linspace(0.1 * v_cb, 10 * v_cb, 1000)
         fv_s = f_MB(v_s, v_cb)
-        v_integrand = self.Mdot_func_v(self.m_PBH, rho_inf, v_s, self.c_in, c_inf)
+        v_integrand = self.Mdot_func_v(m_PBH, rho_inf, v_s, self.c_in, c_inf)
         return jnp.trapz(fv_s * v_integrand, v_s)
     
-    def Mdot_cosmo_single_PBH_std(self, z):
+    def Mdot_cosmo_single_PBH_std(self, m_PBH, z):
         """PBH accretion rate due to single unbound PBH in standard cosmology [M_sun/yr]
         May be deprecated
         
@@ -311,10 +309,10 @@ class PBHAccretionModel:
         """
         rho_inf = (cosmo.critical_density(z) * cosmo.Ob(z)).to(u.g/u.cm**3).value # [g/cm^3]
         T_k = dh_phys.Tm_std(1+z) # [eV]
-        return self.Mdot_cosmo_single_PBH(z, rho_inf, T_k)
+        return self.Mdot_cosmo_single_PBH(m_PBH, z, rho_inf, T_k)
         
     
-    def L_cosmo_density(self, z, rho_dm, rho_b_inf, T_k):
+    def L_cosmo_density(self, m_PBH, z, rho_dm, rho_b_inf, T_k):
         """PBH accretion luminosity conformal density [M_sun/yr/cMpc^3]
         
         Args:
@@ -323,24 +321,25 @@ class PBHAccretionModel:
             rho_b_inf (float): Ambient gas density [g/cm^3]
             T_k (float): Gas kinetic temperature [eV]
         """
-        n_PBH = self.f_PBH * rho_dm / self.m_PBH # [1/cMpc^3]
-        return n_PBH * self.L_cosmo_single_PBH(z, rho_b_inf, T_k)
+        n_PBH = rho_dm / m_PBH # [1/cMpc^3]
+        return n_PBH * self.L_cosmo_single_PBH(m_PBH, z, rho_b_inf, T_k)
     
-    def L_cosmo_density_std(self, z, f_coll):
+    def L_cosmo_density_std(self, m_PBH, z, f_coll):
         """PBH accretion luminosity conformal density in standard cosmology [M_sun/yr/cMpc^3]
         
         Args:
             z (float): Redshift
             f_coll (float): Fraction of DM in collapsed halos
         """
-        n_PBH = self.f_PBH * (1 - f_coll) * RHO_DM / self.m_PBH # [1/cMpc^3]
-        return n_PBH * self.L_cosmo_single_PBH_std(z)
+        n_PBH = (1 - f_coll) * RHO_DM / m_PBH # [1/cMpc^3]
+        return n_PBH * self.L_cosmo_single_PBH_std(m_PBH, z)
     
     
-    def L_halo(self, m_halo, c_halo, z):
+    def L_halo(self, m_PBH, m_halo, c_halo, z):
         """PBH accretion luminosity in a halo [M_sun/yr]
         
         Args:
+            m_PBH (float): Mass of the PBH [M_sun]
             m_halo (float): Mass of the halo [M_sun]
             c_halo (float): Halo concentration parameter
             z (float): Redshift
@@ -358,7 +357,7 @@ class PBHAccretionModel:
             rho = halo.nfw_density(r, rho_s, r_s) # [M_sun/pc^3]
 
             # accretion parameters
-            n_PBH = self.n_PBH_ref * (rho / self.rho_m_ref) # [pc^-3]
+            n_PBH = self.n_PBH_ref * (self.m_PBH_ref / m_PBH) * (rho / self.rho_m_ref) # [pc^-3]
             rho_inf = self.rho_inf_ref * (rho / self.rho_m_ref) # [g/cm^3]
             c_inf = jnp.sqrt(5/9) * v0 * KM_PER_PC # [km/s]
         
@@ -367,7 +366,7 @@ class PBHAccretionModel:
             v_km_s = v_pc_s * KM_PER_PC
             f_s = halo.dm_dm_v_rel_dist_unnorm(v_km_s, ve*KM_PER_PC, v0*KM_PER_PC)
             f_s /= jnp.trapz(f_s, v_km_s)
-            L_s = self.L_func_v(self.m_PBH, rho_inf, v_km_s, self.c_in, c_inf) # [M_sun/yr]
+            L_s = self.L_func_v(m_PBH, rho_inf, v_km_s, self.c_in, c_inf) # [M_sun/yr]
             L_s = jnp.nan_to_num(L_s)
             L_v_expn = jnp.trapz(L_s * f_s, v_km_s) # [M_sun/yr]
 

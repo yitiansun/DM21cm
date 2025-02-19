@@ -205,6 +205,8 @@ F_DM = cosmo.Odm0 / cosmo.Om0
 F_BM = cosmo.Ob0 / cosmo.Om0
 KM_PER_PC = (1 * u.pc).to(u.km).value
 
+_T_K_TO_C_INF_FACTOR = np.sqrt(5/3 * 1 * u.eV / c.m_p).to(u.km/u.s).value
+
 #--- jaxified functions ---
 # Mdot_BHL_v = jax.jit(jax.vmap(Mdot_BHL, in_axes=(None, None, 0, None, None)))
 # Mdot_PR_v = jax.jit(jax.vmap(Mdot_PR, in_axes=(None, None, 0, None, None)))
@@ -259,46 +261,80 @@ class PBHAccretionModel:
         self.rho_inf_ref = F_BM * (self.rho_m_ref * u.M_sun / u.pc**3).to(u.g/u.cm**3).value # [g/cm^3]
 
 
-    def L_cosmo_single_PBH(self, z):
-        """PBH accretion luminosity due to single PBH not in halos [M_sun/yr]
+    def L_cosmo_single_PBH(self, z, rho_inf, T_k):
+        """PBH accretion luminosity due to single unbound PBH [M_sun/yr]
         
         Args:
             z (float): Redshift
+            rho_inf (float): Ambient gas density [g/cm^3]
+            T_k (float): Gas kinetic temperature [eV]
         """
-        rho_inf = (cosmo.critical_density(z) * cosmo.Ob(z)).to(u.g/u.cm**3).value # [g/cm^3]
-        T_K = dh_phys.Tm_std(1+z) # [eV]
-        c_inf = np.sqrt(5/3 * T_K * u.eV / c.m_p).to(u.km/u.s).value # [km/s]
+        c_inf = jnp.sqrt(T_k) * _T_K_TO_C_INF_FACTOR # [km/s]
         v_cb = v_cb_cosmo(z) # [km/s]
         v_s = jnp.linspace(0.1 * v_cb, 10 * v_cb, 1000)
         fv_s = f_MB(v_s, v_cb)
         v_integrand = self.L_func_v(self.m_PBH, rho_inf, v_s, self.c_in, c_inf)
         return jnp.trapz(fv_s * v_integrand, v_s)
     
-    def Mdot_cosmo_single_PBH(self, z):
-        """PBH accretion rate due to single PBH not in halos [M_sun/yr]
-        May be deprecated
+    def L_cosmo_single_PBH_std(self, z):
+        """PBH accretion luminosity due to single unbound PBH in standard cosmology [M_sun/yr]
         
         Args:
             z (float): Redshift
         """
         rho_inf = (cosmo.critical_density(z) * cosmo.Ob(z)).to(u.g/u.cm**3).value # [g/cm^3]
-        T_K = dh_phys.Tm_std(1+z) # [eV]
-        c_inf = np.sqrt(5/3 * T_K * u.eV / c.m_p).to(u.km/u.s).value # [km/s]
+        T_k = dh_phys.Tm_std(1+z) # [eV]
+        return self.L_cosmo_single_PBH(z, rho_inf, T_k)
+    
+    def Mdot_cosmo_single_PBH(self, z, rho_inf, T_k):
+        """PBH accretion rate due to single unbound PBH [M_sun/yr]
+        May be deprecated
+        
+        Args:
+            z (float): Redshift
+            rho_inf (float): Ambient gas density [g/cm^3]
+            T_k (float): Gas kinetic temperature [eV]
+        """
+        c_inf = jnp.sqrt(T_k) * _T_K_TO_C_INF_FACTOR # [km/s]
         v_cb = v_cb_cosmo(z) # [km/s]
         v_s = jnp.linspace(0.1 * v_cb, 10 * v_cb, 1000)
         fv_s = f_MB(v_s, v_cb)
         v_integrand = self.Mdot_func_v(self.m_PBH, rho_inf, v_s, self.c_in, c_inf)
         return jnp.trapz(fv_s * v_integrand, v_s)
     
-    def L_cosmo_density(self, z, f_coll):
+    def Mdot_cosmo_single_PBH_std(self, z):
+        """PBH accretion rate due to single unbound PBH in standard cosmology [M_sun/yr]
+        May be deprecated
+        
+        Args:
+            z (float): Redshift
+        """
+        rho_inf = (cosmo.critical_density(z) * cosmo.Ob(z)).to(u.g/u.cm**3).value # [g/cm^3]
+        T_k = dh_phys.Tm_std(1+z) # [eV]
+        return self.Mdot_cosmo_single_PBH(z, rho_inf, T_k)
+        
+    
+    def L_cosmo_density(self, z, rho_dm, rho_b_inf, T_k):
         """PBH accretion luminosity conformal density [M_sun/yr/cMpc^3]
         
         Args:
             z (float): Redshift
-            f_coll (float): Collapsed fraction
+            rho_dm (float): DM density (need to account for f_collapsed) [M_sun/cMpc^3]
+            rho_b_inf (float): Ambient gas density [g/cm^3]
+            T_k (float): Gas kinetic temperature [eV]
         """
-        n_PBH = (1 - f_coll) * self.f_PBH * RHO_DM / self.m_PBH # [1/cMpc^3]
-        return n_PBH * self.L_cosmo_single_PBH(z)
+        n_PBH = self.f_PBH * rho_dm / self.m_PBH # [1/cMpc^3]
+        return n_PBH * self.L_cosmo_single_PBH(z, rho_b_inf, T_k)
+    
+    def L_cosmo_density_std(self, z, f_coll):
+        """PBH accretion luminosity conformal density in standard cosmology [M_sun/yr/cMpc^3]
+        
+        Args:
+            z (float): Redshift
+            f_coll (float): Fraction of DM in collapsed halos
+        """
+        n_PBH = self.f_PBH * (1 - f_coll) * RHO_DM / self.m_PBH # [1/cMpc^3]
+        return n_PBH * self.L_cosmo_single_PBH_std(z)
     
     
     def L_halo(self, m_halo, c_halo, z):

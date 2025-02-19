@@ -118,7 +118,7 @@ run_subname = f'log10m{np.log10(m_fn):.3f}_injm{inj_multiplier}'
 run_fullname = f'{run_name}_{run_subname}'
 lc_filename = f'LightCone_z5.0_HIIDIM={args.box_dim}_BOXLEN={box_len}_fisher_DM_{inj_multiplier}_r54321.h5'
 
-save_dir = f'/n/holylabs/LABS/iaifi_lab/Users/yitians/dm21cm/outputs/{run_name}/log10m{np.log10(m_fn):.3f}/'
+save_dir = f'/n/holystore01/LABS/iaifi_lab/Users/yitians/dm21cm/outputs/{run_name}/log10m{np.log10(m_fn):.3f}/'
 os.makedirs(save_dir, exist_ok=True)
 
 cache_dir = os.path.join(os.environ['P21C_CACHE_DIR'], run_fullname)

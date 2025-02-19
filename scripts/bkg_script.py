@@ -71,7 +71,7 @@ else:
     lc_filename = f'LightCone_z5.0_HIIDIM={args.box_dim}_BOXLEN={box_len}_fisher_{param_names[param_index]}_{shift}_r54321.h5'
 
 # save_dir = f'/n/holyscratch01/iaifi_lab/yitians/dm21cm/prod_outputs/{run_name}/Mass_{mass_ind}/'
-save_dir = f'/n/holylabs/LABS/iaifi_lab/Users/yitians/dm21cm/outputs/{run_name}/{run_subname}/LightCones/'
+save_dir = f'/n/holystore01/LABS/iaifi_lab/Users/yitians/dm21cm/outputs/{run_name}/{run_subname}/LightCones/'
 os.makedirs(save_dir, exist_ok=True)
 
 cache_dir = os.path.join(os.environ['P21C_CACHE_DIR'], run_fullname)

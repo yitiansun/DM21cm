@@ -9,7 +9,7 @@ import py21cmfast as p21c
 WDIR = os.environ['DM21CM_DIR']
 sys.path.append(WDIR)
 from dm21cm.evolve import evolve
-from dm21cm.injections.pbh import PBHHRInjection
+from dm21cm.injections.pbh import PBHHRInjection, PBHAccretionInjection
 from dm21cm.injections.dm import DMDecayInjection, DMPWaveAnnihilationInjection
 from preprocessing.step_size import pbh_hr_f, pwave_phot_c_sigma, pwave_elec_c_sigma
 
@@ -96,6 +96,22 @@ elif args.channel == 'pbh-hr':
     inj_multiplier = inj_multiplier_s[inj_ind]
     f_PBH = pbh_hr_f(m_PBH) * inj_multiplier # [1]
     injection = PBHHRInjection(
+        m_PBH = m_PBH,
+        f_PBH = f_PBH,
+    )
+    m_fn = m_PBH
+
+elif args.channel == 'pbh-acc':
+
+    m_PBH_s = np.array([1e0, 1e2, 1e4]) # [M_sun]
+    f_PBH_s = np.array([1e1, 1e-2, 1e-5])
+    inj_multiplier_s = [1, 2]
+
+    mass_ind, inj_ind = np.unravel_index(args.run_index, (len(m_PBH_s), 2))
+    m_PBH = m_PBH_s[mass_ind] # [M_sun]
+    inj_multiplier = inj_multiplier_s[inj_ind]
+    f_PBH = f_PBH_s[mass_ind] * inj_multiplier # [1]
+    injection = PBHAccretionInjection(
         m_PBH = m_PBH,
         f_PBH = f_PBH,
     )

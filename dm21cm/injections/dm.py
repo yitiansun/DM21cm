@@ -89,12 +89,10 @@ class DMPWaveAnnihilationInjection (Injection):
         self.c_sigma = c_sigma
         self.cell_size = cell_size
 
-        self.data = load_h5_dict(os.environ['DM21CM_DATA_DIR'] + '/pwave_partial_ann_rate_sphere.h5') # tables have unit [eV^2 / pcm^3 / cfcm^3]
+        self.data = load_h5_dict(os.environ['DM21CM_DATA_DIR'] + '/pwave_hmf_summed_rate.h5') # tables have unit [eV^2 / pcm^3 / cfcm^3]
         self.z_range = self.data['z']
         self.d_range = self.data['d']
-        self.r_range = self.data['r']
-        r = self.cell_size / jnp.cbrt(4*jnp.pi/3) # [cMpc] | r of sphere with volume cell_size^3
-        self.ps_cond_table_fixed_cell = interp1d(self.data['ps_cond_ann_rate'], self.r_range, r) # table: r z d
+        assert self.cell_size == self.data['cell_size'], "Cell size mismatch."
 
     def set_binning(self, abscs):
         self.phot_spec_per_inj = pppc.get_pppc_spec(
@@ -124,10 +122,10 @@ class DMPWaveAnnihilationInjection (Injection):
         z_in = bound_action(z, self.z_range, 'clip')
         d_box_in = bound_action(delta_plus_one_box - 1, self.d_range, 'clip')
 
-        ps_cond_delta = interp1d(self.ps_cond_table_fixed_cell, self.z_range, z_in)
+        ps_cond_delta = interp1d(self.data['ps_cond'], self.z_range, z_in)
         ps_cond_box   = interp1d(ps_cond_delta, self.d_range, d_box_in)
-        ps_uncond_val = interp1d(self.data['ps_ann_rate'], self.z_range, z_in)
-        st_val        = interp1d(self.data['st_ann_rate'], self.z_range, z_in)
+        ps_uncond_val = interp1d(self.data['ps'], self.z_range, z_in)
+        st_val        = interp1d(self.data['st'], self.z_range, z_in)
         dNtilde_dt_box = ps_cond_box * st_val / ps_uncond_val # [eV^2 / pcm^3 ccm^3]
         return dNtilde_dt_box * self.c_sigma / self.m_DM**2 * (1 + z)**3 # [inj / pcm^3 s]
 

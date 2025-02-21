@@ -9,14 +9,20 @@ from astropy.cosmology import Planck18 as cosmo
 import astropy.units as u
 import astropy.constants as const
 
+import jax
+jax.config.update("jax_enable_x64", True)
+import jax.numpy as jnp
+
 sys.path.append(os.environ['DH_DIR'])
 from darkhistory.spec.spectrum import Spectrum
+from darkhistory import physics as dh_phys
 
 WDIR = os.environ['DM21CM_DIR']
 sys.path.append(WDIR)
 from dm21cm.injections.base import Injection
+from dm21cm.interpolators import interp1d, interp2d_vmap, bound_action
 import dm21cm.physics as phys
-from dm21cm.utils import load_h5_dict
+from dm21cm.utils import load_h5_dict, abscs
 
 data_dir = f'{WDIR}/data'
 
@@ -188,3 +194,97 @@ class PBHHRInjection (Injection):
 
     def inj_elec_spec_box(self, z_start, z_end=None, delta_plus_one_box=None, **kwargs):
         return self.inj_elec_spec(z_start, z_end=z_end), delta_plus_one_box # [elec / pcm^3 (eV) s], [1]
+    
+
+
+class PBHAccretionInjection (Injection):
+    """Primordial Black Hole (PBH) accretion injection object. See parent class for details.
+
+    Args:
+        m_PBH (float): PBH mass in [M_sun].
+        f_PBH (float): PBH fraction of DM.
+    """
+
+    def __init__(self, model, m_PBH, f_PBH):
+        self.mode = 'PBH-Accretion'
+        self.model = model
+        self.m_PBH = m_PBH
+        self.f_PBH = f_PBH
+        self.inj_rate_ref = 1. # [inj / pcm^3 s] | dummy injection rate
+
+        self.halo_data = load_h5_dict(f"{os.environ['DM21CM_DATA_DIR']}/pbhacc_halo_hmf_summed_rate_{self.model}.h5")
+        self.cosmo_data = load_h5_dict(f"{os.environ['DM21CM_DATA_DIR']}/pbhacc_cosmo_rate_{self.model}.h5")
+        if m_PBH not in self.halo_data['mPBH']:
+            raise ValueError(f'PBH data for m_PBH={m_PBH} not found.')
+        self.i_mPBH = np.where(self.halo_data['mPBH'] == m_PBH)[0][0]
+        self.z_s = self.halo_data['z']
+        self.z_cosmo_s = self.halo_data['z_cosmo']
+        self.d_s = self.halo_data['d']
+        self.T_s = self.cosmo_data['T']
+        self.halo_ps_cond = self.halo_data['ps_cond'][self.i_mPBH] # [eV / s / cfcm^3]
+        self.halo_ps = self.halo_data['ps'][self.i_mPBH]
+        self.halo_st = self.halo_data['st'][self.i_mPBH]
+        self.cosmo_ps_cond = self.cosmo_data['ps_cond'][self.i_mPBH]
+        self.cosmo_ps = self.cosmo_data['ps'][self.i_mPBH]
+        self.cosmo_st = self.cosmo_data['st'][self.i_mPBH]
+
+        self.init_specs()
+
+    def init_specs(self):
+        E = abscs['photE'] # [eV]
+        self.E_min = (self.m_PBH / 10) ** (-1/2) # [eV]
+        self.E_Ts = 2e5 # [eV]
+        self.a = 1
+        dLdE = (E > self.E_min) * E**(-self.a) * np.exp(- E / self.E_Ts)
+        dNdE = dLdE / E
+        E_tot = np.trapz(E * dNdE, E)
+        self.phot_spec = Spectrum(E, dNdE / E_tot, spec_type='dNdE') # [phot/eV / eV(injected)]
+        self.zero_elec_spec = Spectrum(E, 0. * abscs['elecEk'], spec_type='dNdE') # [elec/eV / eV(injected)]
+
+    def set_binning(self, abscs):
+        self.abscs = abscs
+
+    def is_injecting_elec(self):
+        return False
+    
+    def get_config(self):
+        return {
+            'mode': self.mode,
+            'model': self.model,
+            'm_PBH': self.m_PBH,
+            'f_PBH': self.f_PBH
+        }
+    
+    #===== injections =====
+    def inj_rate(self, z_start, z_end=None):
+        return self.inj_rate_ref # [inj / pcm^3 s]
+    
+    def inj_power(self, z_start, z_end=None):
+        z_in = bound_action(z_start, self.z_cosmo_s, 'clip')
+        T_in = bound_action(dh_phys.Tm_std(1+z_start), self.T_s, 'clip') # [eV]
+        halo_power = interp1d(self.halo_st, self.z_cosmo_s, z_in) # [eV / s / cfcm^3]
+        cosmo_power = interp1d(interp1d(self.cosmo_st, self.z_cosmo_s, z_in), self.T_s, T_in) # [eV / s / cfcm^3]
+        return self.f_PBH * (halo_power + cosmo_power) * (1 + z_start)**3 # [eV / pcm^3 s]
+    
+    def inj_phot_spec(self, z_start, z_end=None, **kwargs):
+        return self.phot_spec * float(self.inj_power(z_start)) # [phot/eV / pcm^3 s]
+    
+    def inj_elec_spec(self, z_start, z_end=None, **kwargs):
+        return self.zero_elec_spec # [elec/eV / pcm^3 s]
+    
+    def inj_phot_spec_box(self, z_start, z_end=None, delta_plus_one_box=None, **kwargs):
+        z_in = bound_action(z_start, self.z_s, 'raise')
+        p_ps_cond_d = interp1d(self.p_ps_cond, self.z_s, z_in) # [eV / s / cfcm^3]
+        p_ps_d = interp1d(self.p_ps, self.z_s, z_in)
+        p_st_d = interp1d(self.p_st, self.z_s, z_in)
+        d_box_in = bound_action(delta_plus_one_box - 1, self.d_s, 'clip')
+        p = interp1d(p_ps_cond_d, self.d_s, d_box_in)
+        p = p * p_st_d / p_ps_d
+        power_box = p * self.f_PBH * (1 + z_start)**3 # [eV / pcm^3 s]
+        power_mean = jnp.mean(power_box)
+        return self.phot_spec * float(power_mean), power_box / power_mean # [phot/eV / pcm^3 s], [1]
+
+    # def inj_phot_spec_box(self, z_start, z_end=None, delta_plus_one_box=None, Tk_box=None, **kwargs):
+    #     d_in = bound_action(delta_plus_one_box.flatten() - 1, self.d_s, 'clip')
+    #     T_in = bound_action(Tk_box.flatten(), self.T_s, 'clip')
+    #     d_T_in = jnp.stack([d_in, T_in], axis=-1)

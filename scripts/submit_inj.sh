@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=pbh-hr
+#SBATCH --job-name=pbh-acc
 #SBATCH --array=0-11
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
@@ -20,10 +20,11 @@ cd /n/home07/yitians/dm21cm/DM21cm/scripts
 
 # export P21C_CACHE_DIR="/n/holylabs/LABS/iaifi_lab/Users/yitians/dm21cm/21cmFAST-cache" # if scratch is down
 echo "CACHE: HOLYSCRATCH"
-echo "DATA:  HOLYLABS"
-echo "SAVE:  HOLYLABS & HOLYSCRATCH"
+echo "DATA:  HOLYSTORE"
+echo "SAVE:  HOLYSTORE & HOLYSCRATCH"
 
-python inj_script.py -r pbh-hr -c pbh-hr -i $SLURM_ARRAY_TASK_ID
+python inj_script.py -r pbh-acc -c pbh-acc -i $SLURM_ARRAY_TASK_ID
+# python inj_script.py -r pbh-hr -c pbh-hr -i $SLURM_ARRAY_TASK_ID
 #python inj_script.py -r xc-lt1e26-d128 -c decay-test -i 0
 
 #SBATCH --constraint=cc8.0

@@ -97,7 +97,7 @@ def Mdot_PR(M, rho_inf, v, c_in, c_inf):
     return _BHL_UNIT_FACTOR * M**2 * rho_in / (v_in**2 + c_in**2)**1.5
 
 def Mdot_BHL(M, rho_inf, v, c_in, c_inf):
-    """Bondi-Hoyle-Lyttleton accretion rate [eV/s]
+    """Bondi-Hoyle-Lyttleton accretion rate without fudge factor [eV/s]
     
     Args:
         M (float): Mass of the PBH [M_sun]
@@ -226,29 +226,33 @@ _T_K_TO_C_INF_FACTOR = np.sqrt(5/3 * 1 * u.eV / c.m_p).to(u.km/u.s).value
 
 class PBHAccretionModel:
 
-    def __init__(self, accretion_type, c_in=None):
+    def __init__(self, accretion_type, c_in=None, lambda_fudge=1):
         """PBH accretion model
         
         Args:
             accretion_type (str): supports 'PR-ADAF', 'BHL-ADAF'
             c_in (float): Sound speed inside the I-front [km/s]. Required for PR models.
+            lambda_fudge (float): Fudge factor in front of Mdot. Required for BHL models.
         """
 
         self.accretion_type = accretion_type
         self.c_in = c_in
+        self.lambda_fudge = lambda_fudge
 
         if self.accretion_type == 'PR-ADAF':
+            self.name = f'PRc{self.c_in:.0f}'
             self.Mdot_func = Mdot_PR
             self.L_func = L_ADAF
         elif self.accretion_type == 'BHL-ADAF':
-            self.Mdot_func = Mdot_BHL
+            self.name = f'BHLl{self.lambda_fudge:.0e}'
+            self.Mdot_func = Mdot_BHL # without fudge factor
             self.L_func = L_ADAF
         else:
             raise NotImplementedError(self.accretion_type)
         
         self.Mdot_func_v = jax.jit(jax.vmap(self.Mdot_func, in_axes=(None, None, 0, None, None)))
         def L_func_full(M_PBH, rho_inf, v, c_in, c_inf):
-            Mdot = self.Mdot_func(M_PBH, rho_inf, v, c_in, c_inf) # [M_sun/yr]
+            Mdot = self.lambda_fudge * self.Mdot_func(M_PBH, rho_inf, v, c_in, c_inf) # [M_sun/yr]
             return self.L_func(Mdot, M_PBH)
         self.L_func_v = jax.jit(jax.vmap(L_func_full, in_axes=(None, None, 0, None, None)))
 

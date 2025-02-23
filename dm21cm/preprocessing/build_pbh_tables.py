@@ -1,5 +1,6 @@
 import os
 import sys
+import argparse
 
 import numpy as np
 import astropy.units as u
@@ -8,7 +9,7 @@ from astropy.cosmology import Planck18 as cosmo
 import jax
 jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp
-from functools import partial
+# from functools import partial
 from tqdm import tqdm
 import h5py
 import logging
@@ -22,21 +23,36 @@ from dm21cm.utils import save_h5_dict, load_h5_dict
 
 if __name__ == '__main__':
 
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-m', '--model', type=str)
+    parser.add_argument('--save_memory', action='store_true', default=False)
+    args = parser.parse_args()
+
     #===== Initialization =====
     hmfdata = h5py.File("/n/holystore01/LABS/iaifi_lab/Users/yitians/dm21cm/data/hmf/hmf.h5", 'r')
     z_s = hmfdata['z'][()] # [1]    | redshift
-    z_cosmo_s = np.concatenate((z_s, np.geomspace(51, 3000, 300)))
     d_s = hmfdata['d'][()] # [1]    | delta (overdensity)
     m_s = hmfdata['m'][()] # [Msun] | halo mass
 
+    zfull_s = np.concatenate((z_s, np.geomspace(51, 3000, 300)))# for Unconditional PS and ST tables
     mPBH_s = np.logspace(0, 4, 5)  # [Msun] | mass of PBH
-    T_s = (np.geomspace(10, 1e4, 128) * u.K * c.k_B).to(u.eV).value # gas temperature
+    cinf_s = np.geomspace(
+        np.sqrt(5/3 * (1+0.) * 10  * u.K * c.k_B / c.m_p).to(u.km/u.s).value, # 0.371 km/s
+        np.sqrt(5/3 * (1+1.) * 1e4 * u.K * c.k_B / c.m_p).to(u.km/u.s).value, # 16.6 km/s
+        128
+    ) # should cover redshift 5-3000
 
-    am = PBHAccretionModel(accretion_type='PR-ADAF', c_in=23, lambda_fudge=1)
-    save_memory = True
+    model_kwargs_dict = {
+        'PRc10' : dict(accretion_type='PR-ADAF', c_in=10),
+        'PRc23' : dict(accretion_type='PR-ADAF', c_in=23),
+        'PRc30' : dict(accretion_type='PR-ADAF', c_in=30),
+        'BHLl1e+00' : dict(accretion_type='BHL-ADAF', lambda_fudge=1),
+        'BHLl1e-02' : dict(accretion_type='BHL-ADAF', lambda_fudge=1e-2),
+    }
+    am = PBHAccretionModel(**model_kwargs_dict[args.model])
 
     #===== Halo luminosity table =====
-    # (mPBH, z, m) [Msun / yr]
+    # L_table: (mPBH, z, m) [Msun / yr]
     cache_file = f"../../data/pbh-accretion/L_table_{am.name}.npy"
     if os.path.exists(cache_file):
         L_table = np.load(cache_file)
@@ -51,7 +67,7 @@ if __name__ == '__main__':
             for i_z, z in enumerate(tqdm(z_s, desc=f'm_PBH={mPBH:.1e}')):
                 m_halo_s = jnp.asarray(m_s) # [Msun]
                 c_halo_s = jnp.asarray(cmz(m_s, z))
-                if save_memory:
+                if args.save_memory:
                     for i_m, m in enumerate(m_s):
                         L_table[i_mPBH, i_z, i_m] = L_halo_jit(mPBH, m, c_halo_s[i_m], z)
                 else:
@@ -60,8 +76,10 @@ if __name__ == '__main__':
 
 
     #===== Halo PBH: Summing HMF =====
+    # xxx_table: [Msun/yr / cMpc^3]
     print("Halo PBH: Summing HMF...", end='')
-    # Conditional PS: (mPBH, z, d) [Msun/yr / cMpc^3]
+
+    # Conditional PS: (mPBH, z, d) 
     cond_table = np.zeros((len(mPBH_s), len(z_s), len(d_s)))
     dndm = hmfdata['ps_cond'] # [1 / cMpc^3 Msun]
     for i_mPBH, mPBH in enumerate(mPBH_s):
@@ -69,18 +87,18 @@ if __name__ == '__main__':
             for i_d, d in enumerate(d_s):
                 cond_table[i_mPBH,i_z,i_d] = np.trapz(L_table[i_mPBH, i_z] * dndm[i_z, i_d], m_s)
 
-    # Unconditional PS: (mPBH, z) [Msun/yr / cMpc^3]
-    ps_table = np.zeros((len(mPBH_s), len(z_cosmo_s)))
+    # Unconditional PS: (mPBH, z)
+    ps_table = np.zeros((len(mPBH_s), len(zfull_s)))
     dndm = hmfdata['ps'] # [1 / cMpc^3 Msun]
     for i_mPBH, mPBH in enumerate(mPBH_s):
-        for i_z, z in enumerate(z_cosmo_s):
+        for i_z, z in enumerate(zfull_s):
             ps_table[i_mPBH,i_z] = np.trapz(L_table[i_mPBH, i_z] * dndm[i_z], m_s) if z <= z_s[-1] else 0.
 
-    # Sheth-Tormen: (mPBH, z) [Msun/yr / cMpc^3]
-    st_table = np.zeros((len(mPBH_s), len(z_cosmo_s)))
+    # Sheth-Tormen: (mPBH, z)
+    st_table = np.zeros((len(mPBH_s), len(zfull_s)))
     dndm = hmfdata['st'] # [1 / cMpc^3 Msun]
     for i_mPBH, mPBH in enumerate(mPBH_s):
-        for i_z, z in enumerate(z_cosmo_s):
+        for i_z, z in enumerate(zfull_s):
             st_table[i_mPBH,i_z] = np.trapz(L_table[i_mPBH, i_z] * dndm[i_z], m_s) if z <= z_s[-1] else 0.
     print("Done.")
 
@@ -93,28 +111,29 @@ if __name__ == '__main__':
         'r_fixed' : hmfdata['r_fixed'],
         'mPBH' : mPBH_s,
         'z' : z_s,
-        'z_cosmo' : z_cosmo_s,
+        'zfull' : zfull_s,
         'd' : d_s,
         'ps_cond' : cond_table * unit_conversion,
         'ps' : ps_table * unit_conversion,
         'st' : st_table * unit_conversion,
-        'units' : 'cell_size: [cMpc]. r_fixed: [cMpc]. mPBH: [Msun]. z/z_cosmo: [1]. d: [1]. All rates: [eV / s / cfcm^3].',
-        'shapes' : 'ps_cond: (mPBH, z, d). ps, st: (mPBH, z_cosmo).',
+        'units' : 'cell_size: [cMpc]. r_fixed: [cMpc]. mPBH: [Msun]. z/zfull: [1]. d: [1]. All rates: [eV / s / cfcm^3].',
+        'shapes' : 'ps_cond: (mPBH, z, d). ps, st: (mPBH, zfull).',
     }
     save_h5_dict(f"../../data/production/pbhacc_halo_hmf_summed_rate_{am.name}.h5", data)
     print("Halo PBH: Tables saved.")
 
 
     #===== Cosmo PBH: HMF f_coll =====
+    # xxx_table: [Msun/yr / cMpc^3]
     print("Cosmo PBH: Evaluating f_coll...", end='')
 
     # Function preparation
     L_cosmo_density_vmap = jax.jit(jax.vmap(am.L_cosmo_density, in_axes=(0, None, None, None, 0)))
-    mPBH_in, T_in = jnp.meshgrid(mPBH_s, T_s, indexing='ij')
+    mPBH_in, cinf_in = jnp.meshgrid(mPBH_s, cinf_s, indexing='ij')
     mPBH_in = mPBH_in.flatten()
-    T_in = T_in.flatten()
+    cinf_in = cinf_in.flatten()
     def L_cosmo_density_wrapper(z, rho_dm, rho_b):
-        return L_cosmo_density_vmap(mPBH_in, z, rho_dm, rho_b, T_in).reshape((len(mPBH_s), len(T_s)))
+        return L_cosmo_density_vmap(mPBH_in, z, rho_dm, rho_b, cinf_in).reshape((len(mPBH_s), len(cinf_s)))
     
     def get_rho_dm_rho_b(rho_coll, z, d=0.):
         """Returns rho_dm [Msun / cMpc^3] and rho_b [g/cm^3].
@@ -137,27 +156,27 @@ if __name__ == '__main__':
         rho_b = (1 + d) * rho_b_avg * (1 - f_coll) # [g/cm^3]
         return rho_dm, rho_b
 
-    # Conditional PS: (mPBH, z, d, T) [Msun/yr / cMpc^3]
-    cond_table = np.zeros((len(mPBH_s), len(z_s), len(d_s), len(T_s)))
+    # Conditional PS: (mPBH, z, cinf, d)
+    cond_table = np.zeros((len(mPBH_s), len(z_s), len(cinf_s), len(d_s)))
     dndm = hmfdata['ps_cond'] # [1 / cMpc^3 Msun]
     for i_z, z in enumerate(tqdm(z_s, desc='Conditional PS')):
         for i_d, d in enumerate(d_s):
             rho_coll = np.trapz(m_s * dndm[i_z,i_d], m_s) # [Msun / cMpc^3]
             rho_dm, rho_b = get_rho_dm_rho_b(rho_coll, z, d)
-            cond_table[:,i_z,i_d,:] = L_cosmo_density_wrapper(z, rho_dm, rho_b)
+            cond_table[:,i_z,:,i_d] = L_cosmo_density_wrapper(z, rho_dm, rho_b)
 
-    # Unconditional PS: (mPBH, z_cosmo, T) [Msun/yr / cMpc^3]
-    ps_table = np.zeros((len(mPBH_s), len(z_cosmo_s), len(T_s)))
+    # Unconditional PS: (mPBH, zfull, cinf)
+    ps_table = np.zeros((len(mPBH_s), len(zfull_s), len(cinf_s)))
     dndm = hmfdata['ps'] # [1 / cMpc^3 Msun]
-    for i_z, z in enumerate(tqdm(z_cosmo_s, desc='Unconditional PS')):
+    for i_z, z in enumerate(tqdm(zfull_s, desc='Unconditional PS')):
         rho_coll = np.trapz(m_s * dndm[i_z], m_s) if z <= z_s[-1] else 0. # [Msun / cMpc^3]
         rho_dm, rho_b = get_rho_dm_rho_b(rho_coll, z)
         ps_table[:,i_z,:] = L_cosmo_density_wrapper(z, rho_dm, rho_b)
 
-    # Unconditional Sheth-Tormen: (mPBH, z_cosmo, T) [Msun/yr / cMpc^3]
-    st_table = np.zeros((len(mPBH_s), len(z_cosmo_s), len(T_s)))
+    # Unconditional Sheth-Tormen: (mPBH, zfull, cinf)
+    st_table = np.zeros((len(mPBH_s), len(zfull_s), len(cinf_s)))
     dndm = hmfdata['st'] # [1 / cMpc^3 Msun]
-    for i_z, z in enumerate(tqdm(z_cosmo_s, desc='Unconditional ST')):
+    for i_z, z in enumerate(tqdm(zfull_s, desc='Unconditional ST')):
         rho_coll = np.trapz(m_s * dndm[i_z], m_s) if z <= z_s[-1] else 0. # [Msun / cMpc^3]
         rho_dm, rho_b = get_rho_dm_rho_b(rho_coll, z)
         st_table[:,i_z,:] = L_cosmo_density_wrapper(z, rho_dm, rho_b)
@@ -172,14 +191,14 @@ if __name__ == '__main__':
         'r_fixed' : hmfdata['r_fixed'],
         'm_PBH' : mPBH_s,
         'z' : z_s,
-        'z_cosmo' : z_cosmo_s,
+        'zfull' : zfull_s,
         'd' : d_s,
-        'T' : T_s,
+        'cinf' : cinf_s,
         'ps_cond' : cond_table * unit_conversion,
         'ps' : ps_table * unit_conversion,
         'st' : st_table * unit_conversion,
-        'units' : 'cell_size: [cMpc]. r_fixed: [cMpc]. m_PBH: [Msun]. z/z_cosmo: [1]. d: [1]. T: [eV]. all rates: [eV / s / cfcm^3].',
-        'shapes' : 'ps_cond: (mPBH, z, d, T). ps, st: (mPBH, z_cosmo, T).',
+        'units' : 'cell_size: [cMpc]. r_fixed: [cMpc]. m_PBH: [Msun]. z/zfull: [1]. d: [1]. cinf: [km/s]. all rates: [eV / s / cfcm^3].',
+        'shapes' : 'ps_cond: (mPBH, z, cinf, d). ps, st: (mPBH, zfull, cinf).',
     }
     save_h5_dict(f"../../data/production/pbhacc_cosmo_rate_{am.name}.h5", data)
     print("Saved cosmo PBH tables.")

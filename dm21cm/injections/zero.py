@@ -33,10 +33,10 @@ class ZeroInjection (Injection):
         }
 
     #===== injections =====
-    def inj_rate(self, z_start, z_end=None):
+    def inj_rate(self, z_start, z_end=None, **kwargs):
         return 1e-100
     
-    def inj_power(self, z_start, z_end=None):
+    def inj_power(self, z_start, z_end=None, **kwargs):
         return 1e-100
     
     def inj_phot_spec(self, z_start, z_end=None, **kwargs):

@@ -198,30 +198,10 @@ def f_MB(v, v_rms):
 
 #===== PBH accretion model =====
 
-
-# conformal dark matter density [M_sun / cMpc^3]
-RHO_DM = cosmo.Odm0 * cosmo.critical_density0.to(u.M_sun / u.Mpc**3).value
+RHO_DM = cosmo.Odm0 * cosmo.critical_density0.to(u.M_sun / u.Mpc**3).value # conformal dark matter density
 F_DM = cosmo.Odm0 / cosmo.Om0
 F_BM = cosmo.Ob0 / cosmo.Om0
 KM_PER_PC = (1 * u.pc).to(u.km).value
-
-_T_K_TO_C_INF_FACTOR = np.sqrt(5/3 * 1 * u.eV / c.m_p).to(u.km/u.s).value
-
-#--- jaxified functions ---
-# Mdot_BHL_v = jax.jit(jax.vmap(Mdot_BHL, in_axes=(None, None, 0, None, None)))
-# Mdot_PR_v = jax.jit(jax.vmap(Mdot_PR, in_axes=(None, None, 0, None, None)))
-
-# @jax.jit
-# @partial(jax.vmap, in_axes=(None, None, 0, None, None))
-# def L_ADAF_BHL_v(M_PBH, rho_inf, v, c_in, c_inf):
-#     Mdot = Mdot_BHL(M_PBH, rho_inf, v, c_in, c_inf) # [M_sun/yr]
-#     return L_ADAF(Mdot, M_PBH)
-
-# @jax.jit
-# @partial(jax.vmap, in_axes=(None, None, 0, None, None))
-# def L_ADAF_PR_v(M_PBH, rho_inf, v, c_in, c_inf):
-#     Mdot = Mdot_PR(M_PBH, rho_inf, v, c_in, c_inf) # [M_sun/yr]
-#     return L_ADAF(Mdot, M_PBH)
 
 
 class PBHAccretionModel:
@@ -250,28 +230,33 @@ class PBHAccretionModel:
         else:
             raise NotImplementedError(self.accretion_type)
         
+        #===== vectorized functions =====
         self.Mdot_func_v = jax.jit(jax.vmap(self.Mdot_func, in_axes=(None, None, 0, None, None)))
         def L_func_full(M_PBH, rho_inf, v, c_in, c_inf):
             Mdot = self.lambda_fudge * self.Mdot_func(M_PBH, rho_inf, v, c_in, c_inf) # [M_sun/yr]
             return self.L_func(Mdot, M_PBH)
         self.L_func_v = jax.jit(jax.vmap(L_func_full, in_axes=(None, None, 0, None, None)))
 
+        #===== precomputed reference values =====
         self.rho_m_ref = 1 # reference physical total matter density in halos [M_sun/pc^3]
         self.m_PBH_ref = 1 # reference PBH mass [M_sun]
         self.n_PBH_ref = F_DM * (self.rho_m_ref * u.M_sun / u.pc**3 / (self.m_PBH_ref * u.M_sun)).to(u.pc**-3).value # [pc^-3]
         self.rho_inf_ref = F_BM * (self.rho_m_ref * u.M_sun / u.pc**3).to(u.g/u.cm**3).value # [g/cm^3]
 
+        self.T_k_ref = 1 # reference gas kinetic temperature [eV]
+        self.x_e_ref = 0 # reference ionization fraction
+        self.c_inf_ref = np.sqrt(5/3 * (1 + self.x_e_ref) * self.T_k_ref * u.eV / c.m_p).to(u.km/u.s).value
 
-    def L_cosmo_single_PBH(self, m_PBH, z, rho_inf, T_k):
+
+    def L_cosmo_single_PBH(self, m_PBH, z, rho_inf, c_inf):
         """PBH accretion luminosity due to single unbound PBH [M_sun/yr]
         
         Args:
             m_PBH (float): Mass of the PBH [M_sun]
             z (float): Redshift
             rho_inf (float): Ambient gas density [g/cm^3]
-            T_k (float): Gas kinetic temperature [eV]
+            c_inf (float): Ambient gas sound speed [km/s]
         """
-        c_inf = jnp.sqrt(T_k) * _T_K_TO_C_INF_FACTOR # [km/s]
         v_cb = v_cb_cosmo(z) # [km/s]
         v_s = jnp.linspace(0.1 * v_cb, 10 * v_cb, 1000)
         fv_s = f_MB(v_s, v_cb)
@@ -282,22 +267,25 @@ class PBHAccretionModel:
         """PBH accretion luminosity due to single unbound PBH in standard cosmology [M_sun/yr]
         
         Args:
+            m_PBH (float): Mass of the PBH [M_sun]
             z (float): Redshift
         """
         rho_inf = (cosmo.critical_density(z) * cosmo.Ob(z)).to(u.g/u.cm**3).value # [g/cm^3]
         T_k = dh_phys.Tm_std(1+z) # [eV]
-        return self.L_cosmo_single_PBH(m_PBH, z, rho_inf, T_k)
+        x_e = dh_phys.xHII_std(1+z)
+        c_inf = np.sqrt(5/3 * (1+x_e) * T_k * u.eV / c.m_p).to(u.km/u.s).value
+        return self.L_cosmo_single_PBH(m_PBH, z, rho_inf, c_inf)
     
-    def Mdot_cosmo_single_PBH(self, m_PBH, z, rho_inf, T_k):
+    def Mdot_cosmo_single_PBH(self, m_PBH, z, rho_inf, c_inf):
         """PBH accretion rate due to single unbound PBH [M_sun/yr]
         May be deprecated
         
         Args:
+            m_PBH (float): Mass of the PBH [M_sun]
             z (float): Redshift
             rho_inf (float): Ambient gas density [g/cm^3]
-            T_k (float): Gas kinetic temperature [eV]
+            c_inf (float): Ambient gas sound speed [km/s]
         """
-        c_inf = jnp.sqrt(T_k) * _T_K_TO_C_INF_FACTOR # [km/s]
         v_cb = v_cb_cosmo(z) # [km/s]
         v_s = jnp.linspace(0.1 * v_cb, 10 * v_cb, 1000)
         fv_s = f_MB(v_s, v_cb)
@@ -309,11 +297,14 @@ class PBHAccretionModel:
         May be deprecated
         
         Args:
+            m_PBH (float): Mass of the PBH [M_sun]
             z (float): Redshift
         """
         rho_inf = (cosmo.critical_density(z) * cosmo.Ob(z)).to(u.g/u.cm**3).value # [g/cm^3]
         T_k = dh_phys.Tm_std(1+z) # [eV]
-        return self.Mdot_cosmo_single_PBH(m_PBH, z, rho_inf, T_k)
+        x_e = dh_phys.xHII_std(1+z)
+        c_inf = np.sqrt(5/3 * (1+x_e) * T_k * u.eV / c.m_p).to(u.km/u.s).value
+        return self.Mdot_cosmo_single_PBH(m_PBH, z, rho_inf, c_inf)
         
     
     def L_cosmo_density(self, m_PBH, z, rho_dm, rho_b_inf, T_k):

@@ -7,7 +7,7 @@ import numpy as np
 from scipy import interpolate
 from astropy.cosmology import Planck18 as cosmo
 import astropy.units as u
-import astropy.constants as const
+import astropy.constants as c
 
 import jax
 jax.config.update("jax_enable_x64", True)
@@ -41,7 +41,7 @@ class PBHHRInjection (Injection):
         self.f_PBH = f_PBH
         self.inj_per_sec = 1. # [inj / s] | convention: 1 injection event per second
 
-        self.m_eV = (self.m_PBH * u.g * const.c**2).to(u.eV).value # [eV]
+        self.m_eV = (self.m_PBH * u.g * c.c**2).to(u.eV).value # [eV]
         self.n0_PBH = phys.rho_DM * f_PBH / self.m_eV # [BH / pcm^3] | Present day PBH number density
 
         #----- Load PBH data -----
@@ -150,10 +150,10 @@ class PBHHRInjection (Injection):
         """Mean physical number density of PBHs in [BH / pcm^3]. Includes 'evaporated PBHs'."""
         return self.n0_PBH * (1+z_start)**3 # [BH / pcm^3]
 
-    def inj_rate(self, z_start, z_end=None):
+    def inj_rate(self, z_start, z_end=None, **kwargs):
         return self.n_PBH(z_start, z_end=z_end) * self.inj_per_sec # [inj / pcm^3 s]
     
-    def inj_power(self, z_start, z_end=None):
+    def inj_power(self, z_start, z_end=None, **kwargs):
         power = self.inj_phot_spec(z_start, z_end=z_end).toteng() + self.inj_elec_spec(z_start, z_end=z_end).toteng()
         return max(1e-100, power) # [eV / pcm^3 s]
 
@@ -214,13 +214,15 @@ class PBHAccretionInjection (Injection):
 
         self.halo_data = load_h5_dict(f"{os.environ['DM21CM_DATA_DIR']}/pbhacc_halo_hmf_summed_rate_{self.model}.h5")
         self.cosmo_data = load_h5_dict(f"{os.environ['DM21CM_DATA_DIR']}/pbhacc_cosmo_rate_{self.model}.h5")
+        
         if m_PBH not in self.halo_data['mPBH']:
             raise ValueError(f'PBH data for m_PBH={m_PBH} not found.')
         self.i_mPBH = np.where(self.halo_data['mPBH'] == m_PBH)[0][0]
+
         self.z_s = self.halo_data['z']
-        self.z_cosmo_s = self.halo_data['z_cosmo']
+        self.zfull_s = self.halo_data['zfull']
         self.d_s = self.halo_data['d']
-        self.T_s = self.cosmo_data['T']
+        self.cinf_s = self.cosmo_data['cinf'] # [km/s]
         self.halo_ps_cond = self.halo_data['ps_cond'][self.i_mPBH] # [eV / s / cfcm^3]
         self.halo_ps = self.halo_data['ps'][self.i_mPBH]
         self.halo_st = self.halo_data['st'][self.i_mPBH]
@@ -255,32 +257,64 @@ class PBHAccretionInjection (Injection):
             'f_PBH': self.f_PBH
         }
     
+    #===== physics =====
+    def cinf(self, T_k, x_e):
+        """Ambient sound speed [km/s]. Used for contributions from unbound PBH.
+        
+        Args:
+            T_k (float): Gas temperature [eV].
+            x_e (float): Ionization fraction [1].
+        """
+        return np.sqrt(5/3 * (1 + x_e) * T_k * u.eV / c.m_p).to(u.km/u.s).value
+    
+    def cinf_std(self, z):
+        """Standard ambient sound speed [km/s]."""
+        T_k = dh_phys.Tm_std(1+z) # [eV]
+        x_e = dh_phys.xHII_std(1+z) # [1]
+        return self.cinf(T_k, x_e)
+    
+    def inj_power_std(self, z):
+        T_k = dh_phys.Tm_std(1+z) # [eV]
+        x_e = dh_phys.xHII_std(1+z) # [1]
+        return self.inj_power(z, state=dict(Tm=T_k, xHII=x_e))
+
+    
     #===== injections =====
-    def inj_rate(self, z_start, z_end=None):
+    def inj_rate(self, z_start, z_end=None, **kwargs):
         return self.inj_rate_ref # [inj / pcm^3 s]
     
-    def inj_power(self, z_start, z_end=None):
-        z_in = bound_action(z_start, self.z_cosmo_s, 'clip')
-        T_in = bound_action(dh_phys.Tm_std(1+z_start), self.T_s, 'clip') # [eV]
-        halo_power = interp1d(self.halo_st, self.z_cosmo_s, z_in) # [eV / s / cfcm^3]
-        cosmo_power = interp1d(interp1d(self.cosmo_st, self.z_cosmo_s, z_in), self.T_s, T_in) # [eV / s / cfcm^3]
+    def inj_power(self, z_start, z_end=None, state=None, **kwargs):
+        z_in = bound_action(z_start, self.zfull_s, 'clip')
+        cinf_in = bound_action(self.cinf(state['Tm'], state['xHII']), self.cinf_s, 'clip') # [km/s]
+        halo_power = interp1d(self.halo_st, self.zfull_s, z_in) # [eV / s / cfcm^3]
+        cosmo_power = interp1d(interp1d(self.cosmo_st, self.zfull_s, z_in), self.cinf_s, cinf_in) # [eV / s / cfcm^3]
         return self.f_PBH * (halo_power + cosmo_power) * (1 + z_start)**3 # [eV / pcm^3 s]
     
-    def inj_phot_spec(self, z_start, z_end=None, **kwargs):
-        return self.phot_spec * float(self.inj_power(z_start)) # [phot/eV / pcm^3 s]
+    def inj_phot_spec(self, z_start, z_end=None, state=None, **kwargs):
+        return self.phot_spec * float(self.inj_power(z_start, state=state)) # [phot/eV / pcm^3 s]
     
     def inj_elec_spec(self, z_start, z_end=None, **kwargs):
         return self.zero_elec_spec # [elec/eV / pcm^3 s]
     
     def inj_phot_spec_box(self, z_start, z_end=None, delta_plus_one_box=None, **kwargs):
-        z_in = bound_action(z_start, self.z_s, 'raise')
-        p_ps_cond_d = interp1d(self.p_ps_cond, self.z_s, z_in) # [eV / s / cfcm^3]
-        p_ps_d = interp1d(self.p_ps, self.z_s, z_in)
-        p_st_d = interp1d(self.p_st, self.z_s, z_in)
+        z_in = bound_action(z_start, self.z_s, 'raise') # can only access from DM21cm
+        cinf_in = bound_action(self.cinf_std(z_start), self.cinf_s, 'clip') # [km/s] | for cosmo PBH, assume standard cosmology
         d_box_in = bound_action(delta_plus_one_box - 1, self.d_s, 'clip')
-        p = interp1d(p_ps_cond_d, self.d_s, d_box_in)
-        p = p * p_st_d / p_ps_d
-        power_box = p * self.f_PBH * (1 + z_start)**3 # [eV / pcm^3 s]
+
+        # table units: [eV / s / cfcm^3]
+        halo_ps_cond_d = interp1d(self.halo_ps_cond, self.z_s, z_in) # shape=(d,)
+        halo_ps_d = interp1d(self.halo_ps, self.z_s, z_in) # shape=()
+        halo_st_d = interp1d(self.halo_st, self.z_s, z_in) # shape=()
+        halo_power = interp1d(halo_ps_cond_d, self.d_s, d_box_in) # shape=box
+        halo_power *= halo_st_d / halo_ps_d
+
+        cosmo_ps_cond_d = interp1d(interp1d(self.cosmo_ps_cond, self.zfull_s, z_in), self.cinf_s, cinf_in) # shape=(d,)
+        cosmo_ps_d = interp1d(interp1d(self.cosmo_ps, self.zfull_s, z_in), self.cinf_s, cinf_in) # shape=()
+        cosmo_st_d = interp1d(interp1d(self.cosmo_st, self.zfull_s, z_in), self.cinf_s, cinf_in) # shape=()
+        cosmo_power = interp1d(cosmo_ps_cond_d, self.d_s, d_box_in) # shape=box
+        cosmo_power *= cosmo_st_d / cosmo_ps_d
+
+        power_box = (halo_power + cosmo_power) * self.f_PBH * (1 + z_start)**3 # [eV / pcm^3 s]
         power_mean = jnp.mean(power_box)
         return self.phot_spec * float(power_mean), power_box / power_mean # [phot/eV / pcm^3 s], [1]
 

@@ -52,11 +52,11 @@ class DMDecayInjection (Injection):
 
     #===== injections =====
     # Assuming Euler steps. z_end is not used.
-    def inj_rate(self, z, z_end=None):
+    def inj_rate(self, z, z_end=None, **kwargs):
         rho_DM = phys.rho_DM * (1+z)**3 # [eV / pcm^3]
         return float((rho_DM/self.m_DM) / self.lifetime) # [inj / pcm^3 s]
     
-    def inj_power(self, z, z_end=None):
+    def inj_power(self, z, z_end=None, **kwargs):
         return self.inj_rate(z) * self.m_DM # [eV / pcm^3 s]
     
     def inj_phot_spec(self, z, z_end=None, **kwargs):
@@ -130,13 +130,13 @@ class DMPWaveAnnihilationInjection (Injection):
         return dNtilde_dt_box * self.c_sigma / self.m_DM**2 * (1 + z)**3 # [inj / pcm^3 s]
 
     
-    def inj_rate(self, z_start, z_end=None):
+    def inj_rate(self, z_start, z_end=None, **kwargs):
         """Instantaneous rate in a homogeneous universe. Use ST table."""
         z_in = bound_action(z_start, self.z_range, 'clip')
         st_val = interp1d(self.data['st_ann_rate'], self.z_range, z_in) # [eV^2 / pcm^3 ccm^3]
         return float(st_val * self.c_sigma / self.m_DM**2 * (1 + z_start)**3) # [inj / pcm^3 s]
     
-    def inj_power(self, z_start, z_end=None):
+    def inj_power(self, z_start, z_end=None, **kwargs):
         """Instantaneous rate in a homogeneous universe. Use ST table."""
         return float(self.inj_rate(z_start) * 2 * self.m_DM) # [eV / pcm^3 s]
     

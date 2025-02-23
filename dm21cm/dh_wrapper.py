@@ -61,25 +61,25 @@ class DarkHistoryWrapper:
         start_rs = 3000
         coarsen_factor = 10
 
-        def input_in_spec_phot(rs, next_rs=None, dt=None):
+        def input_in_spec_phot(rs, next_rs=None, dt=None, state=None):
             """Injected photon spectrum per injection event [phot / inj]."""
             z_end = next_rs - 1 if next_rs is not None else None
-            return self.injection.inj_phot_spec(rs-1, z_end=z_end) / self.injection.inj_rate(rs-1, z_end=z_end)
+            return self.injection.inj_phot_spec(rs-1, z_end=z_end, state=state) / self.injection.inj_rate(rs-1, z_end=z_end, state=state)
         
-        def input_in_spec_elec(rs, next_rs=None, dt=None):
+        def input_in_spec_elec(rs, next_rs=None, dt=None, state=None):
             """Injected electron spectrum per injection event [elec / inj]."""
             z_end = next_rs - 1 if next_rs is not None else None
-            return self.injection.inj_elec_spec(rs-1, z_end=z_end) / self.injection.inj_rate(rs-1, z_end=z_end)
+            return self.injection.inj_elec_spec(rs-1, z_end=z_end, state=state) / self.injection.inj_rate(rs-1, z_end=z_end, state=state)
         
-        def input_rate_func_N(rs, next_rs=None, dt=None):
+        def input_rate_func_N(rs, next_rs=None, dt=None, state=None):
             """Injection event rate density [inj / pcm^3 s]."""
             z_end = next_rs - 1 if next_rs is not None else None
-            return self.injection.inj_rate(rs-1, z_end=z_end)
+            return self.injection.inj_rate(rs-1, z_end=z_end, state=state)
         
-        def input_rate_func_eng(rs, next_rs=None, dt=None):
+        def input_rate_func_eng(rs, next_rs=None, dt=None, state=None):
             """Injection power density [eV / pcm^3 s]."""
             z_end = next_rs - 1 if next_rs is not None else None
-            return self.injection.inj_power(rs-1, z_end=z_end)
+            return self.injection.inj_power(rs-1, z_end=z_end, state=state)
 
         default_kwargs = dict(
             in_spec_phot  = input_in_spec_phot, # [phot / inj]

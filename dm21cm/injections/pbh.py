@@ -285,7 +285,8 @@ class PBHAccretionInjection (Injection):
     
     def inj_power(self, z_start, z_end=None, state=None, **kwargs):
         z_in = bound_action(z_start, self.zfull_s, 'clip')
-        cinf_in = bound_action(self.cinf(state['Tm'], state['xHII']), self.cinf_s, 'clip') # [km/s]
+        cinf_in = self.cinf(state['Tm'], state['xHII']) if state is not None else self.cinf_std(z_start)
+        cinf_in = bound_action(cinf_in, self.cinf_s, 'clip') # [km/s]
         halo_power = interp1d(self.halo_st, self.zfull_s, z_in) # [eV / s / cfcm^3]
         cosmo_power = interp1d(interp1d(self.cosmo_st, self.zfull_s, z_in), self.cinf_s, cinf_in) # [eV / s / cfcm^3]
         return self.f_PBH * (halo_power + cosmo_power) * (1 + z_start)**3 # [eV / pcm^3 s]

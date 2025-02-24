@@ -1,7 +1,7 @@
 #!/bin/bash
 
-#SBATCH --job-name=pbh-acc-DHstart
-#SBATCH --array=0-5
+#SBATCH --job-name=pbh-acc-rs2000
+#SBATCH --array=0
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks=1
@@ -23,7 +23,7 @@ echo "CACHE: HOLYSCRATCH"
 echo "DATA:  HOLYSTORE"
 echo "SAVE:  HOLYSTORE & HOLYSCRATCH"
 
-python inj_script.py -r pbh-acc-BHLl1e-02-test -c pbh-acc-BHLl1e-02 -i $SLURM_ARRAY_TASK_ID
+python inj_script.py -r pbh-acc-rs2000 -c pbh-acc-PRc23 -i $SLURM_ARRAY_TASK_ID --debug_rs_start 2000
 # python inj_script.py -r pbh-hr -c pbh-hr -i $SLURM_ARRAY_TASK_ID
 #python inj_script.py -r xc-lt1e26-d128 -c decay-test -i 0
 

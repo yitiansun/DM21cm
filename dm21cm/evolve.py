@@ -48,6 +48,8 @@ def evolve(run_name,
            rerun_DH=False,
            homogenize_injection=False,
            homogenize_deposition=False,
+
+           debug_rs_start=3000,
            ):
     """
     Main evolution function.
@@ -146,7 +148,8 @@ def evolve(run_name,
         dh_injection = ZeroInjection() if injection is None else injection
         dh_injection.set_binning(abscs)
         dh = DarkHistoryWrapper(dh_injection, prefix=p21c.config[f'direc'])
-        dh.evolve(end_rs=(1+z_match)*0.9, rerun=rerun_DH)
+        # dh.evolve(end_rs=(1+z_match)*0.9, rerun=rerun_DH)
+        dh.evolve(end_rs=(1+z_match)*0.9, rerun=rerun_DH, start_rs=debug_rs_start) # DEBUG
         T_k_DH_init, x_e_DH_init, phot_bath_spec = dh.get_init_cond(rs=1+z_match)
         spin_temp.Tk_box += T_k_DH_init - np.mean(spin_temp.Tk_box)
         spin_temp.x_e_box += x_e_DH_init - np.mean(spin_temp.x_e_box)

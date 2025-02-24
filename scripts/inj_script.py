@@ -27,6 +27,7 @@ parser.add_argument('-s', '--sf', type=int, default=10)    #  2   4  10  20   40
 parser.add_argument('-n', '--n_threads', type=int, default=32)
 parser.add_argument('-d', '--box_dim', type=int, default=128)
 parser.add_argument('--homogeneous', action='store_true')
+parser.add_argument('--debug_rs_start', type=float, default=3000)
 args = parser.parse_args()
 print(args)
 
@@ -104,7 +105,7 @@ elif args.channel.startswith('pbh-acc'):
 
     model = args.channel.split('pbh-acc-')[-1]
 
-    m_s = np.array([1e0, 1e2, 1e4]) # [M_sun]
+    m_s = np.array([1e2]) # [M_sun]
 
     mass_ind, inj_ind = np.unravel_index(args.run_index, (len(m_s), 2))
     m_PBH = m_s[mass_ind] # [M_sun]
@@ -199,6 +200,8 @@ return_dict = evolve(
 
     homogenize_deposition = args.homogeneous,
     homogenize_injection = args.homogeneous,
+
+    debug_rs_start = args.debug_rs_start
 )
 
 return_dict['lightcone']._write(fname=lc_filename, direc=save_dir, clobber=True)

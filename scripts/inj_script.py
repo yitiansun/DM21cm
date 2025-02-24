@@ -11,7 +11,8 @@ sys.path.append(WDIR)
 from dm21cm.evolve import evolve
 from dm21cm.injections.pbh import PBHHRInjection, PBHAccretionInjection
 from dm21cm.injections.dm import DMDecayInjection, DMPWaveAnnihilationInjection
-from preprocessing.step_size import pwave_phot_c_sigma, pwave_elec_c_sigma, pbh_hr_f, pbh_acc_f
+
+from step_size import pwave_phot_c_sigma, pwave_elec_c_sigma, pbh_hr_f, pbh_acc_f
 
 
 
@@ -103,7 +104,7 @@ elif args.channel == 'pbh-hr':
 
 elif args.channel.startswith('pbh-acc'):
 
-    model = args.channel.split('-')[-1]
+    model = args.channel.split('pbh-acc-')[-1]
 
     m_PBH_s = np.array([1e0, 1e2, 1e4]) # [M_sun]
     inj_multiplier_s = [1, 2]

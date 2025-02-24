@@ -12,7 +12,7 @@ from dm21cm.evolve import evolve
 from dm21cm.injections.pbh import PBHHRInjection, PBHAccretionInjection
 from dm21cm.injections.dm import DMDecayInjection, DMPWaveAnnihilationInjection
 
-from step_size import pwave_phot_c_sigma, pwave_elec_c_sigma, pbh_hr_f, pbh_acc_f
+from step_size import *
 
 
 
@@ -34,48 +34,47 @@ print(args)
 
 print('\n===== Injection parameters =====')
 
+inj_multiplier_s = [1, 2]
+
 if args.channel.startswith('decay'):
-    if args.channel == 'decay-test':
-        injection = DMDecayInjection(
-            primary='phot_delta',
-            m_DM = 5e3,
-            lifetime = 1e26,
-        )
-        inj_multiplier = 1
-        mass_ind, inj_ind = 0, 0
-        m_fn = 5e3
-
-    elif args.channel == 'decay-test-2':
-        injection = DMDecayInjection(
-            primary='phot_delta',
-            m_DM = 5e3,
-            lifetime = 1e28,
-        )
-        inj_multiplier = 1
-        mass_ind, inj_ind = 0, 0
-        m_fn = 5e3
-
-    else:
-        raise ValueError('Invalid channel')
-
-elif args.channel.startswith('pwave'):
     if args.channel == 'pwave-phot':
-        #m_DM_s = 10**np.array([1.5, 4, 6, 8, 10, 12]) # [eV]
-        m_DM_s = 10**np.array([2, 3, 5, 7, 9, 11]) # [eV]
-        c_s = pwave_phot_c_sigma(m_DM_s) # [pcm^3/s]
-        mass_ind, inj_ind = np.unravel_index(args.run_index, (len(m_DM_s), 2))
+        m_s = decay_phot_m_s
+        tau_s = decay_phot_lifetime(m_s)
         primary = 'phot_delta'
     elif args.channel == 'pwave-elec':
-        m_DM_s = 10**np.array([6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10, 10.5, 11, 11.5, 12])
-        c_s = pwave_elec_c_sigma(m_DM_s)
-        mass_ind, inj_ind = np.unravel_index(args.run_index, (len(m_DM_s), 2))
+        m_s = decay_elec_m_s
+        tau_s = decay_elec_lifetime(m_s)
         primary = 'elec_delta'
     else:
         raise ValueError('Invalid channel')
-    
-    inj_multiplier_s = [1, 2]
 
-    m_DM = m_DM_s[mass_ind]
+    mass_ind, inj_ind = np.unravel_index(args.run_index, (len(m_s), 2))
+    m_DM = m_s[mass_ind]
+    tau = tau_s[mass_ind]
+    inj_multiplier = inj_multiplier_s[inj_ind]
+    
+    injection = DMDecayInjection(
+        primary = primary,
+        m_DM = m_DM,
+        lifetime = tau / inj_multiplier,
+        cell_size = 2, # [cMpc]
+    )
+    m_fn = m_DM
+
+elif args.channel.startswith('pwave'):
+    if args.channel == 'pwave-phot':
+        m_s = 10**np.array([2, 3, 5, 7, 9, 11]) # [eV]
+        c_s = pwave_phot_c_sigma(m_s)
+        primary = 'phot_delta'
+    elif args.channel == 'pwave-elec':
+        m_s = 10**np.array([6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10, 10.5, 11, 11.5, 12])
+        c_s = pwave_elec_c_sigma(m_s)
+        primary = 'elec_delta'
+    else:
+        raise ValueError('Invalid channel')
+
+    mass_ind, inj_ind = np.unravel_index(args.run_index, (len(m_s), 2))
+    m_DM = m_s[mass_ind]
     c_sigma = c_s[mass_ind]
     inj_multiplier = inj_multiplier_s[inj_ind]
     injection = DMPWaveAnnihilationInjection(
@@ -87,18 +86,17 @@ elif args.channel.startswith('pwave'):
     m_fn = m_DM
 
 elif args.channel == 'pbh-hr':
-
     # log10m_PBH_s = np.array([13.5, 15., 16.5, 18.])
-    log10m_PBH_s = np.array([14, 14.5, 15.5, 16, 17, 17.5])
-    inj_multiplier_s = [1, 2]
+    m_s = 10**np.array([14, 14.5, 15.5, 16, 17, 17.5])
 
-    mass_ind, inj_ind = np.unravel_index(args.run_index, (len(log10m_PBH_s), 2))
-    m_PBH = 10 ** log10m_PBH_s[mass_ind] # [g]
+    mass_ind, inj_ind = np.unravel_index(args.run_index, (len(m_s), 2))
+    m_PBH = m_s[mass_ind] # [g]
+    f_PBH = pbh_hr_f(m_PBH) # [1]
     inj_multiplier = inj_multiplier_s[inj_ind]
-    f_PBH = pbh_hr_f(m_PBH) * inj_multiplier # [1]
+    
     injection = PBHHRInjection(
         m_PBH = m_PBH,
-        f_PBH = f_PBH,
+        f_PBH = f_PBH * inj_multiplier,
     )
     m_fn = m_PBH
 
@@ -106,17 +104,16 @@ elif args.channel.startswith('pbh-acc'):
 
     model = args.channel.split('pbh-acc-')[-1]
 
-    m_PBH_s = np.array([1e0, 1e2, 1e4]) # [M_sun]
-    inj_multiplier_s = [1, 2]
+    m_s = np.array([1e0, 1e2, 1e4]) # [M_sun]
 
-    mass_ind, inj_ind = np.unravel_index(args.run_index, (len(m_PBH_s), 2))
-    m_PBH = m_PBH_s[mass_ind] # [M_sun]
+    mass_ind, inj_ind = np.unravel_index(args.run_index, (len(m_s), 2))
+    m_PBH = m_s[mass_ind] # [M_sun]
+    f_PBH = pbh_acc_f(m_PBH, model) # [1]
     inj_multiplier = inj_multiplier_s[inj_ind]
-    f_PBH = pbh_acc_f(m_PBH, model) * inj_multiplier # [1]
     injection = PBHAccretionInjection(
         model = model,
         m_PBH = m_PBH,
-        f_PBH = f_PBH,
+        f_PBH = f_PBH * inj_multiplier,
     )
     m_fn = m_PBH
 

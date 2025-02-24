@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=pbh-acc-BHL
+#SBATCH --job-name=pbh-acc-DHstart
 #SBATCH --array=0-5
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1

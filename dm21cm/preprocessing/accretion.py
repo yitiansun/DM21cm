@@ -83,7 +83,7 @@ def rho_in_v_in(rho_inf, v, c_in, c_inf):
 _BHL_UNIT_FACTOR = 4 * np.pi * (c.G**2 * c.M_sun**2 * u.g/u.cm**3 / (u.km/u.s)**3).to(u.M_sun/u.yr).value
 # Mdot [# in eV/s] = BHL_unit_factor * M [M_sun]**2 * rho [g/cm^3] / v [km/s]**3
 
-def Mdot_PR(M, rho_inf, v, c_in, c_inf):
+def Mdot_PR(M, rho_inf, v, c_in, c_inf, lambda_fudge=1):
     """Park Ricotti accretion rate [eV/s]
     
     Args:
@@ -92,12 +92,13 @@ def Mdot_PR(M, rho_inf, v, c_in, c_inf):
         v (float): Relative velocity of PBH to gas far away from the I-front [km/s]
         c_in (float): Sound speed inside the I-front [km/s]
         c_inf (float): Sound speed outside the I-front [km/s]
+        lambda_fudge (float): Fudge factor in front of Mdot
     """
     rho_in, v_in = rho_in_v_in(rho_inf, v, c_in, c_inf)
-    return _BHL_UNIT_FACTOR * M**2 * rho_in / (v_in**2 + c_in**2)**1.5
+    return _BHL_UNIT_FACTOR * lambda_fudge * M**2 * rho_in / (v_in**2 + c_in**2)**1.5
 
-def Mdot_BHL(M, rho_inf, v, c_in, c_inf):
-    """Bondi-Hoyle-Lyttleton accretion rate without fudge factor [eV/s]
+def Mdot_BHL(M, rho_inf, v, c_in, c_inf, lambda_fudge=1):
+    """Bondi-Hoyle-Lyttleton accretion rate [eV/s]
     
     Args:
         M (float): Mass of the PBH [M_sun]
@@ -105,8 +106,9 @@ def Mdot_BHL(M, rho_inf, v, c_in, c_inf):
         v (float): Relative velocity of PBH to gas far away from the I-front [km/s]
         c_in (float): Sound speed inside the I-front [km/s]
         c_inf (float): Sound speed outside the I-front [km/s]
+        lambda_fudge (float): Fudge factor in front of Mdot
     """
-    return _BHL_UNIT_FACTOR * M**2 * rho_inf / (v**2 + c_inf**2)**1.5
+    return _BHL_UNIT_FACTOR * lambda_fudge * M**2 * rho_inf / (v**2 + c_inf**2)**1.5
 
 
 #===== Luminosity: ADAF & Thin disk =====
@@ -183,7 +185,7 @@ def v_cb_cosmo(z):
     Args:
         z (float): Redshift
     """
-    return 30 * (1 + z) / 1000
+    return 30 * jnp.minimum((1 + z) / 1000, 1)
 
 def f_MB(v, v_rms):
     """Maxwell-Boltzmann distribution function, solid angle integrated [(km/s)^-1]
@@ -230,12 +232,15 @@ class PBHAccretionModel:
         else:
             raise NotImplementedError(self.accretion_type)
         
-        #===== vectorized functions =====
-        self.Mdot_func_v = jax.jit(jax.vmap(self.Mdot_func, in_axes=(None, None, 0, None, None)))
-        def L_func_full(M_PBH, rho_inf, v, c_in, c_inf):
-            Mdot = self.lambda_fudge * self.Mdot_func(M_PBH, rho_inf, v, c_in, c_inf) # [M_sun/yr]
+        #===== vectorized and partially applied functions =====
+        def Mdot_func_v(M_PBH, rho_inf, v, c_inf):
+            return self.Mdot_func(M_PBH, rho_inf, v, self.c_in, c_inf, self.lambda_fudge)
+        self.Mdot_func_v = jax.jit(jax.vmap(Mdot_func_v, in_axes=(None, None, 0, None)))
+
+        def L_func_v(M_PBH, rho_inf, v, c_inf):
+            Mdot = self.Mdot_func(M_PBH, rho_inf, v, self.c_in, c_inf, self.lambda_fudge) # [M_sun/yr]
             return self.L_func(Mdot, M_PBH)
-        self.L_func_v = jax.jit(jax.vmap(L_func_full, in_axes=(None, None, 0, None, None)))
+        self.L_func_v = jax.jit(jax.vmap(L_func_v, in_axes=(None, None, 0, None)))
 
         #===== precomputed reference values =====
         self.rho_m_ref = 1 # reference physical total matter density in halos [M_sun/pc^3]
@@ -260,7 +265,7 @@ class PBHAccretionModel:
         v_cb = v_cb_cosmo(z) # [km/s]
         v_s = jnp.linspace(0.1 * v_cb, 10 * v_cb, 1000)
         fv_s = f_MB(v_s, v_cb)
-        v_integrand = self.L_func_v(m_PBH, rho_inf, v_s, self.c_in, c_inf)
+        v_integrand = self.L_func_v(m_PBH, rho_inf, v_s, c_inf)
         return jnp.trapz(fv_s * v_integrand, v_s)
     
     def L_cosmo_single_PBH_std(self, m_PBH, z):
@@ -289,7 +294,7 @@ class PBHAccretionModel:
         v_cb = v_cb_cosmo(z) # [km/s]
         v_s = jnp.linspace(0.1 * v_cb, 10 * v_cb, 1000)
         fv_s = f_MB(v_s, v_cb)
-        v_integrand = self.Mdot_func_v(m_PBH, rho_inf, v_s, self.c_in, c_inf)
+        v_integrand = self.Mdot_func_v(m_PBH, rho_inf, v_s, c_inf)
         return jnp.trapz(fv_s * v_integrand, v_s)
     
     def Mdot_cosmo_single_PBH_std(self, m_PBH, z):
@@ -368,3 +373,31 @@ class PBHAccretionModel:
             return 4 * jnp.pi * r**2 * n_PBH * L_v_expn # [M_sun/yr / pc]
         
         return jnp.trapz(L_halo_integrand(r_arr), r_arr) # [M_sun/yr]
+    
+
+    #===== Cross check functions =====
+
+    def Mdot_cosmo_single_PBH_singlevcb(self, m_PBH, z, rho_inf, c_inf):
+        """PBH accretion rate due to single unbound PBH [M_sun/yr]
+        DEBUG: Assuming a single value of v_cb. To reproduce Fig. 1 of AEGSSV24.
+        
+        Args:
+            m_PBH (float): Mass of the PBH [M_sun]
+            z (float): Redshift
+            rho_inf (float): Ambient gas density [g/cm^3]
+            c_inf (float): Ambient gas sound speed [km/s]
+        """
+        v_cb = v_cb_cosmo(z) # [km/s]
+        return self.Mdot_func(m_PBH, rho_inf, v_cb, self.c_in, c_inf, self.lambda_fudge)
+    
+    def L_cosmo_single_PBH_singlevcb(self, m_PBH, z, rho_inf, c_inf):
+        """PBH accretion luminosity due to single unbound PBH [M_sun/yr]
+        
+        Args:
+            m_PBH (float): Mass of the PBH [M_sun]
+            z (float): Redshift
+            rho_inf (float): Ambient gas density [g/cm^3]
+            c_inf (float): Ambient gas sound speed [km/s]
+        """
+        Mdot = self.Mdot_cosmo_single_PBH_singlevcb(m_PBH, z, rho_inf, c_inf) # [M_sun/yr]
+        return self.L_func(Mdot, m_PBH)

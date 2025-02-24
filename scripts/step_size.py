@@ -52,8 +52,8 @@ def interp_between(l_func, r_func, l_bound, r_bound, x):
 
 #===== step sizes =====
 
-decay_phot_log10m_s = np.linspace(1.5, 12, 22) # runs for 2312 paper
-decay_elec_log10m_s = np.linspace(6.5, 12, 23) # runs for 2312 paper
+decay_phot_m_s = np.logspace(1.5, 12, 22) # runs for 2312.11608
+decay_elec_m_s = np.logspace(6.5, 12, 23) # runs for 2312.11608
 
 def decay_phot_lifetime(m):
     """Decay to photons lifetime step size [s] for a given DM mass [eV]."""
@@ -66,6 +66,9 @@ def decay_elec_lifetime(m):
     p = np.array([  0.04765605,  -1.50826951,  15.03947904, -19.12576774])
     log10tau = np.polyval(p, np.log10(m))
     return 10 ** log10tau
+
+pwave_phot_m_s = np.logspace(1.5, 12, 22)
+pwave_elec_m_s = np.logspace(6.5, 12, 12)
 
 def pwave_phot_c_sigma(m):
     """P-wave annihilation to photons cross section at v=c step size [pcm^3/s] for a given DM mass [eV]."""
@@ -84,6 +87,9 @@ def pwave_elec_c_sigma(m):
     log10m = np.log10(m)
     log10c = bezier_curve([[6.5, -23], [10.5, -20], [12, -14.5]], log10m)
     return 10 ** log10c
+
+pbh_hr_m_s = None
+pbh_acc_m_s = None
 
 def pbh_hr_f(m):
     """PBH fraction step size [1] for a given PBH mass [g]."""

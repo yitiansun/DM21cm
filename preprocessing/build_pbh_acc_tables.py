@@ -15,10 +15,10 @@ import h5py
 import logging
 
 sys.path.append(os.environ['DM21CM_DIR'])
-from dm21cm.preprocessing.accretion import PBHAccretionModel
-from dm21cm.preprocessing.halo import cmz
-from dm21cm.preprocessing.hmfe import SigmaMInterpSphere, HMFEvaluator, SphereWindow, RHO_M
 from dm21cm.utils import save_h5_dict, load_h5_dict
+from preprocessing.accretion import PBHAccretionModel
+from preprocessing.halo import cmz
+from preprocessing.hmfe import RHO_M
 
 
 if __name__ == '__main__':
@@ -29,10 +29,10 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     #===== Initialization =====
-    hmfdata = h5py.File("/n/holystore01/LABS/iaifi_lab/Users/yitians/dm21cm/data/hmf/hmf.h5", 'r')
-    z_s = hmfdata['z'][()] # [1]    | redshift
-    d_s = hmfdata['d'][()] # [1]    | delta (overdensity)
-    m_s = hmfdata['m'][()] # [Msun] | halo mass
+    hmfdata = load_h5_dict("/n/holystore01/LABS/iaifi_lab/Users/yitians/dm21cm/data/hmf/hmf.h5")
+    z_s = hmfdata['z'] # [1]    | redshift
+    d_s = hmfdata['d'] # [1]    | delta (overdensity)
+    m_s = hmfdata['m'] # [Msun] | halo mass
 
     zfull_s = np.concatenate((z_s, np.geomspace(51, 3000, 300)))# for Unconditional PS and ST tables
     mPBH_s = np.logspace(0, 4, 5)  # [Msun] | mass of PBH

@@ -15,7 +15,7 @@ sys.path.append(os.environ['DH_DIR'])
 from darkhistory import physics as dh_phys
 
 sys.path.append(os.environ['DM21CM_DIR'])
-from dm21cm.preprocessing import halo
+from preprocessing import halo
 
 
 #===== M dot: PR and BHL =====

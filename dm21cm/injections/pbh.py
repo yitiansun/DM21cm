@@ -78,7 +78,6 @@ class PBHHRInjection (Injection):
         dMdt = np.abs(np.gradient(self.M_s, self.t_s)) # [g/s]
         self.dMdt_t = interpolate.interp1d(self.t_s, dMdt, bounds_error=False, fill_value=0) # [g/s]([s])
 
-    def set_binning(self, abscs):
         self.abscs = abscs
 
     def is_injecting_elec(self):
@@ -242,9 +241,6 @@ class PBHAccretionInjection (Injection):
         E_tot = np.trapz(E * dNdE, E)
         self.phot_spec = Spectrum(E, dNdE / E_tot, spec_type='dNdE') # [phot/eV / eV(injected)]
         self.zero_elec_spec = Spectrum(E, 0. * abscs['elecEk'], spec_type='dNdE') # [elec/eV / eV(injected)]
-
-    def set_binning(self, abscs):
-        self.abscs = abscs
 
     def is_injecting_elec(self):
         return False

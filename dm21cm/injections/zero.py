@@ -9,6 +9,7 @@ import jax.numpy as jnp
 sys.path.append(os.environ['DM21CM_DIR'])
 import dm21cm.physics as phys
 from dm21cm.injections.base import Injection
+from dm21cm.utils import abscs
 
 sys.path.append(os.environ['DH_DIR'])
 from darkhistory.spec.spectrum import Spectrum
@@ -20,7 +21,6 @@ class ZeroInjection (Injection):
     def __init__(self):
         self.mode = 'Zero injection'
 
-    def set_binning(self, abscs):
         self.zero_phot_spec = Spectrum(abscs['photE'], 0. * abscs['photE'], spec_type='N')
         self.zero_elec_spec = Spectrum(abscs['elecEk'], 0. * abscs['elecEk'], spec_type='N')
 

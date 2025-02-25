@@ -2,6 +2,7 @@
 
 import os
 import sys
+import logging
 
 import numpy as np
 import astropy.units as u
@@ -13,8 +14,8 @@ from functools import partial
 from tqdm import tqdm
 
 sys.path.append(os.environ['DM21CM_DIR'])
-from dm21cm.preprocessing.hmfe import SigmaMInterpSphere, HMFEvaluator, SphereWindow
 from dm21cm.utils import save_h5_dict
+from preprocessing.hmfe import SigmaMInterpSphere, HMFEvaluator, SphereWindow
 
 
 if __name__ == '__main__':
@@ -25,9 +26,12 @@ if __name__ == '__main__':
     ws = SphereWindow()
 
     m_s = smi.m_s                      # [Msun] | halo mass
-    z_s = np.linspace(0, 50, 51)       # [1]    | redshift
-    d_s = jnp.linspace(-1, 1.5, 128)   # [1]    | delta (overdensity)
-    r_s = jnp.geomspace(0.1, 512, 128) # [cMpc] | radius
+    z_s = np.geomspace(4, 100, 300)    # [1]    | redshift
+    d_s = jnp.linspace(-1, 1.6, 300)   # [1]    | delta (overdensity)
+
+    generate_r_table = False
+    if generate_r_table:
+        r_s = jnp.geomspace(0.1, 10, 300)  # [cMpc] | radius
 
     cell_size = 2 # [cMpc] | comoving box size
     r_fixed = cell_size / np.cbrt(4*np.pi/3) # [cMpc] | r of sphere with volume cell_size^3
@@ -37,17 +41,18 @@ if __name__ == '__main__':
 
 
     #===== Conditional Press-Schechter =====
-    cond_table = np.zeros((len(z_s), len(d_s), len(r_s), len(m_s)))
+    if generate_r_table:
+        cond_table = np.zeros((len(z_s), len(d_s), len(r_s), len(m_s)))
 
-    @jax.jit
-    @partial(jax.vmap, in_axes=(0, None, None))
-    def cond_dndm_func(r, d, z):
-        return jnp.nan_to_num(hmfe.dNdM_Conditional(ws.RtoM(r), d, z))
+        @jax.jit
+        @partial(jax.vmap, in_axes=(0, None, None))
+        def cond_dndm_func(r, d, z):
+            return jnp.nan_to_num(hmfe.dNdM_Conditional(ws.RtoM(r), d, z))
 
-    for i_z, z in enumerate(tqdm(z_s, desc='Conditional PS')):
-        for i_d, d in enumerate(d_s):
-            cond_table[i_z,i_d] = cond_dndm_func(r_s, d, z) # [1 / cMpc^3 Msun]
-    cond_table = np.einsum('zdrm->rzdm', cond_table)
+        for i_z, z in enumerate(tqdm(z_s, desc='Conditional PS')):
+            for i_d, d in enumerate(d_s):
+                cond_table[i_z,i_d] = cond_dndm_func(r_s, d, z) # [1 / cMpc^3 Msun]
+        cond_table = np.einsum('zdrm->rzdm', cond_table)
 
     #===== Conditional Press-Schechter at Fixed R =====
     cond_fixedr_table = np.zeros((len(z_s), len(d_s), len(m_s)))
@@ -73,18 +78,24 @@ if __name__ == '__main__':
         st_table[i_z] = hmfe.dNdM_ST(m_s, z)
 
     #===== Save =====
-    # ps_cond with varying r
-    data = {
-        'z' : z_s,
-        'd' : d_s,
-        'r' : r_s,
-        'm' : m_s,
-        'ps_cond' : cond_table,
-        'units' : 'z: [1]. d: [1]. r: [cfMpc]. m: [Msun]. All tables: [1 / cMpc^3 Msun].',
-    }
-    save_h5_dict(data_dir + "/hmf_r.h5", data)
+    if generate_r_table:
+        if np.any(np.isnan(cond_table)):
+            logging.warning("NaNs in ps_cond. Check for errors.")
+        # ps_cond with varying r
+        data = {
+            'z' : z_s,
+            'd' : d_s,
+            'r' : r_s,
+            'm' : m_s,
+            'ps_cond' : cond_table,
+            'units' : 'z: [1]. d: [1]. r: [cfMpc]. m: [Msun]. All tables: [1 / cMpc^3 Msun].',
+        }
+        save_h5_dict(data_dir + "/hmf_r.h5", data)
 
     # ps_cond with fixed r and other tables
+    for name, t in zip(['ps_cond_fixedr', 'ps', 'st'], [cond_fixedr_table, ps_table, st_table]):
+        if np.any(np.isnan(t)):
+            logging.warning(f"NaNs in {name}. Check for errors.")
     data = {
         'cell_size' : cell_size,
         'r_fixed' : r_fixed,

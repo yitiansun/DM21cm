@@ -9,13 +9,13 @@ import astropy.constants as c
 import jax
 jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp
-from functools import partial
+# from functools import partial
 from tqdm import tqdm
 import h5py
 
 sys.path.append(os.environ['DM21CM_DIR'])
-from dm21cm.preprocessing.halo import DM_FRAC, cmz, rel_v_disp, nfw_density, nfw_info
 from dm21cm.utils import save_h5_dict, load_h5_dict
+from preprocessing.halo import DM_FRAC, cmz, rel_v_disp, nfw_density, nfw_info
 
 
 if __name__ == '__main__':
@@ -25,6 +25,10 @@ if __name__ == '__main__':
     z_s = hmfdata['z'] # [1]    | redshift
     d_s = hmfdata['d'] # [1]    | delta (overdensity)
     m_s = hmfdata['m'] # [Msun] | halo mass
+
+    # extend z to zero out annihilation rate at higher redshifts
+    z_max = z_s[-1]
+    zext_s = np.concatenate((z_s, [z_max+1e-6, 4000]))
 
 
     #===== Annihilation rate table =====
@@ -70,22 +74,28 @@ if __name__ == '__main__':
 
     #===== Summing HMF =====
     # Conditional PS
-    cond_table = np.zeros((len(z_s), len(d_s)))
+    cond_table = np.zeros((len(zext_s), len(d_s)))
     dndm = hmfdata['ps_cond'] # [1 / cMpc^3 Msun]
-    for i_z, z in enumerate(tqdm(z_s, desc='Conditional PS')):
+    for i_z, z in enumerate(tqdm(zext_s, desc='Conditional PS')):
+        if z > z_max:
+            continue
         for i_d, d in enumerate(d_s):
             cond_table[i_z,i_d] = np.trapz(ann_rates[i_z] * dndm[i_z, i_d], m_s) # [Msun^2/pc^3 / cMpc^3]
 
     # Unconditional PS
-    ps_table = np.zeros((len(z_s),))
+    ps_table = np.zeros((len(zext_s),))
     dndm = hmfdata['ps'] # [1 / cMpc^3 Msun]
-    for i_z, z in enumerate(tqdm(z_s, desc='Unconditional PS')):
+    for i_z, z in enumerate(tqdm(zext_s, desc='Unconditional PS')):
+        if z > z_max:
+            continue
         ps_table[i_z] = np.trapz(ann_rates[i_z] * dndm[i_z], m_s) # [Msun^2/pc^3 / cMpc^3]
 
     # Sheth-Tormen
-    st_table = np.zeros((len(z_s),))
+    st_table = np.zeros((len(zext_s),))
     dndm = hmfdata['st'] # [1 / cMpc^3 Msun]
-    for i_z, z in enumerate(tqdm(z_s, desc='Unconditional ST')):
+    for i_z, z in enumerate(tqdm(zext_s, desc='Unconditional ST')):
+        if z > z_max:
+            continue
         st_table[i_z] = np.trapz(ann_rates[i_z] * dndm[i_z], m_s) # [Msun^2/pc^3 / cMpc^3]
 
 

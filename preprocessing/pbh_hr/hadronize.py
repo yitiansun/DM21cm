@@ -6,22 +6,8 @@ import numpy as np
 WDIR = os.environ['DM21CM_DIR']
 sys.path.append(WDIR)
 from dm21cm.utils import load_h5_dict, save_h5_dict
-
-from pppc import get_pppc_tf
-from read import read_pbh
-
-
-#===== main =====
-
-def main():
-
-    log10m_list = [13.25, 13.75, 14.25, 14.75, 15.25, 15.75, 16.25, 16.75, 17.25, 17.75]
-
-    for log10m in log10m_list:
-        ddir = f"/n/home07/yitians/dm21cm/blackhawk/BlackHawk_v2.3/results/m{log10m:.3f}_pri"
-
-        print(f'{log10m:.3f}', end=' ')
-        hadronize(ddir)
+from preprocessing.pbh_hr.pppc import get_pppc_tf
+from preprocessing.pbh_hr.read import read_pbh
 
 
 #===== transfer function =====
@@ -144,10 +130,3 @@ def hadronize(ddir):
     np.savetxt(f"{ddir}/photon_secondary_spectrum.txt", pack_data(dNdEdt_phot, eng, t), header='PPPC hadronization')
     np.savetxt(f"{ddir}/electron_secondary_spectrum.txt", pack_data(dNdEdt_elec, eng, t), header='PPPC hadronization')
     np.savetxt(f"{ddir}/nugr_secondary_spectrum.txt", pack_data(dNdEdt_nugr, eng, t), header='PPPC hadronization')
-
-    return
-
-
-if __name__ == '__main__':
-    
-    main()

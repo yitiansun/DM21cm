@@ -78,6 +78,14 @@ class CustomInjection (Injection):
         self.m_DM = m_DM
         self.lifetime = lifetime
 
+        # pre-compute spectrum for each injection event
+        self.phot_spec_per_inj = pppc.get_pppc_spec(
+            self.m_DM, abscs['photE'], self.primary, 'phot', decay=True
+        ) # [# / injection event]
+        self.elec_spec_per_inj = pppc.get_pppc_spec(
+            self.m_DM, abscs['elecEk'], self.primary, 'elec', decay=True
+        ) # [# / injection event]
+
     #===== injections =====
     def inj_rate(self, z):
         """Injection event rate density in [injection / pcm^3 s]. [pcm] = [physical cm].
@@ -113,15 +121,6 @@ class CustomInjection (Injection):
         return self.inj_elec_spec(z), delta_plus_one_box # [elec / pcm^3 s], [1]
 
     #===== utilities =====
-    def set_binning(self, abscs):
-        """Inherent binning from `evolve` function."""
-        self.phot_spec_per_inj = pppc.get_pppc_spec(
-            self.m_DM, abscs['photE'], self.primary, 'phot', decay=True
-        ) # [# / injection event]
-        self.elec_spec_per_inj = pppc.get_pppc_spec(
-            self.m_DM, abscs['elecEk'], self.primary, 'elec', decay=True
-        ) # [# / injection event]
-
     def is_injecting_elec(self):
         """Optionally turn off electron injection."""
         return not np.allclose(self.elec_spec_per_inj.N, 0.)
@@ -141,3 +140,22 @@ class CustomInjection (Injection):
 
 # Authors
 Yitian Sun, Joshua W. Foster, Hongwan Liu, Julian B. Muñoz, and Tracy R. Slatyer
+
+# Citation
+
+```bibtex
+@article{PhysRevD.111.043015,
+    title = {Inhomogeneous energy injection in the 21-cm power spectrum: Sensitivity to dark matter decay},
+    author = {Sun, Yitian and Foster, Joshua W. and Liu, Hongwan and Mu\~noz, Julian B. and Slatyer, Tracy R.},
+    journal = {Phys. Rev. D},
+    volume = {111},
+    issue = {4},
+    pages = {043015},
+    numpages = {32},
+    year = {2025},
+    month = {Feb},
+    publisher = {American Physical Society},
+    doi = {10.1103/PhysRevD.111.043015},
+    url = {https://link.aps.org/doi/10.1103/PhysRevD.111.043015}
+}
+```

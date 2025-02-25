@@ -104,7 +104,6 @@ def evolve(run_name,
     box_len = p21c_initial_conditions.user_params.BOX_LEN
 
     if injection:
-        injection.set_binning(abscs)
 
         tfs = TransferFunctionWrapper(
             box_dim = box_dim,
@@ -146,7 +145,6 @@ def evolve(run_name,
 
     if use_DH_init: # still can use DH to get initial conditions if no_injection is set
         dh_injection = ZeroInjection() if injection is None else injection
-        dh_injection.set_binning(abscs)
         dh = DarkHistoryWrapper(dh_injection, prefix=p21c.config[f'direc'])
         # dh.evolve(end_rs=(1+z_match)*0.9, rerun=rerun_DH)
         dh.evolve(end_rs=(1+z_match)*0.9, rerun=rerun_DH, start_rs=debug_rs_start) # DEBUG

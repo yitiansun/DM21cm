@@ -9,7 +9,7 @@ import jax.numpy as jnp
 sys.path.append(os.environ['DM21CM_DIR'])
 import dm21cm.physics as phys
 from dm21cm.injections.base import Injection
-from dm21cm.utils import load_h5_dict
+from dm21cm.utils import load_h5_dict, abscs
 from dm21cm.interpolators import interp1d, bound_action
 
 sys.path.append(os.environ['DH_DIR'])
@@ -31,7 +31,6 @@ class DMDecayInjection (Injection):
         self.m_DM = m_DM
         self.lifetime = lifetime
 
-    def set_binning(self, abscs):
         self.phot_spec_per_inj = pppc.get_pppc_spec(
             self.m_DM, abscs['photE'], self.primary, 'phot', decay=True
         ) # [phot / inj]
@@ -94,7 +93,6 @@ class DMPWaveAnnihilationInjection (Injection):
         self.d_range = self.data['d']
         assert self.cell_size == self.data['cell_size'], "Cell size mismatch."
 
-    def set_binning(self, abscs):
         self.phot_spec_per_inj = pppc.get_pppc_spec(
             self.m_DM, abscs['photE'], self.primary, 'phot', decay=False
         ) # [phot / inj]
@@ -133,7 +131,7 @@ class DMPWaveAnnihilationInjection (Injection):
     def inj_rate(self, z_start, z_end=None, **kwargs):
         """Instantaneous rate in a homogeneous universe. Use ST table."""
         z_in = bound_action(z_start, self.z_range, 'clip')
-        st_val = interp1d(self.data['st_ann_rate'], self.z_range, z_in) # [eV^2 / pcm^3 ccm^3]
+        st_val = interp1d(self.data['st'], self.z_range, z_in) # [eV^2 / pcm^3 ccm^3]
         return float(st_val * self.c_sigma / self.m_DM**2 * (1 + z_start)**3) # [inj / pcm^3 s]
     
     def inj_power(self, z_start, z_end=None, **kwargs):

@@ -5,7 +5,6 @@ class Injection:
     
     Methods:
         __init__          : Initialization.
-        set_binning       : Set injection spectra according to binning chosen in dm21cm.evolve.
         is_injecting_elec : Whether DM is injecting electron/positron.
         get_config        : Get configuration of the injection. Used for reusability checks of cached solutions.
 
@@ -19,15 +18,6 @@ class Injection:
 
     def __init__(self):
         pass
-
-    def set_binning(self, abscs):
-        """Set injection spectra according to binning chosen in evolve.
-        Called by evolve during initialization.
-
-        Args:
-            abscs (dict): Abscissas/binning for the run.
-        """
-        raise NotImplementedError
 
     def is_injecting_elec(self):
         """Whether DM is injecting electron/positron. Used by evolve.

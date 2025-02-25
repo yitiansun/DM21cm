@@ -81,7 +81,7 @@ class DMPWaveAnnihilationInjection (Injection):
         cell_size (float): Cell size in [cMpc].
     """
 
-    def __init__(self, primary=None, m_DM=None, c_sigma=None, cell_size=None):
+    def __init__(self, primary=None, m_DM=None, c_sigma=None, cell_size=2.):
         self.mode = 'DM p-wave annihilation'
         self.primary = primary
         self.m_DM = m_DM

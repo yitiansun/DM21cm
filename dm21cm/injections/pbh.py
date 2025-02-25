@@ -20,11 +20,9 @@ from darkhistory import physics as dh_phys
 WDIR = os.environ['DM21CM_DIR']
 sys.path.append(WDIR)
 from dm21cm.injections.base import Injection
-from dm21cm.interpolators import interp1d, interp2d_vmap, bound_action
+from dm21cm.interpolators import interp1d, bound_action
 import dm21cm.physics as phys
 from dm21cm.utils import load_h5_dict, abscs
-
-data_dir = f'{WDIR}/data'
 
 
 class PBHHRInjection (Injection):
@@ -45,10 +43,8 @@ class PBHHRInjection (Injection):
         self.n0_PBH = phys.rho_DM * f_PBH / self.m_eV # [BH / pcm^3] | Present day PBH number density
 
         #----- Load PBH data -----
-        try:
-            self.data = load_h5_dict(f'{data_dir}/pbh-hr/pbh_logm{np.log10(m_PBH):.3f}.h5')
-        except FileNotFoundError:
-            raise FileNotFoundError(f'PBH data for log10(m_PBH/g)={np.log10(m_PBH):.3f} not found.')
+        self.data = load_h5_dict(f"{os.environ['DM21CM_DATA_DIR']}/pbhhr.h5")
+        self.data = self.data[f'log10m{np.log10(self.m_PBH):.3e}']
         
         i_start = np.where(self.data['t'] > phys.t_z(5e3))[0][0] # 1e4 is the largest z phys.z_t calculates
         i_end = i_start

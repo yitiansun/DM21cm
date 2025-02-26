@@ -92,7 +92,7 @@ class DarkHistoryWrapper:
 
         default_kwargs.update(kwargs)
         self.soln = evolve_DH(**default_kwargs)
-        self.soln['injection'] = self.injection
+        # self.soln['injection'] = self.injection
         pickle.dump(self.soln, open(self.soln_fn, 'wb'))
         logger.info('Saved DarkHistory initial conditions.')
         return self.soln

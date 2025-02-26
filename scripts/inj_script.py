@@ -11,6 +11,7 @@ sys.path.append(WDIR)
 from dm21cm.evolve import evolve
 from dm21cm.injections.pbh import PBHHRInjection, PBHAccretionInjection
 from dm21cm.injections.dm import DMDecayInjection, DMPWaveAnnihilationInjection
+from dm21cm.injections.modifiers import Multiplier
 
 from step_size import *
 
@@ -27,7 +28,11 @@ parser.add_argument('-s', '--sf', type=int, default=10)    #  2   4  10  20   40
 parser.add_argument('-n', '--n_threads', type=int, default=32)
 parser.add_argument('-d', '--box_dim', type=int, default=128)
 parser.add_argument('--homogeneous', action='store_true')
+
+# debug
 parser.add_argument('--debug_rs_start', type=float, default=3000)
+parser.add_argument('--multiplier_index', type=int, default=0)
+
 args = parser.parse_args()
 print(args)
 
@@ -117,6 +122,13 @@ elif args.channel.startswith('pbh-acc'):
         f_PBH = f_PBH * inj_multiplier,
     )
     m_fn = m_PBH
+
+    if args.multiplier_index != 0:
+        m1 = Multiplier(injection, lambda z, **kwargs: float(1100 < z < 3000))
+        m2 = Multiplier(injection, lambda z, **kwargs: float(  45 < z < 1100))
+        m3 = Multiplier(injection, lambda z, **kwargs: float(  15 < z < 45  ))
+        m4 = Multiplier(injection, lambda z, **kwargs: float(   5 < z < 15  ))
+        injection = [None, m1, m2, m3, m4][args.multiplier_index]
 
 else:
     raise ValueError('Invalid channel')

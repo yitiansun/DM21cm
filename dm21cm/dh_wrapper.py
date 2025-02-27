@@ -1,6 +1,6 @@
 import os
 import sys
-import pickle
+import dill as pickle
 import numpy as np
 from scipy import interpolate
 

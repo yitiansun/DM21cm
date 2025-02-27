@@ -11,25 +11,18 @@ from dm21cm.injections.base import Injection
 
 
 class Multiplier (Injection):
-    """Base class for injection rate multipliers.
-    Used to modify injection rates based on the redshift and state of the universe.
+    """Injection wrapper for modifying injection rates based on redshift and state of the universe.
+
+    Args:
+        injection (Injection): Injection object.
+        multiplier_at_z (callable): Multiplier function that takes redshift and state of the universe as input.
+        signature (str, optional): Signature for the modifier. Defaults to empty string.
     """
 
-    def __init__(self, injection, multiplier_at_z):
+    def __init__(self, injection, multiplier_at_z, signature=''):
         self.injection = injection
         self.multiplier_at_z = multiplier_at_z
-
-    # def multiplier_at_z(self, z, state=None):
-    #     """Multiplier for injection rate at a given redshift.
-        
-    #     Args:
-    #         z (float): Redshift.
-    #         state (dict, optional): State of the universe at z.
-
-    #     Returns:
-    #         float: Multiplier for injection rate.
-    #     """
-    #     raise NotImplementedError
+        self.signature = signature
 
     def multiplier_step(self, z_start, z_end=None, state=None, n_sample_pt=1000):
         """Multiplier for injection rate for a step in redshift.
@@ -51,16 +44,28 @@ class Multiplier (Injection):
             m = np.trapz(multiplier_s, t_s) / (t_s[-1] - t_s[0])
             
         if np.abs(m) < 1e-100:
-            m = 1e-100
+            m = 1e-100 # avoid division by zero
         return m
-        
-
+    
+    #===== Injection API =====
+    # utilities
     def is_injecting_elec(self):
         return self.injection.is_injecting_elec()
     
     def get_config(self):
-        return self.injection.get_config()
+        config = self.injection.get_config()
+        config['signature'] = self.signature
+        return config
+    
+    def __eq__(self, other):
+        """Equality comparison using self.get_config."""
+        return self.get_config() == other.get_config()
+    
+    def __repr__(self):
+        """Representation of the injection."""
+        return f"{self.__class__.__name__}({self.injection.__class__.__name__})({self.get_config()})"
 
+    # injections
     def inj_rate(self, z_start, z_end=None, state=None, **kwargs):
         m = self.multiplier_step(z_start, z_end=z_end, state=state)
         return m * self.injection.inj_rate(z_start, z_end=z_end, state=state, **kwargs)

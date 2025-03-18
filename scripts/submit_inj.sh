@@ -1,8 +1,8 @@
 #!/bin/bash
 
-#SBATCH --job-name=pbh-acc-zm4
-#SBATCH --array=0
-#SBATCH --partition=iaifi_gpu
+#SBATCH --job-name=pwave-elec-iter-a
+#SBATCH --array=0-7
+#SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=32
@@ -23,9 +23,15 @@ echo "CACHE: HOLYSCRATCH"
 echo "DATA:  HOLYSTORE"
 echo "SAVE:  HOLYSTORE & HOLYSCRATCH"
 
-python inj_script.py -r pbh-acc-zm4 -c pbh-acc-PRc23 -i $SLURM_ARRAY_TASK_ID --multiplier_index 4
+#--- pwave ---
+python inj_script.py -r pwave-elec-iter-a -c pwave-elec -i $SLURM_ARRAY_TASK_ID
+#--- pbh-acc ---
+# python inj_script.py -r pbh-acc-zm4 -c pbh-acc-PRc23 -i $SLURM_ARRAY_TASK_ID --multiplier_index 4
+#--- pbh-hr ---
 # python inj_script.py -r pbh-hr -c pbh-hr -i $SLURM_ARRAY_TASK_ID
-#python inj_script.py -r xc-lt1e26-d128 -c decay-test -i 0
+#--- test ---
+# python inj_script.py -r test0318 -c pwave-phot -i 0 -d 32
 
+#===== Unused sbatch options =====
 #SBATCH --constraint=cc8.0
 #SBATCH --exclude=holygpu7c26305

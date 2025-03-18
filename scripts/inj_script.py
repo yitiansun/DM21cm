@@ -69,11 +69,11 @@ if args.channel.startswith('decay'):
 
 elif args.channel.startswith('pwave'):
     if args.channel == 'pwave-phot':
-        m_s = 10**np.array([2, 3, 5, 7, 9, 11]) # [eV]
+        m_s = 10**np.array([1.5, 5, 8.5, 12]) # [eV]
         c_s = pwave_phot_c_sigma(m_s)
         primary = 'phot_delta'
     elif args.channel == 'pwave-elec':
-        m_s = 10**np.array([6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10, 10.5, 11, 11.5, 12])
+        m_s = 10**np.array([6.5, 8.5, 10.5, 12]) # [eV]
         c_s = pwave_elec_c_sigma(m_s)
         primary = 'elec_delta'
     else:

@@ -1,7 +1,7 @@
 #!/bin/bash
 
-#SBATCH --job-name=pwave-elec-iter-a
-#SBATCH --array=0-7
+#SBATCH --job-name=pbhacc-BHLl2-iter0
+#SBATCH --array=0-5
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks=1
@@ -24,11 +24,11 @@ echo "DATA:  HOLYSTORE"
 echo "SAVE:  HOLYSTORE & HOLYSCRATCH"
 
 #--- pwave ---
-python inj_script.py -r pwave-elec-iter-a -c pwave-elec -i $SLURM_ARRAY_TASK_ID
-#--- pbh-acc ---
-# python inj_script.py -r pbh-acc-zm4 -c pbh-acc-PRc23 -i $SLURM_ARRAY_TASK_ID --multiplier_index 4
-#--- pbh-hr ---
-# python inj_script.py -r pbh-hr -c pbh-hr -i $SLURM_ARRAY_TASK_ID
+# python inj_script.py -r pwave-elec-iter0 -c pwave-elec -i $SLURM_ARRAY_TASK_ID
+#--- pbhacc ---
+python inj_script.py -r pbhacc-BHLl2-iter0 -c pbhacc-BHLl2 -i $SLURM_ARRAY_TASK_ID
+#--- pbhhr ---
+# python inj_script.py -r pbhhr -c pbhhr -i $SLURM_ARRAY_TASK_ID
 #--- test ---
 # python inj_script.py -r test0318 -c pwave-phot -i 0 -d 32
 

@@ -226,7 +226,12 @@ class PBHAccretionModel:
             self.Mdot_func = Mdot_PR
             self.L_func = L_ADAF
         elif self.accretion_type == 'BHL-ADAF':
-            self.name = f'BHLl{self.lambda_fudge:.0e}'
+            if self.lambda_fudge == 1:
+                self.name = 'BHLl0'
+            elif self.lambda_fudge == 1e-2:
+                self.name = 'BHLl2'
+            else:
+                raise NotImplementedError(self.lambda_fudge)
             self.Mdot_func = Mdot_BHL # without fudge factor
             self.L_func = L_ADAF
         else:

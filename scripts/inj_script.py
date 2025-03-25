@@ -91,13 +91,13 @@ elif args.channel.startswith('pwave'):
     )
     m_fn = m_DM
 
-elif args.channel == 'pbh-hr':
+elif args.channel == 'pbhhr':
     # log10m_PBH_s = np.array([13.5, 15., 16.5, 18.])
     m_s = 10**np.array([14, 14.5, 15.5, 16, 17, 17.5])
 
     mass_ind, inj_ind = np.unravel_index(args.run_index, (len(m_s), 2))
     m_PBH = m_s[mass_ind] # [g]
-    f_PBH = pbh_hr_f(m_PBH) # [1]
+    f_PBH = pbhhr_f(m_PBH) # [1]
     inj_multiplier = inj_multiplier_s[inj_ind]
     
     injection = PBHHRInjection(
@@ -106,15 +106,15 @@ elif args.channel == 'pbh-hr':
     )
     m_fn = m_PBH
 
-elif args.channel.startswith('pbh-acc'):
+elif args.channel.startswith('pbhacc'):
 
-    model = args.channel.split('pbh-acc-')[-1]
+    model = args.channel.split('-')[1]
 
-    m_s = np.array([1e2]) # [M_sun]
+    m_s = np.array([1e0, 1e2, 1e4]) # [M_sun]
 
     mass_ind, inj_ind = np.unravel_index(args.run_index, (len(m_s), 2))
     m_PBH = m_s[mass_ind] # [M_sun]
-    f_PBH = pbh_acc_f(m_PBH, model) # [1]
+    f_PBH = pbhacc_f(m_PBH, model) # [1]
     inj_multiplier = inj_multiplier_s[inj_ind]
     injection = PBHAccretionInjection(
         model = model,
@@ -147,7 +147,7 @@ run_subname = f'log10m{np.log10(m_fn):.3f}_injm{inj_multiplier}'
 run_fullname = f'{run_name}_{run_subname}'
 lc_filename = f'LightCone_z5.0_HIIDIM={args.box_dim}_BOXLEN={box_len}_fisher_DM_{inj_multiplier}_r54321.h5'
 
-save_dir = f'/n/holystore01/LABS/iaifi_lab/Users/yitians/dm21cm/outputs/{run_name}/log10m{np.log10(m_fn):.3f}/'
+save_dir = f'/n/holystore01/LABS/iaifi_lab/Users/yitians/dm21cm/outputs/active/{run_name}/log10m{np.log10(m_fn):.3f}/'
 os.makedirs(save_dir, exist_ok=True)
 
 cache_dir = os.path.join(os.environ['P21C_CACHE_DIR'], run_fullname)

@@ -91,7 +91,7 @@ def pwave_elec_c_sigma(m):
 pbh_hr_m_s = None
 pbh_acc_m_s = None
 
-def pbh_hr_f(m):
+def pbhhr_f(m):
     """PBH fraction step size [1] for a given PBH mass [g]."""
     log10m = np.log10(m)
     l_func = lambda x: - 8 * (x - 14) - 16
@@ -99,12 +99,12 @@ def pbh_hr_f(m):
     log10f = interp_between(l_func, r_func, 13.6, 14.2, log10m)
     return 10 ** log10f
 
-def pbh_acc_f(m, model):
+def pbhacc_f(m, model):
     """PBH accretion fraction step size [1] for a given PBH mass [Msun]."""
     log10m = np.log10(m)
     if model == 'PRc23':
         log10f = -1.5 * log10m - 0.75
-    elif model == 'BHLl1e-02':
+    elif model == 'BHLl2':
         log10f = -1.0 * log10m - 8
     else:
         raise NotImplementedError(model)

@@ -44,7 +44,7 @@ class PBHHRInjection (Injection):
 
         #----- Load PBH data -----
         self.data = load_h5_dict(f"{os.environ['DM21CM_DATA_DIR']}/pbhhr.h5")
-        self.data = self.data[f'log10m{np.log10(self.m_PBH):.3e}']
+        self.data = self.data[f'log10m{np.log10(self.m_PBH):.3f}']
         
         i_start = np.where(self.data['t'] > phys.t_z(5e3))[0][0] # 1e4 is the largest z phys.z_t calculates
         i_end = i_start

@@ -107,7 +107,7 @@ if __name__ == '__main__':
     data = {
         'cell_size' : hmfdata['cell_size'],
         'r_fixed' : hmfdata['r_fixed'],
-        'z' : z_s,
+        'z' : zext_s,
         'd' : d_s,
         'ps_cond' : cond_table * unit_conversion,
         'ps' : ps_table * unit_conversion,
@@ -115,4 +115,4 @@ if __name__ == '__main__':
         'units' : 'cell_size: [cMpc]. r_fixed: [cMpc]. z: [1]. d: [1]. All rates: [eV^2 / cm^3 / cfcm^3].',
         'shapes' : 'ps_cond: (z, d). ps, st: (z,).',
     }
-    save_h5_dict("../../data/production/pwave_hmf_summed_rate.h5", data)
+    save_h5_dict("../data/production/pwave_hmf_summed_rate.h5", data)

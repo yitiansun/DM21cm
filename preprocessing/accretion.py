@@ -371,7 +371,7 @@ class PBHAccretionModel:
             v_km_s = v_pc_s * KM_PER_PC
             f_s = halo.dm_dm_v_rel_dist_unnorm(v_km_s, ve*KM_PER_PC, v0*KM_PER_PC)
             f_s /= jnp.trapz(f_s, v_km_s)
-            L_s = self.L_func_v(m_PBH, rho_inf, v_km_s, self.c_in, c_inf) # [M_sun/yr]
+            L_s = self.L_func_v(m_PBH, rho_inf, v_km_s, c_inf) # [M_sun/yr]
             L_s = jnp.nan_to_num(L_s)
             L_v_expn = jnp.trapz(L_s * f_s, v_km_s) # [M_sun/yr]
 

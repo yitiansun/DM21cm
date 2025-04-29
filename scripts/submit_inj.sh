@@ -30,7 +30,7 @@ python inj_script.py -r pbhacc-BHLl2-iter0 -c pbhacc-BHLl2 -i $SLURM_ARRAY_TASK_
 #--- pbhhr ---
 # python inj_script.py -r pbhhr -c pbhhr -i $SLURM_ARRAY_TASK_ID
 #--- test ---
-# python inj_script.py -r test0318 -c pwave-phot -i 0 -d 32
+# python inj_script.py -r test0428 -c pbhacc-PRc23 -i 2 -d 32
 
 #===== Unused sbatch options =====
 #SBATCH --constraint=cc8.0

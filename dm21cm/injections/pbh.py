@@ -207,23 +207,20 @@ class PBHAccretionInjection (Injection):
         self.f_PBH = f_PBH
         self.inj_rate_ref = 1. # [inj / pcm^3 s] | dummy injection rate
 
-        self.halo_data = load_h5_dict(f"{os.environ['DM21CM_DATA_DIR']}/pbhacc_halo_hmf_summed_rate_{self.model}.h5")
-        self.cosmo_data = load_h5_dict(f"{os.environ['DM21CM_DATA_DIR']}/pbhacc_cosmo_rate_{self.model}.h5")
-        
-        if m_PBH not in self.halo_data['mPBH']:
-            raise ValueError(f'PBH data for m_PBH={m_PBH} not found.')
-        self.i_mPBH = np.where(self.halo_data['mPBH'] == m_PBH)[0][0]
+        prefix = f"{os.environ['DM21CM_DATA_DIR']}/pbhacc_rates/{self.model}/{self.model}_log10m{np.log10(self.m_PBH):.3f}"
+        self.halo_data = load_h5_dict(prefix + "_halo.h5")
+        self.cosmo_data = load_h5_dict(prefix + "_cosmo.h5")
 
         self.z_s = self.halo_data['z']
         self.zfull_s = self.halo_data['zfull']
         self.d_s = self.halo_data['d']
         self.cinf_s = self.cosmo_data['cinf'] # [km/s]
-        self.halo_ps_cond = self.halo_data['ps_cond'][self.i_mPBH] # [eV / s / cfcm^3]
-        self.halo_ps = self.halo_data['ps'][self.i_mPBH]
-        self.halo_st = self.halo_data['st'][self.i_mPBH]
-        self.cosmo_ps_cond = self.cosmo_data['ps_cond'][self.i_mPBH]
-        self.cosmo_ps = self.cosmo_data['ps'][self.i_mPBH]
-        self.cosmo_st = self.cosmo_data['st'][self.i_mPBH]
+        self.halo_ps_cond = self.halo_data['ps_cond'] # [eV / s / cfcm^3]
+        self.halo_ps = self.halo_data['ps']
+        self.halo_st = self.halo_data['st']
+        self.cosmo_ps_cond = self.cosmo_data['ps_cond']
+        self.cosmo_ps = self.cosmo_data['ps']
+        self.cosmo_st = self.cosmo_data['st']
 
         self.init_specs()
 
@@ -315,3 +312,20 @@ class PBHAccretionInjection (Injection):
     #     d_in = bound_action(delta_plus_one_box.flatten() - 1, self.d_s, 'clip')
     #     T_in = bound_action(Tk_box.flatten(), self.T_s, 'clip')
     #     d_T_in = jnp.stack([d_in, T_in], axis=-1)
+
+    #===== auxiliary functions =====
+    def inj_halo_power(self, z_start, z_end=None, state=None, **kwargs):
+        z_in = bound_action(z_start, self.zfull_s, 'clip')
+        cinf_in = self.cinf(state['Tm'], state['xHII']) if state is not None else self.cinf_std(z_start)
+        cinf_in = bound_action(cinf_in, self.cinf_s, 'clip') # [km/s]
+        halo_power = interp1d(self.halo_st, self.zfull_s, z_in) # [eV / s / cfcm^3]
+        # cosmo_power = interp1d(interp1d(self.cosmo_st, self.zfull_s, z_in), self.cinf_s, cinf_in) # [eV / s / cfcm^3]
+        return self.f_PBH * halo_power * (1 + z_start)**3 # [eV / pcm^3 s]
+    
+    def inj_cosmo_power(self, z_start, z_end=None, state=None, **kwargs):
+        z_in = bound_action(z_start, self.zfull_s, 'clip')
+        cinf_in = self.cinf(state['Tm'], state['xHII']) if state is not None else self.cinf_std(z_start)
+        cinf_in = bound_action(cinf_in, self.cinf_s, 'clip') # [km/s]
+        # halo_power = interp1d(self.halo_st, self.zfull_s, z_in) # [eV / s / cfcm^3]
+        cosmo_power = interp1d(interp1d(self.cosmo_st, self.zfull_s, z_in), self.cinf_s, cinf_in) # [eV / s / cfcm^3]
+        return self.f_PBH * cosmo_power * (1 + z_start)**3 # [eV / pcm^3 s]

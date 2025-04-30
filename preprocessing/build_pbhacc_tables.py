@@ -44,16 +44,14 @@ if __name__ == '__main__':
     mPBH = 10**args.log10mPBH # [Msun]
 
     model_kwargs_dict = {
-        # 'PRc10' : dict(accretion_type='PR-ADAF', c_in=10),
-        'PRc23' : dict(accretion_type='PR-ADAF', c_in=23),
-        # 'PRc30' : dict(accretion_type='PR-ADAF', c_in=30),
-        # 'BHLl0' : dict(accretion_type='BHL-ADAF', lambda_fudge=1),
-        'BHLl2' : dict(accretion_type='BHL-ADAF', lambda_fudge=1e-2),
+        'PRc23'  : dict(accretion_type='PR-ADAF', c_in=23),
+        'PRc23R' : dict(accretion_type='PR-ADAF', c_in=23, v_rel_type='DMR'),
+        'BHLl2'  : dict(accretion_type='BHL-ADAF', lambda_fudge=1e-2),
     }
     am = PBHAccretionModel(**model_kwargs_dict[args.model])
 
     #===== File names =====
-    run_name = am.name
+    run_name = args.model
     run_subname = f'log10m{np.log10(mPBH):.3f}'
     cache_file = f"../data/pbh-accretion/L_table_cache/{run_name}/{run_name}_{run_subname}.npy"
     halo_file  = f"../data/production/pbhacc_rates/{run_name}/{run_name}_{run_subname}_halo.h5"

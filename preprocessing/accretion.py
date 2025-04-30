@@ -208,34 +208,36 @@ KM_PER_PC = (1 * u.pc).to(u.km).value
 
 class PBHAccretionModel:
 
-    def __init__(self, accretion_type, c_in=None, lambda_fudge=1):
+    def __init__(self, accretion_type, c_in=None, lambda_fudge=1, v_rel_type='DMDM'):
         """PBH accretion model
         
         Args:
             accretion_type (str): supports 'PR-ADAF', 'BHL-ADAF'
             c_in (float): Sound speed inside the I-front [km/s]. Required for PR models.
             lambda_fudge (float): Fudge factor in front of Mdot. Required for BHL models.
+            v_rel_type {'DMDM', 'DMR'}: Velocity distribution function.
         """
 
         self.accretion_type = accretion_type
         self.c_in = c_in
         self.lambda_fudge = lambda_fudge
+        self.v_rel_type = v_rel_type
 
         if self.accretion_type == 'PR-ADAF':
-            self.name = f'PRc{self.c_in:.0f}'
             self.Mdot_func = Mdot_PR
             self.L_func = L_ADAF
         elif self.accretion_type == 'BHL-ADAF':
-            if self.lambda_fudge == 1:
-                self.name = 'BHLl0'
-            elif self.lambda_fudge == 1e-2:
-                self.name = 'BHLl2'
-            else:
-                raise NotImplementedError(self.lambda_fudge)
             self.Mdot_func = Mdot_BHL # without fudge factor
             self.L_func = L_ADAF
         else:
             raise NotImplementedError(self.accretion_type)
+        
+        if self.v_rel_type == 'DMDM':
+            self.v_rel_dist_unnorm = halo.dm_dm_v_rel_dist_unnorm
+        elif self.v_rel_type == 'DMR':
+            self.v_rel_dist_unnorm = halo.dm_rest_v_rel_dist_unnorm
+        else:
+            raise NotImplementedError(self.v_rel_type)
         
         #===== vectorized and partially applied functions =====
         def Mdot_func_v(M_PBH, rho_inf, v, c_inf):
@@ -369,7 +371,7 @@ class PBHAccretionModel:
             # v integral
             v_pc_s = jnp.linspace(1e-3 * v0, 2*ve, 100)
             v_km_s = v_pc_s * KM_PER_PC
-            f_s = halo.dm_dm_v_rel_dist_unnorm(v_km_s, ve*KM_PER_PC, v0*KM_PER_PC)
+            f_s = self.v_rel_dist_unnorm(v_km_s, ve*KM_PER_PC, v0*KM_PER_PC)
             f_s /= jnp.trapz(f_s, v_km_s)
             L_s = self.L_func_v(m_PBH, rho_inf, v_km_s, c_inf) # [M_sun/yr]
             L_s = jnp.nan_to_num(L_s)

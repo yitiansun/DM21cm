@@ -4,8 +4,19 @@
 BASE_DIR=/n/holystore01/LABS/iaifi_lab/Users/yitians/dm21cm/outputs/active/
 
 ## Version 250428
+- pwave-phot-250428 [1.5-12]
+    - To RUN: [ 1.5  5.0  8.5 12.0]
+- pwave-elec-250428 [6.5-12]
+    - To RUN: [ 6.5  8.5 10.5 12.0]
+- pwave-tau-250428 [9.5-12]
+    - To RUN: [ 9.5 11.0 12.0]
+- pbhacc-PRc23-250428 [0-4]
+    - To RUN: [ 0.0  2.0  4.0]
+- pbhacc-BHLl2-250428 [0-4]
+    - To RUN: [ 0.0  2.0  4.0]
 - pbhhr-iter0 [13.5-18]
-    - [13.5 15.0 16.5 18.0]
+    - [13.5, 15.0, 16.5, 18.0]
+    - To RUN: [14.0, 14.5, 15.5, 16.0, 17.0, 17.5]
 
 ## Version pre250226
 - pwave-phot-iter0 [1.5-12]
@@ -23,6 +34,7 @@ BASE_DIR=/n/holystore01/LABS/iaifi_lab/Users/yitians/dm21cm/outputs/active/
 - hmf.h5
 - pbhacc_rates/ (and cache)
     - PRc23_log10m[2.0]
+    - PRc23R_log10m[2.0]
     - BHLl2_log10m[2.0]
 - pwave_hmf_summed_rate.h5
 - pbhhr.h5

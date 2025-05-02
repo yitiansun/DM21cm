@@ -24,7 +24,7 @@ plotting/**/tmp
 plotting/**/*.npy
 plotting/**/*.h5
 plotting/**/*.p
-plotting/paper2/
+plotting/paper2/*.pdf
 scripts/*.out
 step/*.out
 tests/*.h5

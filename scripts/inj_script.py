@@ -92,8 +92,8 @@ elif args.channel.startswith('pwave'):
     m_fn = m_DM
 
 elif args.channel == 'pbhhr':
-    # log10m_PBH_s = np.array([13.5, 15., 16.5, 18.])
-    m_s = 10**np.array([14, 14.5, 15.5, 16, 17, 17.5])
+
+    m_s = 10**np.array([13.25, 13.75, 14.00, 14.25, 14.50, 14.75, 15.25, 15.50, 15.75, 16.00, 16.25, 16.75, 17.00, 17.25, 17.50, 17.75])
 
     mass_ind, inj_ind = np.unravel_index(args.run_index, (len(m_s), 2))
     m_PBH = m_s[mass_ind] # [g]

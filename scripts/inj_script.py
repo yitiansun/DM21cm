@@ -43,11 +43,11 @@ print('\n===== Injection parameters =====')
 inj_multiplier_s = [1, 2]
 
 if args.channel.startswith('decay'):
-    if args.channel == 'pwave-phot':
+    if args.channel == 'decay-phot':
         m_s = decay_phot_m_s
         tau_s = decay_phot_lifetime(m_s)
         primary = 'phot_delta'
-    elif args.channel == 'pwave-elec':
+    elif args.channel == 'decay-elec':
         m_s = decay_elec_m_s
         tau_s = decay_elec_lifetime(m_s)
         primary = 'elec_delta'
@@ -127,12 +127,12 @@ elif args.channel.startswith('pbhacc'):
     )
     m_fn = m_PBH
 
-    if args.multiplier_index != 0:
-        m1 = Multiplier(injection, lambda z, **kwargs: float(1100 < z < 3000))
-        m2 = Multiplier(injection, lambda z, **kwargs: float(  45 < z < 1100))
-        m3 = Multiplier(injection, lambda z, **kwargs: float(  15 < z < 45  ))
-        m4 = Multiplier(injection, lambda z, **kwargs: float(   5 < z < 15  ))
-        injection = [None, m1, m2, m3, m4][args.multiplier_index]
+    # if args.multiplier_index != 0:
+    #     m1 = Multiplier(injection, lambda z, **kwargs: float(1100 < z < 3000))
+    #     m2 = Multiplier(injection, lambda z, **kwargs: float(  45 < z < 1100))
+    #     m3 = Multiplier(injection, lambda z, **kwargs: float(  15 < z < 45  ))
+    #     m4 = Multiplier(injection, lambda z, **kwargs: float(   5 < z < 15  ))
+    #     injection = [None, m1, m2, m3, m4][args.multiplier_index]
 
 else:
     raise ValueError('Invalid channel')

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=tau
+#SBATCH --job-name=pbhacc-PRc23R-250428
 #SBATCH --array=0-5
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
@@ -24,7 +24,7 @@ echo "DATA:  HOLYSTORE"
 echo "SAVE:  HOLYSTORE & HOLYSCRATCH"
 
 #--- pwave ---
-python inj_script.py -r pwave-tau-iter0 -c pwave-tau -i $SLURM_ARRAY_TASK_ID
+python inj_script.py -r pbhacc-PRc23R-250428 -c pbhacc-PRc23R -i $SLURM_ARRAY_TASK_ID
 #--- pbhacc ---
 # python inj_script.py -r pbhacc-BHLl2-iter0 -c pbhacc-BHLl2 -i $SLURM_ARRAY_TASK_ID
 #--- pbhhr ---

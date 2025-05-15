@@ -69,13 +69,17 @@ if args.channel.startswith('decay'):
 
 elif args.channel.startswith('pwave'):
     if args.channel == 'pwave-phot':
-        m_s = 10**np.array([1.5, 5, 8.5, 12]) # [eV]
+        m_s = 10**np.array([1.5, 2., 3., 4., 5., 6., 7., 8., 9., 10., 11., 12.]) # [eV]
         c_s = pwave_phot_c_sigma(m_s)
         primary = 'phot_delta'
     elif args.channel == 'pwave-elec':
-        m_s = 10**np.array([6.5, 8.5, 10.5, 12]) # [eV]
+        m_s = 10**np.array([6.5, 7.0, 7.5, 8.0, 8.5, 9.0, 9.5, 10.0, 10.5, 11.0, 11.5, 12.0]) # [eV]
         c_s = pwave_elec_c_sigma(m_s)
         primary = 'elec_delta'
+    elif args.channel == 'pwave-tau':
+        m_s = 10**np.array([10.0, 11.0, 12.0])
+        c_s = pwave_tau_c_sigma(m_s)
+        primary = 'tau'
     else:
         raise ValueError('Invalid channel')
 

@@ -114,7 +114,7 @@ def pbhhr_f(m):
 def pbhacc_f(m, model):
     """PBH accretion fraction step size [1] for a given PBH mass [Msun]."""
     log10m = np.log10(m)
-    if model == 'PRc23':
+    if model in ['PRc23', 'PRc23R']:
         log10f = -1.5 * log10m - 0.75
     elif model == 'BHLl2':
         log10f = -1.0 * log10m - 8

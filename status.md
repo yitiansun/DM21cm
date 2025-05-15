@@ -6,13 +6,13 @@ BASE_DIR=/n/holystore01/LABS/iaifi_lab/Users/yitians/dm21cm/outputs/active/
 ## Version 250428
 - pwave-phot-250428 [1.5-12]
     - READY:
-    - RUNNING: [1.5, 2., 3., 4., 5., 6., 7., 8., 9., 10., 11., 12.]
-    - DONE:
+    - RUNNING:
+    - DONE: [1.5, 2., 3., 4., 5., 6., 7., 8., 9., 10., 11., 12.]
     - FISHED:
 - pwave-elec-250428 [6.5-12]
     - READY:
-    - RUNNING: [6.5, 7.0, 7.5, 8.0, 8.5, 9.0, 9.5, 10.0, 10.5, 11.0, 11.5, 12.0]
-    - DONE:
+    - RUNNING:
+    - DONE: [6.5, 7.0, 7.5, 8.0, 8.5, 9.0, 9.5, 10.0, 10.5, 11.0, 11.5, 12.0]
     - FISHED:
 - pwave-tau-250428 [9.5-12]
     - TESTING: [10.0, 11.0, 12.0] (iter1)
@@ -21,17 +21,19 @@ BASE_DIR=/n/holystore01/LABS/iaifi_lab/Users/yitians/dm21cm/outputs/active/
     - DONE:
     - FISHED:
 - pbhacc-PRc23-250428 [0-4]
-    - DATA:
-    - RUNNING: [0.0, 2.0, 4.0]
-    - DONE:
+    - DATA: [0.0, 1.0, 2.0, 3.0, 4.0]
+    - READY: [1.0, 3.0]
+    - RUNNING:
+    - DONE: [0.0, 2.0, 4.0]
     - FISHED:
 - pbhacc-PRc23R-250428 [0-4]
-    - DATA:
+    - DATA: [0.0, 1.0, 2.0, 3.0, 4.0]
+    - READY: [1.0, 3.0]
     - RUNNING: [0.0, 2.0, 4.0]
     - DONE:
     - FISHED:
 - pbhacc-BHLl2-250428 [0-4] ???
-    - DATA:   [0.0, 2.0, 4.0]
+    - DATA:   [0.0, 1.0, 2.0, 3.0, 4.0]
     - RUNNING:
     - DONE:
     - FISHED:

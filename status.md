@@ -15,7 +15,7 @@ BASE_DIR=/n/holystore01/LABS/iaifi_lab/Users/yitians/dm21cm/outputs/active/
     - DONE:
     - FISHED:
 - pwave-tau-250428 [9.5-12]
-    - TESTING: [9.5, 11.0, 12.0]
+    - TESTING: [10.0, 11.0, 12.0] (iter1)
     - READY:
     - RUNNING:
     - DONE:

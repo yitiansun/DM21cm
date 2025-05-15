@@ -132,7 +132,7 @@ class DMPWaveAnnihilationInjection (Injection):
         """Instantaneous rate in a homogeneous universe. Use ST table."""
         z_in = bound_action(z_start, self.z_range, 'clip')
         st_val = interp1d(self.data['st'], self.z_range, z_in) # [eV^2 / pcm^3 ccm^3]
-        return float(st_val * self.c_sigma / self.m_DM**2 * (1 + z_start)**3) # [inj / pcm^3 s]
+        return np.clip(np.float32(st_val * self.c_sigma / self.m_DM**2 * (1 + z_start)**3), 1e-200, None) # [inj / pcm^3 s]
     
     def inj_power(self, z_start, z_end=None, **kwargs):
         """Instantaneous rate in a homogeneous universe. Use ST table."""

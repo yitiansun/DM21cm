@@ -91,6 +91,12 @@ def pwave_elec_c_sigma(m):
 def pwave_tau_c_sigma(m):
     """P-wave annihilation to tautau cross section at v=c step size [pcm^3/s] for a given DM mass [eV]."""
     log10m = np.log10(m)
+    log10c = (log10m-12) * 1.8 - 14.8
+    return 10 ** log10c
+
+def pwave_tau_c_sigma_old(m):
+    """P-wave annihilation to tautau cross section at v=c step size [pcm^3/s] for a given DM mass [eV]."""
+    log10m = np.log10(m)
     log10c = (log10m-12) * 1.6 - 12.1
     return 10 ** log10c
 

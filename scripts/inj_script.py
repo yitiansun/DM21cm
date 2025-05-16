@@ -77,7 +77,7 @@ elif args.channel.startswith('pwave'):
         c_s = pwave_elec_c_sigma(m_s)
         primary = 'elec_delta'
     elif args.channel == 'pwave-tau':
-        m_s = 10**np.array([10.0, 11.0, 12.0])
+        m_s = 10**np.array([9.75, 10.5, 11.5])
         c_s = pwave_tau_c_sigma(m_s)
         primary = 'tau'
     else:
@@ -114,7 +114,7 @@ elif args.channel.startswith('pbhacc'):
 
     model = args.channel.split('-')[1]
 
-    m_s = np.array([1e0, 1e2, 1e4]) # [M_sun]
+    m_s = 10**np.array([1.0, 3.0]) # [M_sun]
 
     mass_ind, inj_ind = np.unravel_index(args.run_index, (len(m_s), 2))
     m_PBH = m_s[mass_ind] # [M_sun]

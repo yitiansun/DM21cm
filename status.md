@@ -7,32 +7,31 @@ BASE_DIR=/n/holystore01/LABS/iaifi_lab/Users/yitians/dm21cm/outputs/active/
 - pwave-phot-250428 [1.5-12]
     - READY:
     - RUNNING:
-    - DONE: [1.5, 2., 3., 4., 5., 6., 7., 8., 9., 10., 11., 12.]
-    - FISHED:
+    - DONE:
+    - FISHED: [1.5, 2., 3., 4., 5., 6., 7., 8., 9., 10., 11., 12.]
 - pwave-elec-250428 [6.5-12]
     - READY:
     - RUNNING:
-    - DONE: [6.5, 7.0, 7.5, 8.0, 8.5, 9.0, 9.5, 10.0, 10.5, 11.0, 11.5, 12.0]
-    - FISHED:
+    - DONE:
+    - FISHED: [6.5, 7.0, 7.5, 8.0, 8.5, 9.0, 9.5, 10.0, 10.5, 11.0, 11.5, 12.0]
 - pwave-tau-250428 [9.5-12]
-    - TESTING: [10.0, 11.0, 12.0] (iter1)
+    - READY: why 9.5 cannot run?
+    - RUNNING:
+    - DONE:
+    - FISHED: [9.75, 10.0, 10.5, 11.0, 11.5, 12.0]
+- pbhacc-PRc23-250428 [0-4]
+    - DATA: [0.0, 1.0, 2.0, 3.0, 4.0]
     - READY:
     - RUNNING:
     - DONE:
-    - FISHED:
-- pbhacc-PRc23-250428 [0-4]
-    - DATA: [0.0, 1.0, 2.0, 3.0, 4.0]
-    - READY: [1.0, 3.0]
-    - RUNNING:
-    - DONE: [0.0, 2.0, 4.0]
-    - FISHED:
+    - FISHED: [0.0, 1.0, 2.0, 3.0, 4.0]
 - pbhacc-PRc23R-250428 [0-4]
     - DATA: [0.0, 1.0, 2.0, 3.0, 4.0]
-    - READY: [1.0, 3.0]
-    - RUNNING: [0.0, 2.0, 4.0]
+    - READY:
+    - RUNNING:
     - DONE:
-    - FISHED:
-- pbhacc-BHLl2-250428 [0-4] ???
+    - FISHED: [0.0, 1.0, 2.0, 3.0, 4.0]
+- pbhacc-BHLl2-250428 [0-4] (???)
     - DATA:   [0.0, 1.0, 2.0, 3.0, 4.0]
     - RUNNING:
     - DONE:
@@ -40,8 +39,8 @@ BASE_DIR=/n/holystore01/LABS/iaifi_lab/Users/yitians/dm21cm/outputs/active/
 - pbhhr-iter0 [13.5-18]
     - DATA:    [13.5-18.0] at 0.25
     - RUNNING: 
-    - DONE:   [13.25, 13.75, 14.00, 14.25, 14.50, 14.75, 15.25, 15.50, 15.75, 16.00, 16.25, 16.75, 17.00, 17.25, 17.50, 17.75]
-    - FISHED: [13.5, 15.0, 16.5, 18.0]
+    - DONE:
+    - FISHED: [13.25, 13.50, 13.75, 14.00, 14.25, 14.50, 14.75, 15.00, 15.25, 15.50, 15.75, 16.00, 16.25, 16.50, 16.75, 17.00, 17.25, 17.50, 17.75, 18.00]
 
 ## Version pre250226
 - pwave-phot-iter0 [1.5-12]

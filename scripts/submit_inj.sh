@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=pbhacc-PRc23R-250428-2
+#SBATCH --job-name=pbhacc-PRc23R-250428-3
 #SBATCH --array=0-3
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1

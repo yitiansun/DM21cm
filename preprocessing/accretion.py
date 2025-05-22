@@ -111,6 +111,54 @@ def Mdot_BHL(M, rho_inf, v, c_in, c_inf, lambda_fudge=1):
     return _BHL_UNIT_FACTOR * lambda_fudge * M**2 * rho_inf / (v**2 + c_inf**2)**1.5
 
 
+#===== M dot: DM halo =====
+
+def Mh_HALO(z, M):
+    """Halo mass around PBH [M_sun]
+    
+    Args:
+        z (float): Redshift
+        M (float): PBH mass [M_sun]
+    """
+    return 3000 / (1+z) * M
+
+_HALO_RH0 = (58*u.pc).to(u.km).value # [km]
+
+def rh_HALO(z, M):
+    """Halo radius around PBH [km]
+    
+    Args:
+        z (float): Redshift
+        M (float): PBH mass [M_sun]
+    """
+    return _HALO_RH0 / (1+z) * Mh_HALO(z, M)**(1/3)
+
+_HALO_UNIT_FACTOR = (c.G * u.M_sun / u.km).to(u.km**2 / u.s**2).value
+
+def veff_HALO(z, M, rBeff):
+    """Effective accretion velocity [km/s]
+    
+    Args:
+        z (float): Redshift
+        M (float): PBH mass [M_sun]
+        rBeff (float): Effective Bondi radius [km]
+    """
+    Mh = Mh_HALO(z, M)
+    rh = rh_HALO(z, M)
+    alpha = 9/4
+    rB = rBeff
+
+    v2case1 = _HALO_UNIT_FACTOR * (
+        M / rB +
+        Mh / ((alpha-2) * rB) * ( (rB / rh)**(3-alpha) - (3-alpha) * rB / rh )
+    )
+    v2case2 = _HALO_UNIT_FACTOR * (
+        M / rB +
+        Mh / rB
+    )
+    return jnp.sqrt(jnp.where(rB < rh, v2case1, v2case2))
+
+
 #===== Luminosity: ADAF & Thin disk =====
 
 def e0_a(Mdot_MdotEdd, delta):

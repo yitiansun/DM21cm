@@ -203,7 +203,7 @@ def Mdot_PRHALO(M, rho_inf, v, c_in, c_inf, lambda_fudge=1, z=None):
     rho_in, v_in = rho_in_v_in(rho_inf, v, c_in, c_inf)
     veff = jnp.sqrt(v_in**2 + c_in**2)
     rBeff = rBeff_HALO(z, M, veff)
-    return _HALO_UNIT_FACTOR * rho_in * veff * rBeff**2
+    return _HALO_UNIT_FACTOR * lambda_fudge * rho_in * veff * rBeff**2
 
 
 #===== Luminosity: ADAF & Thin disk =====

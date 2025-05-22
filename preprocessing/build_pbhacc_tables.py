@@ -46,6 +46,7 @@ if __name__ == '__main__':
     model_kwargs_dict = {
         'PRc23'  : dict(accretion_type='PR-ADAF', c_in=23),
         'PRc23R' : dict(accretion_type='PR-ADAF', c_in=23, v_rel_type='DMR'),
+        'PRc23H' : dict(accretion_type='PRHALO-ADAF', c_in=23),
         'BHLl2'  : dict(accretion_type='BHL-ADAF', lambda_fudge=1e-2),
     }
     am = PBHAccretionModel(**model_kwargs_dict[args.model])

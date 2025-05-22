@@ -1,7 +1,7 @@
 #!/bin/bash
 
-#SBATCH --job-name=build-pbhacc-BHLl2
-#SBATCH --array=0-3
+#SBATCH --job-name=build-pbhacc-PRc23H
+#SBATCH --array=0-4
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks=1
@@ -18,6 +18,6 @@ source /n/home07/yitians/setup/dm21cm.sh
 
 cd /n/home07/yitians/dm21cm/DM21cm/preprocessing
 
-MVALS=(0.0 1.0 3.0 4.0)
+MVALS=(0.0 1.0 2.0 3.0 4.0)
 
-python build_pbhacc_tables.py --model BHLl2 --log10mPBH ${MVALS[$SLURM_ARRAY_TASK_ID]}
+python build_pbhacc_tables.py --model PRc23H --log10mPBH ${MVALS[$SLURM_ARRAY_TASK_ID]}

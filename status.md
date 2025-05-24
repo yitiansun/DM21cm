@@ -15,8 +15,8 @@ BASE_DIR=/n/holystore01/LABS/iaifi_lab/Users/yitians/dm21cm/outputs/active/
     - DONE:
     - FISHED: [6.5, 7.0, 7.5, 8.0, 8.5, 9.0, 9.5, 10.0, 10.5, 11.0, 11.5, 12.0]
 - pwave-tau-250428 [9.5-12]
-    - READY: why 9.5 cannot run?
-    - RUNNING:
+    - READY:
+    - RUNNING: [9.70]
     - DONE:
     - FISHED: [9.75, 10.0, 10.5, 11.0, 11.5, 12.0]
 - pbhacc-PRc23-250428 [0-4]

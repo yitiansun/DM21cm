@@ -417,17 +417,17 @@ class PBHAccretionModel:
         return self.Mdot_cosmo_single_PBH(m_PBH, z, rho_inf, c_inf)
         
     
-    def L_cosmo_density(self, m_PBH, z, rho_dm, rho_b_inf, T_k):
+    def L_cosmo_density(self, m_PBH, z, rho_dm, rho_b_inf, c_inf):
         """PBH accretion luminosity conformal density [M_sun/yr/cMpc^3]
         
         Args:
             z (float): Redshift
             rho_dm (float): DM density (need to account for f_collapsed) [M_sun/cMpc^3]
             rho_b_inf (float): Ambient gas density [g/cm^3]
-            T_k (float): Gas kinetic temperature [eV]
+            c_inf (float): Ambient gas sound speed [km/s]
         """
         n_PBH = rho_dm / m_PBH # [1/cMpc^3]
-        return n_PBH * self.L_cosmo_single_PBH(m_PBH, z, rho_b_inf, T_k)
+        return n_PBH * self.L_cosmo_single_PBH(m_PBH, z, rho_b_inf, c_inf)
     
     def L_cosmo_density_std(self, m_PBH, z, f_coll):
         """PBH accretion luminosity conformal density in standard cosmology [M_sun/yr/cMpc^3]

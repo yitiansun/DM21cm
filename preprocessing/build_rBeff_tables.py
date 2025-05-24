@@ -16,7 +16,7 @@ from dm21cm.utils import save_h5_dict
 if __name__ == '__main__':
 
     mPBH_s = jnp.array([1e0, 1e1, 1e2, 1e3, 1e4]) # [mPBH_sun]
-    z_s = jnp.geomspace(4, 3000, 300)
+    z_s = jnp.geomspace(4, 3001, 300)
     r_s = jnp.geomspace(1e-5, 1e20, 300) # [km]
     veff_s = jnp.geomspace(1e0, 1e8, 300) # [km/s]
 
@@ -35,4 +35,4 @@ if __name__ == '__main__':
         'units' : 'mPBH: [mPBH_sun], z: [1], veff: [km/s], r: [km].',
         'shapes' : 'table: (mPBH, z, veff).',
     }
-    save_h5_dict('../../data/pbh-accretion/rBeff_mzv.h5', data)
+    save_h5_dict('../data/pbh-accretion/rBeff_mzv.h5', data)

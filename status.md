@@ -16,9 +16,9 @@ BASE_DIR=/n/holystore01/LABS/iaifi_lab/Users/yitians/dm21cm/outputs/active/
     - FISHED: [6.5, 7.0, 7.5, 8.0, 8.5, 9.0, 9.5, 10.0, 10.5, 11.0, 11.5, 12.0]
 - pwave-tau-250428 [9.5-12]
     - READY:
-    - RUNNING: [9.70]
+    - RUNNING:
     - DONE:
-    - FISHED: [9.75, 10.0, 10.5, 11.0, 11.5, 12.0]
+    - FISHED: [9.70, 9.75, 10.0, 10.5, 11.0, 11.5, 12.0]
 - pbhacc-PRc23-250428 [0-4]
     - DATA: [0.0, 1.0, 2.0, 3.0, 4.0]
     - READY:
@@ -55,10 +55,10 @@ BASE_DIR=/n/holystore01/LABS/iaifi_lab/Users/yitians/dm21cm/outputs/active/
     - DONE:
     - FISHED:
 - pbhhr-iter0 [13.5-18]
-    - DATA:    [13.5-18.0] at 0.25
+    - DATA: [13.5-18.0] at 0.25
     - RUNNING: 
     - DONE:
-    - FISHED: [13.25, 13.50, 13.75, 14.00, 14.25, 14.50, 14.75, 15.00, 15.25, 15.50, 15.75, 16.00, 16.25, 16.50, 16.75, 17.00, 17.25, 17.50, 17.75, 18.00]
+    - FISHED: [13.5-18.0] at 0.25
 
 ## Version pre250226
 - pwave-phot-iter0 [1.5-12]

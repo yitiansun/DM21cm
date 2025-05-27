@@ -34,9 +34,9 @@ BASE_DIR=/n/holystore01/LABS/iaifi_lab/Users/yitians/dm21cm/outputs/active/
 - pbhacc-PRc50-250428 [0-4]
     - DATA: [0.0, 1.0, 2.0, 3.0, 4.0]
     - READY:
-    - RUNNING: [0.0, 1.0, 2.0, 3.0, 4.0]
+    - RUNNING:
     - DONE:
-    - FISHED:
+    - FISHED: [0.0, 1.0, 2.0, 3.0, 4.0]
 - pbhacc-PRc23R-250428 [0-4]
     - DATA: [0.0, 1.0, 2.0, 3.0, 4.0]
     - READY:

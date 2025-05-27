@@ -15,6 +15,11 @@ from dm21cm.injections.modifiers import Multiplier
 
 from step_size import *
 
+sys.path.append(os.environ['DH_DIR'])
+import darkhistory
+DH_VERSION = '1.1.2.20241004'
+assert darkhistory.__version__ == DH_VERSION, f'Expected darkhistory version {DH_VERSION}, got {darkhistory.__version__}.'
+
 
 
 print('\n===== Command line arguments =====')

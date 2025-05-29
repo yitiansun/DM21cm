@@ -117,7 +117,7 @@ def pbhacc_f(m, model):
     if model in ['PRc23', 'PRc23R', 'PRc23H']:
         log10f = -1.5 * log10m - 0.75
     elif model in ['PRc50']:
-        log10f = -1.5 * log10m + 0
+        log10f = -1.5 * log10m + 1.5
     elif model in ['PRc10']:
         log10f = -1.4 * log10m - 3.5
     elif model == 'BHLl2':
@@ -132,7 +132,7 @@ def pbhacc_f_old(m, model):
     if model in ['PRc23', 'PRc23R', 'PRc23H']:
         log10f = -1.5 * log10m - 0.75
     elif model in ['PRc50']:
-        log10f = -1.5 * log10m - 0.4
+        log10f = -1.5 * log10m - 0
     elif model in ['PRc10']:
         log10f = -1.4 * log10m - 3.5
     elif model == 'BHLl2':

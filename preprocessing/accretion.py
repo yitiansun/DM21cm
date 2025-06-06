@@ -346,6 +346,7 @@ class PBHAccretionModel:
             Mdot = self.Mdot_func(M_PBH, rho_inf, v, self.c_in, c_inf, self.lambda_fudge, z) # [M_sun/yr]
             return self.L_func(Mdot, M_PBH)
         self.L_func_v = jax.jit(jax.vmap(L_func_v, in_axes=(None, None, 0, None, None)))
+        self.L_func_v_single = jax.jit(L_func_v)
 
         #===== precomputed reference values =====
         self.rho_m_ref = 1 # reference physical total matter density in halos [M_sun/pc^3]
@@ -358,8 +359,8 @@ class PBHAccretionModel:
         self.c_inf_ref = np.sqrt(5/3 * (1 + self.x_e_ref) * self.T_k_ref * u.eV / c.m_p).to(u.km/u.s).value
 
 
-    def L_cosmo_single_PBH(self, m_PBH, z, rho_inf, c_inf):
-        """PBH accretion luminosity due to single unbound PBH [M_sun/yr]
+    def L_cosmo_single_PBH_vcbavg(self, m_PBH, z, rho_inf, c_inf):
+        """PBH accretion luminosity due to single unbound PBH [M_sun/yr] v_cb averaged
         
         Args:
             m_PBH (float): Mass of the PBH [M_sun]
@@ -373,6 +374,19 @@ class PBHAccretionModel:
         v_integrand = self.L_func_v(m_PBH, rho_inf, v_s, c_inf, z)
         return jnp.trapz(fv_s * v_integrand, v_s)
     
+    def L_cosmo_single_PBH(self, m_PBH, z, rho_inf, c_inf, v_cb):
+        """PBH accretion luminosity due to single unbound PBH [M_sun/yr]
+        (Just a wrapper for L_func_v_single, for consistency with L_cosmo_single_PBH_vcbavg)
+        
+        Args:
+            m_PBH (float): Mass of the PBH [M_sun]
+            z (float): Redshift
+            rho_inf (float): Ambient gas density [g/cm^3]
+            c_inf (float): Ambient gas sound speed [km/s]
+            v_cb (float): DM-baryon streaming velocity [km/s]
+        """
+        return self.L_func_v_single(m_PBH, rho_inf, v_cb, c_inf, z)
+    
     def L_cosmo_single_PBH_std(self, m_PBH, z):
         """PBH accretion luminosity due to single unbound PBH in standard cosmology [M_sun/yr]
         
@@ -384,7 +398,7 @@ class PBHAccretionModel:
         T_k = dh_phys.Tm_std(1+z) # [eV]
         x_e = dh_phys.xHII_std(1+z)
         c_inf = np.sqrt(5/3 * (1+x_e) * T_k * u.eV / c.m_p).to(u.km/u.s).value
-        return self.L_cosmo_single_PBH(m_PBH, z, rho_inf, c_inf)
+        return self.L_cosmo_single_PBH_vcbavg(m_PBH, z, rho_inf, c_inf)
     
     def Mdot_cosmo_single_PBH(self, m_PBH, z, rho_inf, c_inf):
         """PBH accretion rate due to single unbound PBH [M_sun/yr]
@@ -417,8 +431,21 @@ class PBHAccretionModel:
         return self.Mdot_cosmo_single_PBH(m_PBH, z, rho_inf, c_inf)
         
     
-    def L_cosmo_density(self, m_PBH, z, rho_dm, rho_b_inf, c_inf):
+    def L_cosmo_density(self, m_PBH, z, rho_dm, rho_b_inf, c_inf, v_cb):
         """PBH accretion luminosity conformal density [M_sun/yr/cMpc^3]
+        
+        Args:
+            z (float): Redshift
+            rho_dm (float): DM density (need to account for f_collapsed) [M_sun/cMpc^3]
+            rho_b_inf (float): Ambient gas density [g/cm^3]
+            c_inf (float): Ambient gas sound speed [km/s]
+            v_cb (float): DM-baryon streaming velocity [km/s]
+        """
+        n_PBH = rho_dm / m_PBH # [1/cMpc^3]
+        return n_PBH * self.L_cosmo_single_PBH(m_PBH, z, rho_b_inf, c_inf, v_cb)
+    
+    def L_cosmo_density_vcbavg(self, m_PBH, z, rho_dm, rho_b_inf, c_inf):
+        """PBH accretion luminosity conformal density [M_sun/yr/cMpc^3] vcb averaged
         
         Args:
             z (float): Redshift
@@ -427,7 +454,7 @@ class PBHAccretionModel:
             c_inf (float): Ambient gas sound speed [km/s]
         """
         n_PBH = rho_dm / m_PBH # [1/cMpc^3]
-        return n_PBH * self.L_cosmo_single_PBH(m_PBH, z, rho_b_inf, c_inf)
+        return n_PBH * self.L_cosmo_single_PBH_vcbavg(m_PBH, z, rho_b_inf, c_inf)
     
     def L_cosmo_density_std(self, m_PBH, z, f_coll):
         """PBH accretion luminosity conformal density in standard cosmology [M_sun/yr/cMpc^3]

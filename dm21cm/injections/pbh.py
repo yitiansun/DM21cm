@@ -20,7 +20,7 @@ from darkhistory import physics as dh_phys
 WDIR = os.environ['DM21CM_DIR']
 sys.path.append(WDIR)
 from dm21cm.injections.base import Injection
-from dm21cm.interpolators import interp1d, bound_action
+from dm21cm.interpolators import interp1d, bound_action, interp3d
 import dm21cm.physics as phys
 from dm21cm.utils import load_h5_dict, abscs
 
@@ -191,6 +191,10 @@ class PBHHRInjection (Injection):
         return self.inj_elec_spec(z_start, z_end=z_end), delta_plus_one_box # [elec / pcm^3 (eV) s], [1]
     
 
+_CINF_T_K_REF = 1 # [K]
+_CINF_X_E_REF = 0 # [1]
+_CINF_REF = np.sqrt(5/3 * (1 + _CINF_X_E_REF) * _CINF_T_K_REF * u.K * c.k_B / c.m_p).to(u.km/u.s).value
+
 
 class PBHAccretionInjection (Injection):
     """Primordial Black Hole (PBH) accretion injection object. See parent class for details.
@@ -211,16 +215,17 @@ class PBHAccretionInjection (Injection):
         self.halo_data = load_h5_dict(prefix + "_halo.h5")
         self.cosmo_data = load_h5_dict(prefix + "_cosmo.h5")
 
-        self.z_s = self.halo_data['z']
-        self.zfull_s = self.halo_data['zfull']
-        self.d_s = self.halo_data['d']
-        self.cinf_s = self.cosmo_data['cinf'] # [km/s]
-        self.halo_ps_cond = self.halo_data['ps_cond'] # [eV / s / cfcm^3]
-        self.halo_ps = self.halo_data['ps']
-        self.halo_st = self.halo_data['st']
-        self.cosmo_ps_cond = self.cosmo_data['ps_cond']
-        self.cosmo_ps = self.cosmo_data['ps']
-        self.cosmo_st = self.cosmo_data['st']
+        self.z_s           = jnp.array(self.halo_data ['z'])
+        self.zfull_s       = jnp.array(self.halo_data ['zfull'])
+        self.d_s           = jnp.array(self.halo_data ['d'])
+        self.cinf_s        = jnp.array(self.cosmo_data['cinf']) # [km/s]
+        self.vcb_s         = jnp.array(self.cosmo_data['vcb']) # [km/s]
+        self.halo_ps_cond  = jnp.array(self.halo_data ['ps_cond']) # [eV / s / cfcm^3]
+        self.halo_ps       = jnp.array(self.halo_data ['ps'])
+        self.halo_st       = jnp.array(self.halo_data ['st'])
+        self.cosmo_ps_cond = jnp.array(self.cosmo_data['ps_cond'])
+        self.cosmo_ps      = jnp.array(self.cosmo_data['ps'])
+        self.cosmo_st      = jnp.array(self.cosmo_data['st'])
 
         self.init_specs()
 
@@ -251,10 +256,10 @@ class PBHAccretionInjection (Injection):
         """Ambient sound speed [km/s]. Used for contributions from unbound PBH.
         
         Args:
-            T_k (float): Gas temperature [eV].
+            T_k (float): Gas temperature [K].
             x_e (float): Ionization fraction [1].
         """
-        return np.sqrt(5/3 * (1 + x_e) * T_k * u.eV / c.m_p).to(u.km/u.s).value
+        return _CINF_REF * jnp.sqrt((1 + x_e) / (1 + _CINF_X_E_REF) * T_k / _CINF_T_K_REF)
     
     def cinf_std(self, z):
         """Standard ambient sound speed [km/s]."""
@@ -286,32 +291,31 @@ class PBHAccretionInjection (Injection):
     def inj_elec_spec(self, z_start, z_end=None, **kwargs):
         return self.zero_elec_spec # [elec/eV / pcm^3 s]
     
-    def inj_phot_spec_box(self, z_start, z_end=None, delta_plus_one_box=None, **kwargs):
+    def inj_phot_spec_box(self, z_start, z_end=None, delta_plus_one_box=None, T_k_box=None, x_e_box=None, vcb_box=None, **kwargs):
         z_in = bound_action(z_start, self.z_s, 'raise') # can only access from DM21cm
-        cinf_in = bound_action(self.cinf_std(z_start), self.cinf_s, 'clip') # [km/s] | for cosmo PBH, assume standard cosmology
+        cinf_box_in = bound_action(self.cinf(T_k_box, x_e_box), self.cinf_s, 'clip') # [km/s]
+        cinf_avg = jnp.mean(cinf_box_in) # [km/s]
         d_box_in = bound_action(delta_plus_one_box - 1, self.d_s, 'clip')
+        vcb_box_in = bound_action(vcb_box, self.vcb_s, 'clip') # [km/s]
 
         # table units: [eV / s / cfcm^3]
-        halo_ps_cond_d = interp1d(self.halo_ps_cond, self.z_s, z_in) # shape=(d,)
-        halo_ps_d = interp1d(self.halo_ps, self.z_s, z_in) # shape=()
-        halo_st_d = interp1d(self.halo_st, self.z_s, z_in) # shape=()
-        halo_power = interp1d(halo_ps_cond_d, self.d_s, d_box_in) # shape=box
-        halo_power *= halo_st_d / halo_ps_d
+        halo_ps_cond_val = interp1d(interp1d(self.halo_ps_cond, self.z_s, z_in), self.d_s, d_box_in) # shape=box
+        halo_ps_val = interp1d(self.halo_ps, self.z_s, z_in) # shape=()
+        halo_st_val = interp1d(self.halo_st, self.z_s, z_in) # shape=()
+        halo_power = (halo_st_val / halo_ps_val) * halo_ps_cond_val # shape=box
 
-        cosmo_ps_cond_d = interp1d(interp1d(self.cosmo_ps_cond, self.zfull_s, z_in), self.cinf_s, cinf_in) # shape=(d,)
-        cosmo_ps_d = interp1d(interp1d(self.cosmo_ps, self.zfull_s, z_in), self.cinf_s, cinf_in) # shape=()
-        cosmo_st_d = interp1d(interp1d(self.cosmo_st, self.zfull_s, z_in), self.cinf_s, cinf_in) # shape=()
-        cosmo_power = interp1d(cosmo_ps_cond_d, self.d_s, d_box_in) # shape=box
-        cosmo_power *= cosmo_st_d / cosmo_ps_d
+        cosmo_ps_cond_cdv = interp1d(self.cosmo_ps_cond, self.zfull_s, z_in) # shape=(cinf, d, vcb)
+        cdv_in = jnp.stack([cinf_box_in.flatten(), d_box_in.flatten(), vcb_box_in.flatten()], axis=-1) # shape=(boxlen, 3)
+        cosmo_ps_cond_val = interp3d(cosmo_ps_cond_cdv, self.cinf_s, self.d_s, self.vcb_s, cdv_in).reshape(cinf_box_in.shape) # shape=box
+
+        cosmo_ps_val = interp1d(interp1d(self.cosmo_ps, self.zfull_s, z_in), self.cinf_s, cinf_avg) # shape=()
+        cosmo_st_val = interp1d(interp1d(self.cosmo_st, self.zfull_s, z_in), self.cinf_s, cinf_avg) # shape=()
+        cosmo_power = (cosmo_st_val / cosmo_ps_val) * cosmo_ps_cond_val # shape=box
 
         power_box = (halo_power + cosmo_power) * self.f_PBH * (1 + z_start)**3 # [eV / pcm^3 s]
         power_mean = jnp.mean(power_box)
         return self.phot_spec * float(power_mean), power_box / power_mean # [phot/eV / pcm^3 s], [1]
 
-    # def inj_phot_spec_box(self, z_start, z_end=None, delta_plus_one_box=None, Tk_box=None, **kwargs):
-    #     d_in = bound_action(delta_plus_one_box.flatten() - 1, self.d_s, 'clip')
-    #     T_in = bound_action(Tk_box.flatten(), self.T_s, 'clip')
-    #     d_T_in = jnp.stack([d_in, T_in], axis=-1)
 
     #===== auxiliary functions =====
     def inj_halo_power(self, z_start, z_end=None, state=None, **kwargs):

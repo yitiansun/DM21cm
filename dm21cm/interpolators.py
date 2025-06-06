@@ -13,23 +13,33 @@ EPSILON = 1e-6
 #===== interpolation =====
 
 @jit
-def interp1d(fp, xp, x):
-    """Interpolates f(x), described by points fp and xp, at values in x.
+def interp1d(fp, x0p, x0):
+    """Interpolates f(x0), described by points fp and x0p, at values in x0.
 
     Args:
         fp (array): n(>=1)D array of function values. First dimension will be interpolated.
-        xp (array): 1D array of x values.
-        x (array): anyD array of x values to interpolate.
+        x0p (array): 1D array of x0 values (first dimension of fp).
+        x0 (array): x0 values to interpolate.
 
     Return:
         Interpolated values.
 
     Notes:
-        xp must be sorted. Does not do bound checks.
+        x0p must be sorted. Does not do bound checks.
     """
-    il = jnp.searchsorted(xp, x, side='right') - 1
-    wl = (xp[il+1] - x) / (xp[il+1] - xp[il])
-    return fp[il] * wl + fp[il+1] * (1 - wl)
+    # --- locate lower indices along each axis -----------------
+    i0l = jnp.searchsorted(x0p, x0, side='right') - 1
+
+    # --- compute linear weights -------------------------------
+    wl0 = (x0p[i0l + 1] - x0) / (x0p[i0l + 1] - x0p[i0l])
+    wr0 = 1 - wl0
+
+    # --- gather corner values ---------------------------------
+    f0 = fp[i0l    ] * wl0
+    f1 = fp[i0l + 1] * wr0
+
+    return f0 + f1
+
 
 @jit
 def interp2d(fp, x0p, x1p, x01):
@@ -48,18 +58,74 @@ def interp2d(fp, x0p, x1p, x01):
         x0p and x1p must be sorted. Does not do bound checks.
     """
     x0, x1 = x01
-    
+
+    # --- locate lower indices along each axis -----------------
     i0l = jnp.searchsorted(x0p, x0, side='right') - 1
-    wl0 = (x0p[i0l+1] - x0) / (x0p[i0l+1] - x0p[i0l])
-    wr0 = 1 - wl0
-    
     i1l = jnp.searchsorted(x1p, x1, side='right') - 1
-    wl1 = (x1p[i1l+1] - x1) / (x1p[i1l+1] - x1p[i1l])
+
+    # --- compute linear weights -------------------------------
+    wl0 = (x0p[i0l + 1] - x0) / (x0p[i0l + 1] - x0p[i0l])
+    wl1 = (x1p[i1l + 1] - x1) / (x1p[i1l + 1] - x1p[i1l])
+    wr0 = 1 - wl0
     wr1 = 1 - wl1
-    
-    return fp[i0l,i1l]*wl0*wl1 + fp[i0l+1,i1l]*wr0*wl1 + fp[i0l,i1l+1]*wl0*wr1 + fp[i0l+1,i1l+1]*wr0*wr1
+
+    # --- gather corner values ---------------------------------
+    f00 = fp[i0l    , i1l    ] * wl0 * wl1
+    f10 = fp[i0l + 1, i1l    ] * wr0 * wl1
+    f01 = fp[i0l    , i1l + 1] * wl0 * wr1
+    f11 = fp[i0l + 1, i1l + 1] * wr0 * wr1
+
+    return f00 + f10 + f01 + f11
 
 interp2d_vmap = vmap(interp2d, in_axes=(None, None, None, 0))
+
+
+@jit
+def interp3d(fp, x0p, x1p, x2p, x012):
+    """Interpolates f(x0, x1, x2), described by points fp, x0p, x1p, and x2p at values in x012.
+
+    Args:
+        fp (array): n(>=2)D array of function values. First two dimensions will be interpolated.
+        x0p (array): 1D array of x0 values (first dimension of fp).
+        x1p (array): 1D array of x1 values (second dimension of fp).
+        x2p (array): 1D array of x2 values (third dimension of fp).
+        x012 (array): [x0, x1, x2] values to interpolate.
+
+    Return:
+        Interpolated values.
+
+    Notes:
+        x0p, x1p, and x2p must be sorted. Does not do bound checks.
+    """
+    x0, x1, x2 = x012
+
+    # --- locate lower indices along each axis -----------------
+    i0l = jnp.searchsorted(x0p, x0, side='right') - 1
+    i1l = jnp.searchsorted(x1p, x1, side='right') - 1
+    i2l = jnp.searchsorted(x2p, x2, side='right') - 1
+
+    # --- compute linear weights -------------------------------
+    wl0 = (x0p[i0l + 1] - x0) / (x0p[i0l + 1] - x0p[i0l])
+    wl1 = (x1p[i1l + 1] - x1) / (x1p[i1l + 1] - x1p[i1l])
+    wl2 = (x2p[i2l + 1] - x2) / (x2p[i2l + 1] - x2p[i2l])
+    wr0 = 1 - wl0
+    wr1 = 1 - wl1
+    wr2 = 1 - wl2
+
+    # --- gather corner values ---------------------------------
+    f000 = fp[i0l    , i1l    , i2l    ] * wl0 * wl1 * wl2
+    f100 = fp[i0l + 1, i1l    , i2l    ] * wr0 * wl1 * wl2
+    f010 = fp[i0l    , i1l + 1, i2l    ] * wl0 * wr1 * wl2
+    f110 = fp[i0l + 1, i1l + 1, i2l    ] * wr0 * wr1 * wl2
+    f001 = fp[i0l    , i1l    , i2l + 1] * wl0 * wl1 * wr2
+    f101 = fp[i0l + 1, i1l    , i2l + 1] * wr0 * wl1 * wr2
+    f011 = fp[i0l    , i1l + 1, i2l + 1] * wl0 * wr1 * wr2
+    f111 = fp[i0l + 1, i1l + 1, i2l + 1] * wr0 * wr1 * wr2
+
+    return f000 + f100 + f010 + f110 + f001 + f101 + f011 + f111
+
+interp3d_vmap = vmap(interp3d, in_axes=(None, None, None, None, 0))
+
 
 
 #===== utilities =====

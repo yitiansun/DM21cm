@@ -21,7 +21,7 @@ New vcb for pbhacc PS cosmo table
     - DONE:
     - FISHED: [13.5-18.0] at 0.25
 - pbhacc-PRc23-250606 [0, 2, 4]
-    - DATA:
+    - DATA: [0, 2, 4]
     - READY:
     - RUNNING:
     - DONE:

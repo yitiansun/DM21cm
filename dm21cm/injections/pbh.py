@@ -20,7 +20,7 @@ from darkhistory import physics as dh_phys
 WDIR = os.environ['DM21CM_DIR']
 sys.path.append(WDIR)
 from dm21cm.injections.base import Injection
-from dm21cm.interpolators import interp1d, bound_action, interp3d
+from dm21cm.interpolators import interp1d, bound_action, interp3d_vmap
 import dm21cm.physics as phys
 from dm21cm.utils import load_h5_dict, abscs
 
@@ -85,60 +85,6 @@ class PBHHRInjection (Injection):
             'm_PBH': self.m_PBH,
             'f_PBH': self.f_PBH
         }
-    
-    #===== final injection modification =====
-    # def init_final_inj(self, z_inj_s):
-    #     """Initialize final stage injection parameters if PBH has evaporated by z_end.
-    #     Will be called for DarkHistory and DM21cm.
-
-    #     Args:
-    #         z_inj_s (array): List of (decreasing) redshifts at which injection happens, plus a final boundary z.
-
-    #     Set the following attributes:
-    #         z_inj_s (array): As above.
-    #         evaporated_by_end_rs (bool): True if PBH has evaporated by end_rs.
-    #         if evaporated_by_end_rs is True:
-    #             z_final_inj (float): Redshift of the final injection step.
-    #             final_inj_multiplier (float): Injection energy multiplier of the final injection step.
-    #             phot_final_inj_shape (Spectrum): Injection spectral shape of photons at the final injection step.
-    #             elec_final_inj_shape (Spectrum): Injection spectral shape of electrons at the final injection step.
-    #     """
-    #     # Get dM's
-    #     dM_s = []
-    #     for i, z in enumerate(z_inj_s[:-1]):
-    #         t = phys.t_z(z)
-    #         t_next = phys.t_z(z_inj_s[i+1])
-    #         dM = self.dMdt_t(t) * (t_next - t)
-    #         dM_s.append(dM) # dM's length will be one less than z_inj_s
-
-    #     # Test if BH has evaporated by end_rs
-    #     self.z_inj_s = z_inj_s
-    #     if dM_s[-1] != 0.: # BH has not evaporated
-    #         self.evaporated_by_end = False
-    #         return
-    #     self.evaporated_by_end = True
-    #     self.i_final_inj = np.nonzero(dM_s)[0][-1] # there is a danger of emission spec mismatch with dMdt
-    #     self.z_final_inj = z_inj_s[self.i_final_inj]
-
-    #     # Final step injection multiplier
-    #     dM_total = self.data['M0'] - self.M_t(phys.t_z(z_inj_s[0])) # [g]
-    #     dM_actual = np.sum(dM_s) # [g]
-    #     dM_extra = np.max(dM_total - dM_actual, 0) # [g]
-    #     self.final_inj_multiplier = (dM_extra + dM_s[self.i_final_inj]) / dM_s[self.i_final_inj]
-
-    #     # Final step injection spectral shape
-    #     t_final_start = phys.t_z(np.sqrt((1+self.z_final_inj) * (1+self.z_inj_s[self.i_final_inj-1])) - 1) # [s]
-    #     phot_dNdE = self.data['phot dNdEdt'][0] * 0.
-    #     elec_dNdE = self.data['elec dNdEdt'][0] * 0.
-    #     for i, t in enumerate(self.data['t']):
-    #         if t < t_final_start:
-    #             continue
-    #         dt = t - self.data['t'][i-1]
-    #         phot_dNdE += self.data['phot dNdEdt'][i] * dt
-    #         elec_dNdE += self.data['elec dNdEdt'][i] * dt
-    #     self.phot_final_inj_shape = Spectrum(self.abscs['photE'], phot_dNdE, spec_type='dNdE') # normalization does not matter
-    #     self.elec_final_inj_shape = Spectrum(self.abscs['elecEk'], elec_dNdE, spec_type='dNdE')
-    
 
     #===== injections =====
     def n_PBH(self, z_start, z_end=None):
@@ -190,6 +136,7 @@ class PBHHRInjection (Injection):
     def inj_elec_spec_box(self, z_start, z_end=None, delta_plus_one_box=None, **kwargs):
         return self.inj_elec_spec(z_start, z_end=z_end), delta_plus_one_box # [elec / pcm^3 (eV) s], [1]
     
+
 
 _CINF_T_K_REF = 1 # [K]
 _CINF_X_E_REF = 0 # [1]
@@ -256,16 +203,10 @@ class PBHAccretionInjection (Injection):
         """Ambient sound speed [km/s]. Used for contributions from unbound PBH.
         
         Args:
-            T_k (float): Gas temperature [K].
-            x_e (float): Ionization fraction [1].
+            T_k (float or array): Gas temperature [K].
+            x_e (float or array): Ionization fraction [1].
         """
         return _CINF_REF * jnp.sqrt((1 + x_e) / (1 + _CINF_X_E_REF) * T_k / _CINF_T_K_REF)
-    
-    def cinf_std(self, z):
-        """Standard ambient sound speed [km/s]."""
-        T_k = dh_phys.Tm_std(1+z) # [eV]
-        x_e = dh_phys.xHII_std(1+z) # [1]
-        return self.cinf(T_k, x_e)
     
     def inj_power_std(self, z):
         T_k = dh_phys.Tm_std(1+z) # [eV]
@@ -277,12 +218,22 @@ class PBHAccretionInjection (Injection):
     def inj_rate(self, z_start, z_end=None, **kwargs):
         return self.inj_rate_ref # [inj / pcm^3 s]
     
-    def inj_power(self, z_start, z_end=None, state=None, **kwargs):
+    def inj_power(self, z_start, z_end=None, state=None, debug=None, **kwargs):
         z_in = bound_action(z_start, self.zfull_s, 'clip')
-        cinf_in = self.cinf(state['Tm'], state['xHII']) if state is not None else self.cinf_std(z_start)
+        if state:
+            T_k = (state['Tm'] * u.eV / c.k_B).to(u.K).value
+            x_e = state['xHII']
+        else:
+            T_k = (dh_phys.Tm_std(1+z_start) * u.eV / c.k_B).to(u.K).value # [K]
+            x_e = dh_phys.xHII_std(1+z_start) # [1]
+        cinf_in = self.cinf(T_k, x_e)
         cinf_in = bound_action(cinf_in, self.cinf_s, 'clip') # [km/s]
         halo_power = interp1d(self.halo_st, self.zfull_s, z_in) # [eV / s / cfcm^3]
         cosmo_power = interp1d(interp1d(self.cosmo_st, self.zfull_s, z_in), self.cinf_s, cinf_in) # [eV / s / cfcm^3]
+        if debug == 'halo only':
+            cosmo_power = 0
+        elif debug == 'cosmo only':
+            halo_power = 0
         return self.f_PBH * (halo_power + cosmo_power) * (1 + z_start)**3 # [eV / pcm^3 s]
     
     def inj_phot_spec(self, z_start, z_end=None, state=None, **kwargs):
@@ -306,7 +257,7 @@ class PBHAccretionInjection (Injection):
 
         cosmo_ps_cond_cdv = interp1d(self.cosmo_ps_cond, self.zfull_s, z_in) # shape=(cinf, d, vcb)
         cdv_in = jnp.stack([cinf_box_in.flatten(), d_box_in.flatten(), vcb_box_in.flatten()], axis=-1) # shape=(boxlen, 3)
-        cosmo_ps_cond_val = interp3d(cosmo_ps_cond_cdv, self.cinf_s, self.d_s, self.vcb_s, cdv_in).reshape(cinf_box_in.shape) # shape=box
+        cosmo_ps_cond_val = interp3d_vmap(cosmo_ps_cond_cdv, self.cinf_s, self.d_s, self.vcb_s, cdv_in).reshape(cinf_box_in.shape) # shape=box
 
         cosmo_ps_val = interp1d(interp1d(self.cosmo_ps, self.zfull_s, z_in), self.cinf_s, cinf_avg) # shape=()
         cosmo_st_val = interp1d(interp1d(self.cosmo_st, self.zfull_s, z_in), self.cinf_s, cinf_avg) # shape=()
@@ -317,19 +268,19 @@ class PBHAccretionInjection (Injection):
         return self.phot_spec * float(power_mean), power_box / power_mean # [phot/eV / pcm^3 s], [1]
 
 
-    #===== auxiliary functions =====
-    def inj_halo_power(self, z_start, z_end=None, state=None, **kwargs):
-        z_in = bound_action(z_start, self.zfull_s, 'clip')
-        cinf_in = self.cinf(state['Tm'], state['xHII']) if state is not None else self.cinf_std(z_start)
-        cinf_in = bound_action(cinf_in, self.cinf_s, 'clip') # [km/s]
-        halo_power = interp1d(self.halo_st, self.zfull_s, z_in) # [eV / s / cfcm^3]
-        # cosmo_power = interp1d(interp1d(self.cosmo_st, self.zfull_s, z_in), self.cinf_s, cinf_in) # [eV / s / cfcm^3]
-        return self.f_PBH * halo_power * (1 + z_start)**3 # [eV / pcm^3 s]
+    # #===== auxiliary functions =====
+    # def inj_halo_power(self, z_start, z_end=None, state=None, **kwargs):
+    #     z_in = bound_action(z_start, self.zfull_s, 'clip')
+    #     cinf_in = self.cinf(state['Tm'], state['xHII']) if state is not None else self.cinf_std(z_start)
+    #     cinf_in = bound_action(cinf_in, self.cinf_s, 'clip') # [km/s]
+    #     halo_power = interp1d(self.halo_st, self.zfull_s, z_in) # [eV / s / cfcm^3]
+    #     # cosmo_power = interp1d(interp1d(self.cosmo_st, self.zfull_s, z_in), self.cinf_s, cinf_in) # [eV / s / cfcm^3]
+    #     return self.f_PBH * halo_power * (1 + z_start)**3 # [eV / pcm^3 s]
     
-    def inj_cosmo_power(self, z_start, z_end=None, state=None, **kwargs):
-        z_in = bound_action(z_start, self.zfull_s, 'clip')
-        cinf_in = self.cinf(state['Tm'], state['xHII']) if state is not None else self.cinf_std(z_start)
-        cinf_in = bound_action(cinf_in, self.cinf_s, 'clip') # [km/s]
-        # halo_power = interp1d(self.halo_st, self.zfull_s, z_in) # [eV / s / cfcm^3]
-        cosmo_power = interp1d(interp1d(self.cosmo_st, self.zfull_s, z_in), self.cinf_s, cinf_in) # [eV / s / cfcm^3]
-        return self.f_PBH * cosmo_power * (1 + z_start)**3 # [eV / pcm^3 s]
+    # def inj_cosmo_power(self, z_start, z_end=None, state=None, **kwargs):
+    #     z_in = bound_action(z_start, self.zfull_s, 'clip')
+    #     cinf_in = self.cinf(state['Tm'], state['xHII']) if state is not None else self.cinf_std(z_start)
+    #     cinf_in = bound_action(cinf_in, self.cinf_s, 'clip') # [km/s]
+    #     # halo_power = interp1d(self.halo_st, self.zfull_s, z_in) # [eV / s / cfcm^3]
+    #     cosmo_power = interp1d(interp1d(self.cosmo_st, self.zfull_s, z_in), self.cinf_s, cinf_in) # [eV / s / cfcm^3]
+    #     return self.f_PBH * cosmo_power * (1 + z_start)**3 # [eV / pcm^3 s]

@@ -118,6 +118,12 @@ def evolve(run_name,
             xray_cache = XrayCache(data_dir=cache_dir, box_dim=box_dim, dx=box_len/box_dim)
             xray_cache.clear_cache()
 
+        if injection.mode == 'PBH-Accretion':
+            if not hasattr(p21c_initial_conditions, 'lowres_vcb'):
+                raise ValueError("Must set USE_RELATIVE_VELOCITIES = True in p21c.UserParams to use PBH-Accretion injection mode.")
+            vcb_box_decoupling = p21c_initial_conditions.lowres_vcb
+            z_decoupling = 1020
+
     #===== initial steps =====
     # We synchronize DM21cm with 21cmFAST at the second step because 21cmFAST acts strangely in the first step:
     # - global_params.TK_at_Z_HEAT_MAX is not set correctly (it is likely set and evolved for a step).
@@ -238,14 +244,29 @@ def evolve(run_name,
 
             #--- injection (on-the-spot) ---
             n_Bavg = phys.n_B * (1 + z_current)**3 # [Bavg / pcm^3]
+            vcb_box = vcb_box_decoupling * (1+z_current) / (1+z_decoupling) if injection.mode == 'PBH-Accretion' else None
 
-            inj_rate_spec, weight_box = injection.inj_phot_spec_box(z_current, z_end=z_next, delta_plus_one_box=delta_plus_one_box)
+            inj_rate_spec, weight_box = injection.inj_phot_spec_box(
+                z_current,
+                z_end = z_next,
+                delta_plus_one_box = delta_plus_one_box,
+                T_k_box = T_k_box,
+                x_e_box = x_e_box,
+                vcb_box = vcb_box,
+            )
             if homogenize_injection:
                 weight_box = jnp.full_like(weight_box, jnp.mean(weight_box))
             tfs.inject_phot(inj_rate_spec * dt / n_Bavg, weight_box=weight_box, inject_type='ots') # ingoing spec has [phot / Bavg]
 
             if injection.is_injecting_elec():
-                inj_rate_spec, weight_box = injection.inj_elec_spec_box(z_current, z_end=z_next, delta_plus_one_box=delta_plus_one_box)
+                inj_rate_spec, weight_box = injection.inj_elec_spec_box(
+                    z_current,
+                    z_end = z_next,
+                    delta_plus_one_box = delta_plus_one_box,
+                    T_k_box = T_k_box,
+                    x_e_box = x_e_box,
+                    vcb_box = vcb_box,
+                )
                 if homogenize_injection:
                     weight_box = jnp.full_like(weight_box, jnp.mean(weight_box))
                 tfs.inject_elec(inj_rate_spec * dt / n_Bavg, weight_box=weight_box)

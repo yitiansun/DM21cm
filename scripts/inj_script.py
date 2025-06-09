@@ -119,7 +119,7 @@ elif args.channel.startswith('pbhacc'):
 
     model = args.channel.split('-')[1]
 
-    m_s = 10**np.array([0, 4]) # [M_sun]
+    m_s = 10**np.array([2]) # [M_sun]
 
     mass_ind, inj_ind = np.unravel_index(args.run_index, (len(m_s), 2))
     m_PBH = m_s[mass_ind] # [M_sun]

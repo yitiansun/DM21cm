@@ -122,7 +122,7 @@ def evolve(run_name,
             if not hasattr(p21c_initial_conditions, 'lowres_vcb'):
                 raise ValueError("Must set USE_RELATIVE_VELOCITIES = True in p21c.UserParams to use PBH-Accretion injection mode.")
             vcb_box_decoupling = p21c_initial_conditions.lowres_vcb
-            z_decoupling = 1020
+            z_decoupling = 1020 # TMP constant
 
     #===== initial steps =====
     # We synchronize DM21cm with 21cmFAST at the second step because 21cmFAST acts strangely in the first step:

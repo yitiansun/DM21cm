@@ -46,6 +46,7 @@ print(args)
 print('\n===== Injection parameters =====')
 
 inj_multiplier_s = [1, 2]
+use_rel_v = True # set to universally true for now
 
 if args.channel.startswith('decay'):
     if args.channel == 'decay-phot':
@@ -203,6 +204,7 @@ return_dict = evolve(
             HII_DIM = args.box_dim,
             BOX_LEN = box_len, # [conformal Mpc]
             N_THREADS = args.n_threads,
+            USE_RELATIVE_VELOCITIES = use_rel_v,
         ),
         cosmo_params = p21c.CosmoParams(
             OMm = Planck18.Om0,

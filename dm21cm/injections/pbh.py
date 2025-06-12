@@ -165,6 +165,7 @@ class PBHAccretionInjection (Injection):
         self.z_s           = jnp.array(self.halo_data ['z'])
         self.zfull_s       = jnp.array(self.halo_data ['zfull'])
         self.d_s           = jnp.array(self.halo_data ['d'])
+        self.dsub_s        = jnp.array(self.halo_data ['dsub'])
         self.cinf_s        = jnp.array(self.cosmo_data['cinf']) # [km/s]
         self.vcb_s         = jnp.array(self.cosmo_data['vcb']) # [km/s]
         self.halo_ps_cond  = jnp.array(self.halo_data ['ps_cond']) # [eV / s / cfcm^3]
@@ -257,7 +258,7 @@ class PBHAccretionInjection (Injection):
 
         cosmo_ps_cond_cdv = interp1d(self.cosmo_ps_cond, self.zfull_s, z_in) # shape=(cinf, d, vcb)
         cdv_in = jnp.stack([cinf_box_in.flatten(), d_box_in.flatten(), vcb_box_in.flatten()], axis=-1) # shape=(boxlen, 3)
-        cosmo_ps_cond_val = interp3d_vmap(cosmo_ps_cond_cdv, self.cinf_s, self.d_s, self.vcb_s, cdv_in).reshape(cinf_box_in.shape) # shape=box
+        cosmo_ps_cond_val = interp3d_vmap(cosmo_ps_cond_cdv, self.cinf_s, self.dsub_s, self.vcb_s, cdv_in).reshape(cinf_box_in.shape) # shape=box
 
         cosmo_ps_val = interp1d(interp1d(self.cosmo_ps, self.zfull_s, z_in), self.cinf_s, cinf_avg) # shape=()
         cosmo_st_val = interp1d(interp1d(self.cosmo_st, self.zfull_s, z_in), self.cinf_s, cinf_avg) # shape=()

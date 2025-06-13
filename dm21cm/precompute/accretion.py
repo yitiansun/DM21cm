@@ -208,12 +208,12 @@ def Mdot_PRHALO(M, rho_inf, v, c_in, c_inf, lambda_fudge=1, z=None):
 
 #===== Luminosity: ADAF & Thin disk =====
 
-def e0_a(Mdot_MdotEdd, delta):
+def e0_a(Mdot_MdotEdd, delta_e):
     """epsilon_0 and a according to Table 1 of Xie & Yuan 2012 (Radiative efficiency of hot accretion flows).
     
     Args:
         Mdot_MdotEdd (float): Mdot / Mdot_Edd = Mdot / (10*L_Edd/c^2)
-        delta (float): electron heating fraction
+        delta_e (float): electron heating fraction
     """
     ratio_range_data = {
         0.5:  jnp.array([2.9e-5, 3.3e-3, 5.3e-3]), # ratio values larger than the last will fail
@@ -227,8 +227,8 @@ def e0_a(Mdot_MdotEdd, delta):
         1e-2: jnp.array([[0.069, 0.69], [0.027, 0.54 ], [0.42, 4.85], [0.0798, 0]]),
         1e-3: jnp.array([[0.065, 0.71], [0.020, 0.47 ], [0.26, 3.67], [0.0740, 0]]),
     }
-    i = jnp.searchsorted(ratio_range_data[delta], Mdot_MdotEdd)
-    return e0_a_data[delta][i]
+    i = jnp.searchsorted(ratio_range_data[delta_e], Mdot_MdotEdd)
+    return e0_a_data[delta_e][i]
 
 
 _L_EDD_UNIT_FACTOR = (4 * np.pi * c.G * u.M_sun * c.m_p / c.sigma_T / c.c).to(u.M_sun/u.yr).value
@@ -249,16 +249,16 @@ def Mdot_Edd(M):
     """
     return 10 * L_Edd(M)
 
-def L_ADAF(Mdot, M, delta=0.1):
+def L_ADAF(Mdot, M, delta_e=0.1):
     """ADAF luminosity / c^2 [M_sun/yr]
     
     Args:
         Mdot (float): Accretion rate [M_sun/yr]
         M (float): Mass of the PBH [M_sun]
-        delta (float): electron heating fraction
+        delta_e (float): electron heating fraction
     """
     Mdot_MdotEdd = Mdot / Mdot_Edd(M)
-    e0, a = e0_a(Mdot_MdotEdd, delta)
+    e0, a = e0_a(Mdot_MdotEdd, delta_e)
     epsilon = e0 * (100 * Mdot_MdotEdd)**a
     return epsilon * Mdot
 
@@ -303,7 +303,7 @@ KM_PER_PC = (1 * u.pc).to(u.km).value
 
 class PBHAccretionModel:
 
-    def __init__(self, accretion_type, c_in=None, lambda_fudge=1, v_rel_type='DMDM'):
+    def __init__(self, accretion_type, c_in=None, lambda_fudge=1, v_rel_type='DMDM', delta_e=0.1):
         """PBH accretion model
         
         Args:
@@ -311,12 +311,16 @@ class PBHAccretionModel:
             c_in (float): Sound speed inside the I-front [km/s]. Required for PR models.
             lambda_fudge (float): Fudge factor in front of Mdot. Required for BHL models.
             v_rel_type {'DMDM', 'DMR'}: Velocity distribution function.
+                'DMDM' - DM-DM relative velocity distribution function (default).
+                'DMR'  - DM-rest frame relative velocity distribution function.
+            delta_e (float): Electron heating fraction for ADAF models. Default is 0.1.
         """
 
         self.accretion_type = accretion_type
         self.c_in = c_in
         self.lambda_fudge = lambda_fudge
         self.v_rel_type = v_rel_type
+        self.delta_e = delta_e
 
         if self.accretion_type == 'PR-ADAF':
             self.Mdot_func = Mdot_PR
@@ -344,7 +348,7 @@ class PBHAccretionModel:
 
         def L_func_v(M_PBH, rho_inf, v, c_inf, z):
             Mdot = self.Mdot_func(M_PBH, rho_inf, v, self.c_in, c_inf, self.lambda_fudge, z) # [M_sun/yr]
-            return self.L_func(Mdot, M_PBH)
+            return self.L_func(Mdot, M_PBH, self.delta_e)
         self.L_func_v = jax.jit(jax.vmap(L_func_v, in_axes=(None, None, 0, None, None)))
         self.L_func_v_single = jax.jit(L_func_v)
 

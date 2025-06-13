@@ -1,4 +1,5 @@
-"""Build hmf table. This script is fast with CPUs."""
+"""Build hmf table."""
+# This script is fast with CPUs.
 
 import os
 import sys
@@ -13,9 +14,10 @@ import jax.numpy as jnp
 from functools import partial
 from tqdm import tqdm
 
-sys.path.append(os.environ['DM21CM_DIR'])
+WDIR = os.environ['DM21CM_DIR']
+sys.path.append(WDIR)
 from dm21cm.utils import save_h5_dict
-from preprocessing.hmfe import SigmaMInterpSphere, HMFEvaluator, SphereWindow
+from dm21cm.precompute.ps import SigmaMInterpSphere, HMFEvaluator, SphereWindow
 
 
 if __name__ == '__main__':
@@ -37,7 +39,8 @@ if __name__ == '__main__':
     r_fixed = cell_size / np.cbrt(4*np.pi/3) # [cMpc] | r of sphere with volume cell_size^3
     m_fixed = ws.RtoM(r_fixed) # [Msun] | m of sphere with radius r_fixed
 
-    data_dir = "/n/holystore01/LABS/iaifi_lab/Users/yitians/dm21cm/data/hmf"
+    save_dir = f"{WDIR}/data/hmf"
+    os.makedirs(save_dir, exist_ok=True)
 
 
     #===== Conditional Press-Schechter =====
@@ -88,9 +91,10 @@ if __name__ == '__main__':
             'r' : r_s,
             'm' : m_s,
             'ps_cond' : cond_table,
+            'shapes' : 'ps_cond: (z, d, r, m).',
             'units' : 'z: [1]. d: [1]. r: [cfMpc]. m: [Msun]. All tables: [1 / cMpc^3 Msun].',
         }
-        save_h5_dict(data_dir + "/hmf_r.h5", data)
+        save_h5_dict(save_dir + "/hmf_r.h5", data)
 
     # ps_cond with fixed r and other tables
     for name, t in zip(['ps_cond_fixedr', 'ps', 'st'], [cond_fixedr_table, ps_table, st_table]):
@@ -105,6 +109,7 @@ if __name__ == '__main__':
         'ps_cond' : cond_fixedr_table,
         'ps' : ps_table,
         'st' : st_table,
+        'shapes' : 'ps_cond: (z, d, m). ps, st: (z, m).',
         'units' : 'cell_size: [cfMpc]. r_fixed: [cfMpc]. z: [1]. d: [1]. m: [Msun]. All tables: [1 / cMpc^3 Msun].',
     }
-    save_h5_dict(data_dir + "/hmf.h5", data)
+    save_h5_dict(save_dir + "/hmf.h5", data)

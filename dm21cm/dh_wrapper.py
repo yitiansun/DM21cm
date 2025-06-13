@@ -118,23 +118,3 @@ class DarkHistoryWrapper:
         spec = Spectrum(spec_eng, spec_N, rs=rs, spec_type='N')
 
         return T_k, x_e, spec
-    
-    # def get_evolve_z_s(self, start_rs, end_rs, coarsen_factor, dlnz=0.001):
-    #     """Returns redshift array for DarkHistory injection steps, plus a final boundary z.
-        
-    #     Args:
-    #         start_rs (float): Starting redshift rs = 1 + z.
-    #         end_rs (float): Final redshift rs = 1 + z.
-    #         coarsen_factor (int): Coarsening factor. See darkhistory.main.evolve.
-    #         dlnz (float): Redshift log step size for redshift array. See darkhistory.main.evolve.
-
-    #     Returns:
-    #         z_s (array): Redshift array at which injection happens, plus a final boundary z.
-    #     """
-    #     rs_s = []
-    #     rs = start_rs
-    #     while rs > end_rs:
-    #         rs_s.append(rs)
-    #         rs = np.exp(np.log(rs) - dlnz * coarsen_factor)
-    #     rs_s.append(rs)
-    #     return np.array(rs_s) - 1

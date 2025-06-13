@@ -7,7 +7,7 @@ from scipy import interpolate
 sys.path.append(os.environ['DH_DIR'])
 from darkhistory.config import load_data
 import darkhistory.physics as phys
-from darkhistory.spec.spectrum import Spectrum
+
 
 mass_threshold = {
     'elec_delta': phys.mass['e'], 'phot_delta': 0.,

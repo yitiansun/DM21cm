@@ -1,3 +1,5 @@
+"""Build PBH accretion table."""
+
 import os
 import sys
 import argparse
@@ -9,16 +11,15 @@ from astropy.cosmology import Planck18 as cosmo
 import jax
 jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp
-# from functools import partial
 from tqdm import tqdm
-import h5py
 import logging
 
-sys.path.append(os.environ['DM21CM_DIR'])
+WDIR = os.environ['DM21CM_DIR']
+sys.path.append(WDIR)
 from dm21cm.utils import save_h5_dict, load_h5_dict
-from preprocessing.accretion import PBHAccretionModel
-from preprocessing.halo import cmz
-from preprocessing.hmfe import RHO_M
+from dm21cm.precompute.accretion import PBHAccretionModel
+from dm21cm.precompute.halo import cmz
+from dm21cm.precompute.ps import RHO_M
 
 
 if __name__ == '__main__':
@@ -58,7 +59,7 @@ if __name__ == '__main__':
     #===== File names =====
     run_name = args.model
     run_subname = f'log10m{np.log10(mPBH):.3f}'
-    cache_file = f"../data/pbh-accretion/L_table_cache/{run_name}/{run_name}_{run_subname}.npy"
+    cache_file = f"{WDIR}/data/pbh-accretion/L_table_cache/{run_name}/{run_name}_{run_subname}.npy"
     halo_file  = f"{os.environ['DM21CM_DATA_DIR']}/pbhacc_rates/{run_name}/{run_name}_{run_subname}_halo.h5"
     cosmo_file = f"{os.environ['DM21CM_DATA_DIR']}/pbhacc_rates/{run_name}/{run_name}_{run_subname}_cosmo.h5"
     os.makedirs(os.path.dirname(cache_file), exist_ok=True)

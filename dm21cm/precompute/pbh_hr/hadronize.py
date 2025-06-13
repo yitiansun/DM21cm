@@ -6,8 +6,8 @@ import numpy as np
 WDIR = os.environ['DM21CM_DIR']
 sys.path.append(WDIR)
 from dm21cm.utils import load_h5_dict, save_h5_dict
-from preprocessing.pbh_hr.pppc import get_pppc_tf
-from preprocessing.pbh_hr.read import read_pbh
+from dm21cm.precompute.pbh_hr.pppc import get_pppc_tf
+from dm21cm.precompute.pbh_hr.read import read_pbh
 
 
 #===== transfer function =====

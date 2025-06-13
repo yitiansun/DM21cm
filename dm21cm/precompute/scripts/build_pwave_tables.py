@@ -1,4 +1,5 @@
-"""Build pwave table. This script is fast with GPUs."""
+"""Build pwave table."""
+# This script is fast with GPUs.
 
 import os
 import sys
@@ -9,19 +10,18 @@ import astropy.constants as c
 import jax
 jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp
-# from functools import partial
 from tqdm import tqdm
-import h5py
 
-sys.path.append(os.environ['DM21CM_DIR'])
+WDIR = os.environ['DM21CM_DIR']
+sys.path.append(WDIR)
 from dm21cm.utils import save_h5_dict, load_h5_dict
-from preprocessing.halo import DM_FRAC, cmz, rel_v_disp, nfw_density, nfw_info
+from dm21cm.precompute.halo import DM_FRAC, cmz, rel_v_disp, nfw_density, nfw_info
 
 
 if __name__ == '__main__':
 
     #===== Initialization =====
-    hmfdata = load_h5_dict("/n/holystore01/LABS/iaifi_lab/Users/yitians/dm21cm/data/hmf/hmf.h5")
+    hmfdata = load_h5_dict(f"{WDIR}/data/hmf/hmf.h5")
     z_s = hmfdata['z'] # [1]    | redshift
     d_s = hmfdata['d'] # [1]    | delta (overdensity)
     m_s = hmfdata['m'] # [Msun] | halo mass
@@ -30,6 +30,8 @@ if __name__ == '__main__':
     z_max = z_s[-1]
     zext_s = np.concatenate((z_s, [z_max+1e-6, 4000]))
 
+    save_dir = f"{WDIR}/data/production"
+    os.makedirs(save_dir, exist_ok=True)
 
     #===== Annihilation rate table =====
     # (z, m)
@@ -115,4 +117,4 @@ if __name__ == '__main__':
         'units' : 'cell_size: [cMpc]. r_fixed: [cMpc]. z: [1]. d: [1]. All rates: [eV^2 / cm^3 / cfcm^3].',
         'shapes' : 'ps_cond: (z, d). ps, st: (z,).',
     }
-    save_h5_dict("../data/production/pwave_hmf_summed_rate.h5", data)
+    save_h5_dict(save_dir + "/pwave_hmf_summed_rate.h5", data)

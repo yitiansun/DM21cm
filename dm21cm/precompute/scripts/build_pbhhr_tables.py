@@ -12,8 +12,8 @@ WDIR = os.environ['DM21CM_DIR']
 sys.path.append(WDIR)
 import dm21cm.physics as phys
 from dm21cm.utils import load_h5_dict, save_h5_dict
-from preprocessing.pbh_hr.read import read_pbh
-from preprocessing.pbh_hr.hadronize import hadronize
+from dm21cm.precompute.pbh_hr.read import read_pbh
+from dm21cm.precompute.pbh_hr.hadronize import hadronize
 
 
 def main():

@@ -1,4 +1,4 @@
-"""Halo mass function evaluation."""
+"""Press-Schechter computation and halo mass function evaluation."""
 
 import os
 import sys

@@ -20,9 +20,8 @@ sys.path.append(os.environ['DM21CM_DIR'])
 import dm21cm.physics as phys
 from dm21cm.dh_wrapper import DarkHistoryWrapper
 from dm21cm.tf_wrapper import TransferFunctionWrapper
-from dm21cm.utils import load_h5_dict, init_logger
+from dm21cm.utils import load_h5_dict, init_logger, Profiler
 from dm21cm.xray_cache import XrayCache
-from dm21cm.profiler import Profiler
 from dm21cm.injections.zero import ZeroInjection
 
 logging.getLogger('21cmFAST').setLevel(logging.CRITICAL)

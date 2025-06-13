@@ -1,3 +1,5 @@
+"""Functions for halo properties"""
+
 import numpy as np
 from scipy import interpolate
 import astropy.units as u

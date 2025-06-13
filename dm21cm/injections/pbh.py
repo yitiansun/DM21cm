@@ -188,6 +188,16 @@ class PBHAccretionInjection (Injection):
         self.phot_spec = Spectrum(E, dNdE / E_tot, spec_type='dNdE') # [phot/eV / eV(injected)]
         self.zero_elec_spec = Spectrum(E, 0. * abscs['elecEk'], spec_type='dNdE') # [elec/eV / eV(injected)]
 
+    def init_vcb(self, vcb_box_decoupling, z_decoupling=1020):
+        """Initialize the Vcb box at the decoupling redshift.
+        
+        Args:
+            vcb_box_decoupling (array): Vcb box at the decoupling redshift [km/s].
+            z_decoupling (float): Redshift of decoupling. Default is 1020.
+        """
+        self.vcb_box_decoupling = jnp.asarray(vcb_box_decoupling)
+        self.z_decoupling = z_decoupling
+
     def is_injecting_elec(self):
         return False
     
@@ -213,6 +223,10 @@ class PBHAccretionInjection (Injection):
         T_k = dh_phys.Tm_std(1+z) # [eV]
         x_e = dh_phys.xHII_std(1+z) # [1]
         return self.inj_power(z, state=dict(Tm=T_k, xHII=x_e))
+    
+    def get_vcb_box(self, z):
+        """Get the Vcb box [km/s] at redshift z."""
+        return self.vcb_box_decoupling * (1 + z) / (1 + self.z_decoupling) # [km/s]
 
     
     #===== injections =====
@@ -243,11 +257,12 @@ class PBHAccretionInjection (Injection):
     def inj_elec_spec(self, z_start, z_end=None, **kwargs):
         return self.zero_elec_spec # [elec/eV / pcm^3 s]
     
-    def inj_phot_spec_box(self, z_start, z_end=None, delta_plus_one_box=None, T_k_box=None, x_e_box=None, vcb_box=None, **kwargs):
+    def inj_phot_spec_box(self, z_start, z_end=None, delta_plus_one_box=None, T_k_box=None, x_e_box=None, **kwargs):
         z_in = bound_action(z_start, self.z_s, 'raise') # can only access from DM21cm
         cinf_box_in = bound_action(self.cinf(T_k_box, x_e_box), self.cinf_s, 'clip') # [km/s]
         cinf_avg = jnp.mean(cinf_box_in) # [km/s]
         d_box_in = bound_action(delta_plus_one_box - 1, self.d_s, 'clip')
+        vcb_box = self.get_vcb_box(z_start) # [km/s]
         vcb_box_in = bound_action(vcb_box, self.vcb_s, 'clip') # [km/s]
 
         # table units: [eV / s / cfcm^3]

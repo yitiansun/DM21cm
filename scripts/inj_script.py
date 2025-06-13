@@ -11,7 +11,6 @@ sys.path.append(WDIR)
 from dm21cm.evolve import evolve
 from dm21cm.injections.pbh import PBHHRInjection, PBHAccretionInjection
 from dm21cm.injections.dm import DMDecayInjection, DMPWaveAnnihilationInjection
-from dm21cm.injections.zero import ZeroInjection
 from dm21cm.injections.modifiers import Multiplier
 
 from step_size import *
@@ -141,11 +140,11 @@ elif args.channel.startswith('pbhacc'):
     #     m4 = Multiplier(injection, lambda z, **kwargs: float(   5 < z < 15  ))
     #     injection = [None, m1, m2, m3, m4][args.multiplier_index]
 
-elif args.channel == 'zero':
+elif args.channel == 'none':
 
     mass_ind, inj_ind = None, None
-    injection = ZeroInjection()
-    inj_multiplier = 0
+    injection = None
+    inj_multiplier = 1
     m_fn = 1.
 
 else:
@@ -198,6 +197,27 @@ print('global_params:', p21c.global_params)
 print('astro_params:', astro_params)
 
 
+print('\n===== Pre-Evolve =====')
+
+if args.channel.startswith('pbhacc'):
+    p21c_initial_conditions = p21c.initial_conditions(
+        user_params = p21c.UserParams(
+            HII_DIM = args.box_dim,
+            BOX_LEN = box_len, # [conformal Mpc]
+            N_THREADS = args.n_threads,
+            USE_RELATIVE_VELOCITIES = True,
+        ),
+        cosmo_params = p21c.CosmoParams(
+            OMm = Planck18.Om0,
+            OMb = Planck18.Ob0,
+            POWER_INDEX = Planck18.meta['n'],
+            SIGMA_8 = Planck18.meta['sigma8'],
+            hlittle = Planck18.h,
+        ),
+        random_seed = 54321,
+        write = False,
+    )
+    injection.init_vcb(p21c_initial_conditions.lowres_vcb)
 
 print('\n===== Evolve =====')
 
@@ -212,7 +232,7 @@ return_dict = evolve(
             HII_DIM = args.box_dim,
             BOX_LEN = box_len, # [conformal Mpc]
             N_THREADS = args.n_threads,
-            USE_RELATIVE_VELOCITIES = use_rel_v,
+            USE_RELATIVE_VELOCITIES = False,
         ),
         cosmo_params = p21c.CosmoParams(
             OMm = Planck18.Om0,

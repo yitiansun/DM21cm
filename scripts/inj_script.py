@@ -11,6 +11,7 @@ sys.path.append(WDIR)
 from dm21cm.evolve import evolve
 from dm21cm.injections.pbh import PBHHRInjection, PBHAccretionInjection
 from dm21cm.injections.dm import DMDecayInjection, DMPWaveAnnihilationInjection
+from dm21cm.injections.zero import ZeroInjection
 from dm21cm.injections.modifiers import Multiplier
 
 from step_size import *
@@ -139,6 +140,13 @@ elif args.channel.startswith('pbhacc'):
     #     m3 = Multiplier(injection, lambda z, **kwargs: float(  15 < z < 45  ))
     #     m4 = Multiplier(injection, lambda z, **kwargs: float(   5 < z < 15  ))
     #     injection = [None, m1, m2, m3, m4][args.multiplier_index]
+
+elif args.channel == 'zero':
+
+    mass_ind, inj_ind = None, None
+    injection = ZeroInjection()
+    inj_multiplier = 0
+    m_fn = 1.
 
 else:
     raise ValueError('Invalid channel')

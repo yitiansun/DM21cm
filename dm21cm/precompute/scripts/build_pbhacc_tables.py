@@ -204,7 +204,7 @@ if __name__ == '__main__':
         'ps_cond' : cond_table * unit_conversion,
         'ps' : ps_table * unit_conversion,
         'st' : st_table * unit_conversion,
-        'units' : 'cell_size: [cMpc]. r_fixed: [cMpc]. m_PBH: [Msun]. z/zfull: [1]. d: [1]. cinf: [km/s], vcb: [km/s]. all rates: [eV / s / cfcm^3].',
+        'units' : 'cell_size: [cMpc]. r_fixed: [cMpc]. m_PBH: [Msun]. z/zfull: [1]. dsub: [1]. cinf: [km/s], vcb: [km/s]. all rates: [eV / s / cfcm^3].',
         'shapes' : 'ps_cond: (z, cinf, dsub, vcb). ps, st: (zfull, cinf).',
     }
     save_h5_dict(cosmo_file, data)

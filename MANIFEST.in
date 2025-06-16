@@ -1,0 +1,9 @@
+include README.md
+include LICENSE
+include status.md
+include matplotlibrc
+
+recursive-include examples *
+recursive-include resources *
+
+prune outputs

@@ -303,16 +303,16 @@ KM_PER_PC = (1 * u.pc).to(u.km).value
 
 class PBHAccretionModel:
 
-    def __init__(self, accretion_type, c_in=None, lambda_fudge=1, v_rel_type='DMDM', delta_e=0.1):
+    def __init__(self, accretion_type, c_in=None, lambda_fudge=1, v_rel_type='DMRest', delta_e=0.1):
         """PBH accretion model
         
         Args:
             accretion_type (str): supports 'PR-ADAF', 'BHL-ADAF'
             c_in (float): Sound speed inside the I-front [km/s]. Required for PR models.
             lambda_fudge (float): Fudge factor in front of Mdot. Required for BHL models.
-            v_rel_type {'DMDM', 'DMR'}: Velocity distribution function.
+            v_rel_type {'DMDM', 'DMRest'}: Velocity distribution function.
                 'DMDM' - DM-DM relative velocity distribution function (default).
-                'DMR'  - DM-rest frame relative velocity distribution function.
+                'DMRest'  - DM-rest frame relative velocity distribution function.
             delta_e (float): Electron heating fraction for ADAF models. Default is 0.1.
         """
 
@@ -336,7 +336,7 @@ class PBHAccretionModel:
         
         if self.v_rel_type == 'DMDM':
             self.v_rel_dist_unnorm = halo.dm_dm_v_rel_dist_unnorm
-        elif self.v_rel_type == 'DMR':
+        elif self.v_rel_type == 'DMRest':
             self.v_rel_dist_unnorm = halo.dm_rest_v_rel_dist_unnorm
         else:
             raise NotImplementedError(self.v_rel_type)

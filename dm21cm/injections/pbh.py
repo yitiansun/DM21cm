@@ -165,7 +165,7 @@ class PBHAccretionInjection (Injection):
         self.z_s           = jnp.array(self.halo_data ['z'])
         self.zfull_s       = jnp.array(self.halo_data ['zfull'])
         self.d_s           = jnp.array(self.halo_data ['d'])
-        self.dsub_s        = jnp.array(self.halo_data ['dsub'])
+        self.dsub_s        = jnp.array(self.cosmo_data['dsub'])
         self.cinf_s        = jnp.array(self.cosmo_data['cinf']) # [km/s]
         self.vcb_s         = jnp.array(self.cosmo_data['vcb']) # [km/s]
         self.halo_ps_cond  = jnp.array(self.halo_data ['ps_cond']) # [eV / s / cfcm^3]

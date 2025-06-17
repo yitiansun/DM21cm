@@ -1,5 +1,7 @@
 """Functions for halo properties"""
 
+import os
+import sys
 import numpy as np
 from scipy import interpolate
 import astropy.units as u
@@ -12,6 +14,10 @@ import jax.numpy as jnp
 import jax.scipy as jsp
 
 import halomod
+
+sys.path.append(os.environ['DM21CM_DIR'])
+from dm21cm.utils import load_h5_dict
+from dm21cm.interpolators import interp1d, bound_action
 
 #===== Constants =====
 
@@ -132,11 +138,11 @@ def dm_dm_v_rel_dist_unnorm(v, ve, v0):
 
 #===== HMF utils =====
 
-def fix_cmz_numerical_issues(xs, ys):
+def fix_cmz_numerical_issues(xs, ys, z):
 
-    def accepted(xs, ys):
-        m_max = 1.25
-        m_min = 0.75
+    def accepted_lowz(xs, ys):
+        m_max = 1.05
+        m_min = 0.95
         xs_accepted = []
         ys_accepted = []
 
@@ -149,12 +155,23 @@ def fix_cmz_numerical_issues(xs, ys):
                 xs_accepted.append(x)
                 ys_accepted.append(y)
         return xs_accepted, ys_accepted
+    
+    def accepted_highz(xs, ys, z):
+        z_s = np.array([20, 30, 40, 50, 60, 70, 80, 90, 100])
+        p0_s = np.array([3, 2.52, 2.35, 2.3, 2.2, 2.17, 2.14, 2.1, 2.1])
+        p1_s = np.array([-0.055, -0.03, -0.025, -0.02, -0.015, -0.013, -0.012, -0.01, -0.01])
+        p0 = np.interp(z, z_s, p0_s)
+        p1 = np.interp(z, z_s, p1_s)
+        y_upper = p0 + np.log10(xs) * p1
+        xs_accepted = xs[ys < y_upper]
+        ys_accepted = ys[ys < y_upper]
+        return xs_accepted, ys_accepted
 
-    xas, yas = accepted(xs, ys)
-    ys_fixed = interpolate.interp1d(xas, yas, kind='linear', bounds_error=False, fill_value=np.min(ys))(xs)
-    return xs, ys_fixed
+    xas, yas = accepted_lowz(xs, ys) if z < 20 else accepted_highz(xs, ys, z)
+    log_ys_fixed = interpolate.interp1d(np.log(xas), np.log(yas), kind='linear', bounds_error=False, fill_value=np.min(np.log(ys)))(np.log(xs))
+    return xs, np.exp(log_ys_fixed)
 
-def cmz(m, z, model='Ludlow16'):
+def cmz_raw(m, z, model='Ludlow16'):
     """CMZ relation interpolator.
     
     Args:
@@ -169,3 +186,20 @@ def cmz(m, z, model='Ludlow16'):
     )
     hm_m_s, hm_cmz_s = fix_cmz_numerical_issues(hm.m, hm.cmz_relation)
     return np.interp(np.log(m), np.log(hm_m_s), hm_cmz_s)
+
+
+_CMZ_DATA = load_h5_dict(f"{os.environ['DM21CM_DIR']}/data/production/cmz_Ludlow16.h5")
+_CMZ_M = _CMZ_DATA['m']
+_CMZ_Z = _CMZ_DATA['z']
+_CMZ_C = _CMZ_DATA['c']
+
+def cmz(m, z):
+    """CMZ relation interpolator from table.
+    
+    Args:
+        m (array): Array of halo mass to interpolate over [Msun].
+        z (float): Redshift.
+    """
+    z_in = bound_action(z, _CMZ_Z, 'clip')
+    m_in = bound_action(m, _CMZ_M, 'clip')
+    return interp1d(interp1d(_CMZ_C, _CMZ_Z, z_in), _CMZ_M, m_in)

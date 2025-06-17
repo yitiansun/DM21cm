@@ -303,7 +303,7 @@ KM_PER_PC = (1 * u.pc).to(u.km).value
 
 class PBHAccretionModel:
 
-    def __init__(self, accretion_type, c_in=None, lambda_fudge=1, v_rel_type='DMRest', delta_e=0.1):
+    def __init__(self, accretion_type, c_in=23, lambda_fudge=1, v_rel_type='DMRest', delta_e=0.1):
         """PBH accretion model
         
         Args:

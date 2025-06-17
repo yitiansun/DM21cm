@@ -3,58 +3,35 @@
 # Run
 BASE_DIR=/n/holystore01/LABS/iaifi_lab/Users/yitians/dm21cm/outputs/active/
 
-## Current: up to version 250606
+## Current: up to version 250616
 New vcb for pbhacc PS cosmo table
 - pwave-phot-250428 [1.5-12]
     - READY:
     - RUNNING:
     - DONE:
-    - FISHED: [1.5, 2., 3., 4., 5., 6., 7., 8., 9., 10., 11., 12.]
+    - FISHED:
 - pwave-elec-250428 [6.5-12]
     - READY:
     - RUNNING:
     - DONE:
-    - FISHED: [6.5, 7.0, 7.5, 8.0, 8.5, 9.0, 9.5, 10.0, 10.5, 11.0, 11.5, 12.0]
+    - FISHED:
 - pbhhr-iter0 [13.5-18]
     - DATA: [13.5-18.0] at 0.25
     - RUNNING: 
     - DONE:
     - FISHED: [13.5-18.0] at 0.25
-- pbhacc-PRc23-250606 [0, 2, 4]
-    - DATA: [0, 2, 4]
-    - READY:
-    - RUNNING:
-    - DONE:
-    - FISHED:
-<!-- - pbhacc-PRc10-250606 [0-4]
-    - DATA:
-    - READY:
-    - RUNNING:
-    - DONE:
-    - FISHED:
-- pbhacc-PRc50-250606 [0-4]
-    - DATA:
-    - READY:
-    - RUNNING:
-    - DONE:
-    - FISHED:
-- pbhacc-PRc23R-250606 [0-4]
-    - DATA:
-    - READY:
-    - RUNNING:
-    - DONE:
-    - FISHED:
-- pbhacc-PRc23H-250606 [0-4]
-    - DATA:
-    - READY:
-    - RUNNING:
-    - DONE:
-    - FISHED:
-- pbhacc-BHLl2-250606 [0-4] (???)
-    - DATA:
-    - RUNNING:
-    - DONE:
-    - FISHED: -->
+
+| pbhacc  |  0  |  1  |  2  |  3  |  4  | |  0  |  1  |  2  |  3  |  4  |
+|---------|-----|-----|-----|-----|-----|-|-----|-----|-----|-----|-----|
+| PRc23   |  R  |     |  R  |     |  R  | |     |     |     |     |     |
+| PRc10   |  R  |     |  R  |     |  R  | |     |     |     |     |     |
+| PRc50   |  R  |     |  R  |     |  R  | |     |     |     |     |     |
+| PRc23H  |  R  |     |  R  |     |  R  | |     |     |     |     |     |
+| PRc23B  |  R  |     |  R  |     |  R  | |     |     |     |     |     |
+| PRc23d  |  R  |     |  R  |     |  R  | |     |     |     |     |     |
+| BHLl2   |  R  |     |  R  |     |  R  | |     |     |     |     |     |
+
+
 
 ## Version 250428
 - pwave-tau-250428 [9.5-12]

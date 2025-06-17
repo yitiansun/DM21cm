@@ -47,11 +47,12 @@ if __name__ == '__main__':
     mPBH = 10**args.log10mPBH # [Msun]
 
     model_kwargs_dict = {
-        'PRc23'  : dict(accretion_type='PR-ADAF', c_in=23),
+        'PRc23'  : dict(accretion_type='PR-ADAF'),
         'PRc10'  : dict(accretion_type='PR-ADAF', c_in=10),
         'PRc50'  : dict(accretion_type='PR-ADAF', c_in=50),
-        'PRc23R' : dict(accretion_type='PR-ADAF', c_in=23, v_rel_type='DMR'),
-        'PRc23H' : dict(accretion_type='PRHALO-ADAF', c_in=23),
+        'PRc23B' : dict(accretion_type='PR-ADAF', v_rel_type='DMDM'),
+        'PRc23H' : dict(accretion_type='PRHALO-ADAF'),
+        'PRc23d' : dict(accretion_type='PR-ADAF', delta_e=1e-2),
         'BHLl2'  : dict(accretion_type='BHL-ADAF', lambda_fudge=1e-2),
     }
     am = PBHAccretionModel(**model_kwargs_dict[args.model])

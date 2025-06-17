@@ -135,7 +135,8 @@ def rh_HALO(z, M):
     """
     return _HALO_RH0 / (1+z) * Mh_HALO(z, M)**(1/3)
 
-_HALO_UNIT_FACTOR = (c.G * u.M_sun / u.km).to(u.km**2 / u.s**2).value
+
+_VEFF_HALO_UNIT_FACTOR = (c.G * u.M_sun / u.km).to(u.km**2 / u.s**2).value
 
 def veff_HALO(z, M, rBeff):
     """Effective accretion velocity [km/s]
@@ -150,11 +151,11 @@ def veff_HALO(z, M, rBeff):
     alpha = 9/4
     rB = rBeff
 
-    v2case1 = _HALO_UNIT_FACTOR * (
+    v2case1 = _VEFF_HALO_UNIT_FACTOR * (
         M / rB +
         Mh / ((alpha-2) * rB) * ( (rB / rh)**(3-alpha) - (3-alpha) * rB / rh )
     )
-    v2case2 = _HALO_UNIT_FACTOR * (
+    v2case2 = _VEFF_HALO_UNIT_FACTOR * (
         M / rB +
         Mh / rB
     )
@@ -186,7 +187,7 @@ def rBeff_HALO(z, M, veff):
     return jnp.squeeze(_HALO_RBEFF_INTERP(mzv_in))
 
 
-_HALO_UNIT_FACTOR = (4 * np.pi * u.g/u.cm**3 * (u.km/u.s) * u.km**2).to(u.M_sun/u.yr).value
+_MDOT_HALO_UNIT_FACTOR = (4 * np.pi * u.g/u.cm**3 * (u.km/u.s) * u.km**2).to(u.M_sun/u.yr).value
 
 def Mdot_PRHALO(M, rho_inf, v, c_in, c_inf, lambda_fudge=1, z=None):
     """Park Ricotti accretion rate [eV/s] with DM halo
@@ -203,7 +204,7 @@ def Mdot_PRHALO(M, rho_inf, v, c_in, c_inf, lambda_fudge=1, z=None):
     rho_in, v_in = rho_in_v_in(rho_inf, v, c_in, c_inf)
     veff = jnp.sqrt(v_in**2 + c_in**2)
     rBeff = rBeff_HALO(z, M, veff)
-    return _HALO_UNIT_FACTOR * lambda_fudge * rho_in * veff * rBeff**2
+    return _MDOT_HALO_UNIT_FACTOR * lambda_fudge * rho_in * veff * rBeff**2
 
 
 #===== Luminosity: ADAF & Thin disk =====

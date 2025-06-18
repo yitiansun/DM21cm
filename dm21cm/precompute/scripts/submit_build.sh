@@ -1,7 +1,7 @@
 #!/bin/bash
 
-#SBATCH --job-name=build-pbhacc-0616-2
-#SBATCH --array=0,2-20
+#SBATCH --job-name=build-pbhacc-0618
+#SBATCH --array=0-2
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks=1
@@ -24,7 +24,8 @@ cd /n/home07/yitians/dm21cm/DM21cm/dm21cm/precompute/scripts
 
 
 #===== pbhacc =====
-MODELS=("PRc23" "PRc10" "PRc50" "PRc23B" "PRc23H" "PRc23d" "BHLl2")
+# MODELS=("PRc23" "PRc10" "PRc50" "PRc23B" "PRc23H" "PRc23d" "BHLl2")
+MODELS=("PRc23H")
 MVALS=(0.0 2.0 4.0)
 
 # Compute the total number of combinations

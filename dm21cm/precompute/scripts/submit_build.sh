@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #SBATCH --job-name=build-pbhacc-0618
-#SBATCH --array=0-13
+#SBATCH --array=0
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks=1
@@ -19,6 +19,10 @@ source /n/home07/yitians/setup/dm21cm.sh
 cd /n/home07/yitians/dm21cm/DM21cm/dm21cm/precompute/scripts
 
 
+
+python build_pwave_tables.py
+
+exit
 #===== hmf =====
 # python build_hmf_tables.py
 

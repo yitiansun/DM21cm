@@ -47,13 +47,14 @@ if __name__ == '__main__':
     mPBH = 10**args.log10mPBH # [Msun]
 
     model_kwargs_dict = {
-        'PRc23'  : dict(accretion_type='PR-ADAF'),
-        'PRc10'  : dict(accretion_type='PR-ADAF', c_in=10),
-        'PRc50'  : dict(accretion_type='PR-ADAF', c_in=50),
-        'PRc23B' : dict(accretion_type='PR-ADAF', v_rel_type='DMDM'),
-        'PRc23H' : dict(accretion_type='PRHALO-ADAF'),
-        'PRc23d' : dict(accretion_type='PR-ADAF', delta_e=1e-2),
-        'BHLl2'  : dict(accretion_type='BHL-ADAF', lambda_fudge=1e-2),
+        'PRc23'   : dict(accretion_type='PR-ADAF'),
+        'PRc10'   : dict(accretion_type='PR-ADAF', c_in=10),
+        'PRc50'   : dict(accretion_type='PR-ADAF', c_in=50),
+        'PRc23B'  : dict(accretion_type='PR-ADAF', v_rel_type='DMDM'),
+        'PRc23H'  : dict(accretion_type='PRHALO-ADAF'),
+        'PRc23dm' : dict(accretion_type='PR-ADAF', delta_e=1e-2),
+        'PRc23dp' : dict(accretion_type='PR-ADAF', delta_e=0.5),
+        'BHLl2'   : dict(accretion_type='BHL-ADAF', lambda_fudge=1e-2),
     }
     am = PBHAccretionModel(**model_kwargs_dict[args.model])
 
@@ -98,19 +99,22 @@ if __name__ == '__main__':
     dndm = hmfdata['ps_cond'] # [1 / cMpc^3 Msun]
     for i_z, z in enumerate(z_s):
         for i_d, d in enumerate(d_s):
-            cond_table[i_z,i_d] = np.trapz(L_table[i_z] * dndm[i_z, i_d], m_s)
+            eff_dndm = dndm[i_z, i_d] * (m_s > mPBH)
+            cond_table[i_z,i_d] = np.trapz(L_table[i_z] * eff_dndm, m_s)
 
     # Unconditional PS: (z)
     ps_table = np.zeros((len(zfull_s),))
     dndm = hmfdata['ps'] # [1 / cMpc^3 Msun]
     for i_z, z in enumerate(zfull_s):
-        ps_table[i_z] = np.trapz(L_table[i_z] * dndm[i_z], m_s) if z <= z_s[-1] else 0.
+        eff_dndm = dndm[i_z] * (m_s > mPBH)
+        ps_table[i_z] = np.trapz(L_table[i_z] * eff_dndm, m_s) if z <= z_s[-1] else 0.
 
     # Sheth-Tormen: (z)
     st_table = np.zeros((len(zfull_s),))
     dndm = hmfdata['st'] # [1 / cMpc^3 Msun]
     for i_z, z in enumerate(zfull_s):
-        st_table[i_z] = np.trapz(L_table[i_z] * dndm[i_z], m_s) if z <= z_s[-1] else 0.
+        eff_dndm = dndm[i_z] * (m_s > mPBH)
+        st_table[i_z] = np.trapz(L_table[i_z] * eff_dndm, m_s) if z <= z_s[-1] else 0.
     print("Done.")
 
     #===== Halo PBH: Save =====

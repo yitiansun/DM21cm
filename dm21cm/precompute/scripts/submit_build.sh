@@ -1,7 +1,7 @@
 #!/bin/bash
 
-#SBATCH --job-name=build-pbhacc-0618
-#SBATCH --array=0
+#SBATCH --job-name=build-pbhacc-0625
+#SBATCH --array=0-39
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks=1
@@ -19,17 +19,15 @@ source /n/home07/yitians/setup/dm21cm.sh
 cd /n/home07/yitians/dm21cm/DM21cm/dm21cm/precompute/scripts
 
 
-
-python build_pwave_tables.py
-
-exit
 #===== hmf =====
 # python build_hmf_tables.py
 
+#===== pwave =====
+# python build_pwave_tables.py
 
 #===== pbhacc =====
-MODELS=("PRc23" "PRc10" "PRc50" "PRc23B" "PRc23H" "PRc23d" "BHLl2")
-MVALS=(1.0 3.0)
+MODELS=("PRc23" "PRc10" "PRc50" "PRc23B" "PRc23H" "PRc23dm" "PRc23dp" "BHLl2")
+MVALS=(0.0 1.0 2.0 3.0 4.0)
 
 # Compute the total number of combinations
 NUM_MODELS=${#MODELS[@]}

@@ -106,15 +106,19 @@ if __name__ == '__main__':
     ps_table = np.zeros((len(zfull_s),))
     dndm = hmfdata['ps'] # [1 / cMpc^3 Msun]
     for i_z, z in enumerate(zfull_s):
+        if z > z_s[-1]:
+            continue
         eff_dndm = dndm[i_z] * (m_s > mPBH)
-        ps_table[i_z] = np.trapz(L_table[i_z] * eff_dndm, m_s) if z <= z_s[-1] else 0.
+        ps_table[i_z] = np.trapz(L_table[i_z] * eff_dndm, m_s)
 
     # Sheth-Tormen: (z)
     st_table = np.zeros((len(zfull_s),))
     dndm = hmfdata['st'] # [1 / cMpc^3 Msun]
     for i_z, z in enumerate(zfull_s):
+        if z > z_s[-1]:
+            continue
         eff_dndm = dndm[i_z] * (m_s > mPBH)
-        st_table[i_z] = np.trapz(L_table[i_z] * eff_dndm, m_s) if z <= z_s[-1] else 0.
+        st_table[i_z] = np.trapz(L_table[i_z] * eff_dndm, m_s)
     print("Done.")
 
     #===== Halo PBH: Save =====

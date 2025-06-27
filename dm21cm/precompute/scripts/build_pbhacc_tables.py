@@ -48,8 +48,8 @@ if __name__ == '__main__':
 
     model_kwargs_dict = {
         'PRc23'   : dict(accretion_type='PR-ADAF'),
-        'PRc10'   : dict(accretion_type='PR-ADAF', c_in=10),
-        'PRc50'   : dict(accretion_type='PR-ADAF', c_in=50),
+        'PRc14'   : dict(accretion_type='PR-ADAF', c_in=14),
+        'PRc29'   : dict(accretion_type='PR-ADAF', c_in=29),
         'PRc23B'  : dict(accretion_type='PR-ADAF', v_rel_type='DMDM'),
         'PRc23H'  : dict(accretion_type='PRHALO-ADAF'),
         'PRc23dm' : dict(accretion_type='PR-ADAF', delta_e=1e-2),

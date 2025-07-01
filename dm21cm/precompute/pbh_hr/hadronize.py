@@ -94,7 +94,7 @@ def hadronize(ddir):
     data_pri = read_pbh(ddir, 'primary', 'up') # for common E and t
     eng = data_pri['E'] # eV
     t = data_pri['t'] # s
-    tf = build_or_read_tf('../../data/pppc/pppc_tf.h5', eng, eng)
+    tf = build_or_read_tf(f"{WDIR}/data/pppc/pppc_tf.h5", eng, eng)
     pri_list = [fn.split('_primary_')[0] for fn in os.listdir(ddir) if '_primary_' in fn]
     processed_list = []
 

@@ -5,88 +5,34 @@ BASE_DIR=/n/holystore01/LABS/iaifi_lab/Users/yitians/dm21cm/outputs/active/
 
 ## Current: up to version 250616
 New vcb for pbhacc PS cosmo table
-- pwave-phot-250428 [1.5-12]
+- pwave-phot-250630 [1.5-12]
     - RUNNING: [1.5, 5., 8.5, 12.]
     - DONE:
     - FISHED:
-- pwave-elec-250428 [6.5-12]
+- pwave-elec-250630 [6.5-12]
     - RUNNING: [6.5, 8.5, 10.5, 12.]
     - DONE:
     - FISHED:
-- pwave-tau-250428 [9.5-12]
+- pwave-tau-250630 [9.5-12]
     - RUNNING: [9.70, 10., 11., 12.]
     - DONE:
     - FISHED:
-- pbhhr-iter0 [13.5-18]
+- pbhhr-a0 [13.5-18]
+    - DATA: [13.5-18.0] at 0.25
+    - RUNNING: 
+    - DONE:
+    - FISHED: [13.5-18.0] at 0.25
+- pbhhr-a1 [13.5-18]
     - DATA: [13.5-18.0] at 0.25
     - RUNNING: 
     - DONE:
     - FISHED: [13.5-18.0] at 0.25
 
-| pbhacc  |  0  |  1  |  2  |  3  |  4  | |  0  |  1  |  2  |  3  |  4  |
-|---------|-----|-----|-----|-----|-----|-|-----|-----|-----|-----|-----|
-| PRc23   |  R  |     |  R  |     |  R  | |     |     |     |     |     |
-| PRccm   |  R  |     |  R  |     |  R  | |     |     |     |     |     |
-| PRccp   |  R  |     |  R  |     |  R  | |     |     |     |     |     |
-| PRc23H  |  R  |     |  R  |     |  R  | |     |     |     |     |     |
-| PRc23B  |  R  |     |  R  |     |  R  | |     |     |     |     |     |
-| PRc23dp |  R  |     |  R  |     |  R  | |     |     |     |     |     |
-| PRc23dm |  R  |     |  R  |     |  R  | |     |     |     |     |     |
-| BHLl2   |  R  |     |  R  |     |  R  | |     |     |     |     |     |
-
-
-
-## Version 250428
-- pwave-tau-250428 [9.5-12]
-    - READY:
-    - RUNNING:
-    - DONE:
-    - FISHED: [9.70, 9.75, 10.0, 10.5, 11.0, 11.5, 12.0]
-- pbhacc-PRc23-250428 [0-4]
-    - DATA: [0.0, 1.0, 2.0, 3.0, 4.0]
-    - READY:
-    - RUNNING:
-    - DONE:
-    - FISHED: [0.0, 1.0, 2.0, 3.0, 4.0]
-- pbhacc-PRc10-250428 [0-4]
-    - DATA: [0.0, 1.0, 2.0, 3.0, 4.0]
-    - READY:
-    - RUNNING:
-    - DONE:
-    - FISHED: [0.0, 1.0, 2.0, 3.0, 4.0]
-- pbhacc-PRc50-250428 [0-4]
-    - DATA: [0.0, 1.0, 2.0, 3.0, 4.0]
-    - READY:
-    - RUNNING: [0.0, 1.0, 2.0, 3.0, 4.0]
-    - DONE:
-    - FISHED:
-- pbhacc-PRc23R-250428 [0-4]
-    - DATA: [0.0, 1.0, 2.0, 3.0, 4.0]
-    - READY:
-    - RUNNING:
-    - DONE:
-    - FISHED: [0.0, 1.0, 2.0, 3.0, 4.0]
-- pbhacc-PRc23H-250428 [0-4]
-    - DATA: [0.0, 1.0, 2.0, 3.0, 4.0]
-    - READY:
-    - RUNNING: [0.0, 1.0, 2.0, 3.0, 4.0]
-    - DONE:
-    - FISHED:
-- pbhacc-BHLl2-250428 [0-4] (???)
-    - DATA:   [0.0, 1.0, 2.0, 3.0, 4.0]
-    - RUNNING:
-    - DONE:
-    - FISHED:
-
-## Version pre250226
-- pwave-phot-iter0 [1.5-12]
-    - [ 1.5  5.0  8.5 12.0]
-- pwave-elec-iter0 [6.5-12]
-    - [ 6.5  8.5 10.5 12.0]
-- pbhacc-PRc23-iter0 [0-4]
-    - [ 0.0  2.0  4.0]
-- pbhacc-BHLl2-iter0 [0-4]
-    - [ 0.0  2.0  4.0]
+- pbhacc-PRc23/PRc14/PRc29/PRc23dp/PRc23dm/PRc23B/PRc23H/BHLl2-2506t30
+    - DATA: 0 1 2 3 4
+    - DONE: 0 2 4
+    - FISHED: 0 2 4
+BHLl2: in iter
 
 # Data
 

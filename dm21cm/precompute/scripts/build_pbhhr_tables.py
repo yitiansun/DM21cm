@@ -11,7 +11,7 @@ from astropy.cosmology import Planck18 as cosmo
 WDIR = os.environ['DM21CM_DIR']
 sys.path.append(WDIR)
 import dm21cm.physics as phys
-from dm21cm.utils import load_h5_dict, save_h5_dict
+from dm21cm.utils import load_h5_dict, save_h5_dict, abscs
 from dm21cm.precompute.pbh_hr.read import read_pbh
 from dm21cm.precompute.pbh_hr.hadronize import hadronize
 
@@ -22,27 +22,27 @@ def main():
     # step 1: hadronize
     # step 2: build interpolation tables
     parser = argparse.ArgumentParser()
+    parser.add_argument('--a', type=int)
     parser.add_argument('--step', type=int)
     args = parser.parse_args()
 
+    results_dir = f"/n/holystore01/LABS/iaifi_lab/Users/yitians/dm21cm/blackhawk/a{args.a}"
+
     if args.step == 1:
 
-        log10m_list = np.arange(13.25, 18 + 1e-3, 0.25)
+        # log10m_list = np.arange(13.25, 18 + 1e-3, 0.25)
+        log10m_list = np.arange(13.25, 13.50 + 1e-3, 0.25)
 
         for log10m in log10m_list:
-            ddir = f"/n/holystore01/LABS/iaifi_lab/Users/yitians/dm21cm/blackhawk/m{log10m:.3f}_pri"
             print(f'{log10m:.3f}', end=' ')
-            hadronize(ddir)
+            hadronize(f"{results_dir}/m{log10m:.3f}_pri")
 
     elif args.step == 2:
 
-        results_dir = '/n/holystore01/LABS/iaifi_lab/Users/yitians/dm21cm/blackhawk'
         f_list = [f for f in os.listdir(results_dir) if f.startswith('m') and f.endswith('_pri')]
         logm_s = [float(f.split('m')[1].split('_pri')[0]) for f in f_list]
         logm_s.sort()
         print('Processing log10m = ', logm_s)
-
-        abscs = load_h5_dict(f"{os.environ['DM21CM_DATA_DIR']}/abscissas.h5")
 
         data = {}
 
@@ -65,7 +65,7 @@ def main():
                 'elec dNdEdt': dNdEdt_elec_sec,
                 'units' : 't: [s]. dNdEdt: [1/eV s BH]. M: [g]. M0: [g].'
             }
-        save_h5_dict(f"../data/production/pbhhr.h5", data)
+        save_h5_dict(f"{WDIR}/data/production/pbhhr-a{args.a}.h5", data)
 
     else:
         raise ValueError('Invalid step number!')

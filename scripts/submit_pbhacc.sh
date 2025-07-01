@@ -3,7 +3,7 @@
 
 set -euo pipefail
 
-variants=(PRc23 PRc14 PRc29 PRc23dm PRc23dp BHLl2)
+variants=(PRc23 PRc14 PRc29 PRc23dm PRc23dp PRc23H PRc23B BHLl2)
 
 for v in "${variants[@]}"; do
     tmp=$(mktemp)

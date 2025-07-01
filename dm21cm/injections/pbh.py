@@ -31,19 +31,21 @@ class PBHHRInjection (Injection):
     Args:
         m_PBH (float): PBH mass in [g].
         f_PBH (float): PBH fraction of DM.
+        a_PBH (float): Kerr spin parameter. Default is 0 (non-rotating PBH). Currently only support {0, 1}.
     """
 
-    def __init__(self, m_PBH, f_PBH=1.):
+    def __init__(self, m_PBH, f_PBH=1., a_PBH=0.):
         self.mode = 'PBH-HR'
         self.m_PBH = m_PBH # [g]
         self.f_PBH = f_PBH
+        self.a_PBH = a_PBH # Kerr spin parameter
         self.inj_per_sec = 1. # [inj / s] | convention: 1 injection event per second
 
         self.m_eV = (self.m_PBH * u.g * c.c**2).to(u.eV).value # [eV]
         self.n0_PBH = phys.rho_DM * f_PBH / self.m_eV # [BH / pcm^3] | Present day PBH number density
 
         #----- Load PBH data -----
-        self.data = load_h5_dict(f"{os.environ['DM21CM_DATA_DIR']}/pbhhr.h5")
+        self.data = load_h5_dict(f"{os.environ['DM21CM_DATA_DIR']}/pbhhr-a{self.a_PBH:.0f}.h5")
         self.data = self.data[f'log10m{np.log10(self.m_PBH):.3f}']
         
         i_start = np.where(self.data['t'] > phys.t_z(5e3))[0][0] # 1e4 is the largest z phys.z_t calculates

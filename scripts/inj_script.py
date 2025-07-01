@@ -75,15 +75,17 @@ if args.channel.startswith('decay'):
 
 elif args.channel.startswith('pwave'):
     if args.channel == 'pwave-phot':
-        m_s = 10**np.array([1.5, 2., 3., 4., 5., 6., 7., 8., 9., 10., 11., 12.]) # [eV]
+        # m_s = 10**np.array([1.5, 2., 3., 4., 5., 6., 7., 8., 9., 10., 11., 12.]) # [eV]
+        m_s = 10**np.array([1.5, 5., 8.5, 12.]) # [eV]
         c_s = pwave_phot_c_sigma(m_s)
         primary = 'phot_delta'
     elif args.channel == 'pwave-elec':
-        m_s = 10**np.array([6.5, 7.0, 7.5, 8.0, 8.5, 9.0, 9.5, 10.0, 10.5, 11.0, 11.5, 12.0]) # [eV]
+        # m_s = 10**np.array([6.5, 7.0, 7.5, 8.0, 8.5, 9.0, 9.5, 10.0, 10.5, 11.0, 11.5, 12.0]) # [eV]
+        m_s = 10**np.array([6.5, 8.5, 10.5, 12.]) # [eV]
         c_s = pwave_elec_c_sigma(m_s)
         primary = 'elec_delta'
     elif args.channel == 'pwave-tau':
-        m_s = 10**np.array([9.70])
+        m_s = 10**np.array([9.70, 10., 11., 12.]) # [eV]
         c_s = pwave_tau_c_sigma(m_s)
         primary = 'tau'
     else:
@@ -120,7 +122,7 @@ elif args.channel.startswith('pbhacc'):
 
     model = args.channel.split('-')[1]
 
-    m_s = 10**np.array([2.]) # [M_sun]
+    m_s = 10**np.array([0., 2., 4.]) # [M_sun]
 
     mass_ind, inj_ind = np.unravel_index(args.run_index, (len(m_s), 2))
     m_PBH = m_s[mass_ind] # [M_sun]
@@ -267,3 +269,8 @@ print("cache currently not cleared")
 # for entry in os.scandir(cache_dir):
 #     if entry.is_file() and entry.name.endswith('.h5') and entry.name != 'lightcones.h5':
 #         os.remove(entry.path)
+
+print('\n===== Update Status =====')
+
+with open(WDIR + '/scripts/run_results', 'a') as f:
+    f.write(f'{run_fullname} completed.\n')

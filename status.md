@@ -6,13 +6,15 @@ BASE_DIR=/n/holystore01/LABS/iaifi_lab/Users/yitians/dm21cm/outputs/active/
 ## Current: up to version 250616
 New vcb for pbhacc PS cosmo table
 - pwave-phot-250428 [1.5-12]
-    - READY:
-    - RUNNING:
+    - RUNNING: [1.5, 5., 8.5, 12.]
     - DONE:
     - FISHED:
 - pwave-elec-250428 [6.5-12]
-    - READY:
-    - RUNNING:
+    - RUNNING: [6.5, 8.5, 10.5, 12.]
+    - DONE:
+    - FISHED:
+- pwave-tau-250428 [9.5-12]
+    - RUNNING: [9.70, 10., 11., 12.]
     - DONE:
     - FISHED:
 - pbhhr-iter0 [13.5-18]

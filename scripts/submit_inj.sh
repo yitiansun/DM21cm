@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #SBATCH --job-name=pbhacc-BHLl2-250701
-#SBATCH --array=0-1
+#SBATCH --array=2-5
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks=1

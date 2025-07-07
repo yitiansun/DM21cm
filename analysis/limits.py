@@ -1,7 +1,10 @@
+import os
+
 import numpy as np
 from scipy import stats, interpolate
 
-limits_dir = "../outputs/limits"
+WDIR = os.environ['DM21CM_DIR']
+limits_dir = f"{WDIR}/outputs/limits"
 
 # meaning of inj
 # decay: 1/tau

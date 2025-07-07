@@ -30,8 +30,8 @@ def main():
 
     if args.step == 1:
 
-        # log10m_list = np.arange(13.25, 18 + 1e-3, 0.25)
-        log10m_list = np.arange(13.25, 13.50 + 1e-3, 0.25)
+        log10m_list = np.arange(13.75, 18 + 1e-3, 0.25)
+        # log10m_list = np.arange(13.25, 13.50 + 1e-3, 0.25)
 
         for log10m in log10m_list:
             print(f'{log10m:.3f}', end=' ')

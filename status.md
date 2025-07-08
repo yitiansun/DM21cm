@@ -27,8 +27,7 @@ New vcb for pbhacc PS cosmo table
     - RUNNING: [13.5-18.0] at 0.75
     - DONE:
     - FISHED:
-
-- pbhacc-PRc23/PRc14/PRc29/PRc23dp/PRc23dm/PRc23B/PRc23H/BHLl2-250630
+- pbhacc-PRc23/PRc14/PRc29/PRc23dp/PRc23dm/PRc23B/PRc23H-BHLl2-250630
     - DATA: 0 1 2 3 4
     - DONE: 0 2 4
     - FISHED: 0 2 4

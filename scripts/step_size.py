@@ -103,12 +103,20 @@ def pwave_tau_c_sigma(m):
 pbh_hr_m_s = None
 pbh_acc_m_s = None
 
-def pbhhr_f(m):
+def pbhhr_f(m, a=0.):
     """PBH fraction step size [1] for a given PBH mass [g]."""
     log10m = np.log10(m)
-    l_func = lambda x: - 8 * (x - 14) - 16
-    r_func = lambda x: 3.5 * (x - 14) - 14
-    log10f = interp_between(l_func, r_func, 13.6, 14.2, log10m)
+
+    if a == 0.:
+        l_func = lambda x: - 8 * (x - 14) - 16
+        r_func = lambda x: 3.5 * (x - 14) - 14
+        log10f = interp_between(l_func, r_func, 13.6, 14.2, log10m)
+    elif a == 0.999:
+        l_func = lambda x: - 8 * (x - 14) - 16
+        r_func = lambda x: 3.5 * (x - 14) - 16
+        log10f = interp_between(l_func, r_func, 13.6, 14.5, log10m)
+    else:
+        raise NotImplementedError
     return 10 ** log10f
 
 def pbhacc_f(m, model):

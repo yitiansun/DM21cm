@@ -45,7 +45,7 @@ class PBHHRInjection (Injection):
         self.n0_PBH = phys.rho_DM * f_PBH / self.m_eV # [BH / pcm^3] | Present day PBH number density
 
         #----- Load PBH data -----
-        self.data = load_h5_dict(f"{os.environ['DM21CM_DATA_DIR']}/pbhhr-a{self.a_PBH:.0f}.h5")
+        self.data = load_h5_dict(f"{os.environ['DM21CM_DATA_DIR']}/pbhhr-a{self.a_PBH:.3f}.h5")
         self.data = self.data[f'log10m{np.log10(self.m_PBH):.3f}']
         
         i_start = np.where(self.data['t'] > phys.t_z(5e3))[0][0] # 1e4 is the largest z phys.z_t calculates

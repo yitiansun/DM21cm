@@ -28,10 +28,10 @@ New vcb for pbhacc PS cosmo table
     - DONE:
     - FISHED:
 - pbhacc-PRc23/PRc14/PRc29/PRc23dp/PRc23dm/PRc23B/PRc23H-BHLl2-250630
-    - DATA: 0 1 2 3 4
-    - DONE: 0 2 4
-    - FISHED: 0 2 4
-BHLl2: in iter
+    - DATA: [0 1 2 3 4]
+    - DONE: [0 1 2 3 4]
+    - FISHED: [0 2 4]
+BHLl2: [0 2 4] to submit
 
 # Data
 

@@ -6,29 +6,29 @@ BASE_DIR=/n/holystore01/LABS/iaifi_lab/Users/yitians/dm21cm/outputs/active/
 ## Current: up to version 250616
 New vcb for pbhacc PS cosmo table
 - pwave-phot-250630 [1.5-12]
-    - RUNNING: [1.5, 5., 8.5, 12.]
+    - RUNNING: 
     - DONE:
-    - FISHED:
+    - FISHED: [1.5, 5., 8.5, 12.]
 - pwave-elec-250630 [6.5-12]
-    - RUNNING: [6.5, 8.5, 10.5, 12.]
+    - RUNNING: 
     - DONE:
-    - FISHED:
+    - FISHED: [6.5, 8.5, 10.5, 12.]
 - pwave-tau-250630 [9.5-12]
-    - RUNNING: [9.70, 10., 11., 12.]
+    - RUNNING: [10.5, 11.5]
+    - DONE:
+    - FISHED: [9.70, 10., 11., 12.]
+- pbhhr-a0.000 [13.5-18]
+    - DATA: [13.5-18.0] at 0.25
+    - RUNNING: 
+    - DONE:
+    - FISHED: [13.5-18.0] at 0.25
+- pbhhr-a0.999-250708 [13.5-18]
+    - DATA: [13.5-18.0] at 0.25
+    - RUNNING: [13.5-18.0] at 0.75
     - DONE:
     - FISHED:
-- pbhhr-a0 [13.5-18]
-    - DATA: [13.5-18.0] at 0.25
-    - RUNNING: 
-    - DONE:
-    - FISHED: [13.5-18.0] at 0.25
-- pbhhr-a1 [13.5-18]
-    - DATA: [13.5-18.0] at 0.25
-    - RUNNING: 
-    - DONE:
-    - FISHED: [13.5-18.0] at 0.25
 
-- pbhacc-PRc23/PRc14/PRc29/PRc23dp/PRc23dm/PRc23B/PRc23H/BHLl2-2506t30
+- pbhacc-PRc23/PRc14/PRc29/PRc23dp/PRc23dm/PRc23B/PRc23H/BHLl2-250630
     - DATA: 0 1 2 3 4
     - DONE: 0 2 4
     - FISHED: 0 2 4

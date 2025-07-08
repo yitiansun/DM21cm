@@ -22,11 +22,11 @@ def main():
     # step 1: hadronize
     # step 2: build interpolation tables
     parser = argparse.ArgumentParser()
-    parser.add_argument('--a', type=int)
+    parser.add_argument('--a', type=float)
     parser.add_argument('--step', type=int)
     args = parser.parse_args()
 
-    results_dir = f"/n/holystore01/LABS/iaifi_lab/Users/yitians/dm21cm/blackhawk/a{args.a}"
+    results_dir = f"/n/holystore01/LABS/iaifi_lab/Users/yitians/dm21cm/blackhawk/a{args.a:.3f}"
 
     if args.step == 1:
 
@@ -65,7 +65,7 @@ def main():
                 'elec dNdEdt': dNdEdt_elec_sec,
                 'units' : 't: [s]. dNdEdt: [1/eV s BH]. M: [g]. M0: [g].'
             }
-        save_h5_dict(f"{WDIR}/data/production/pbhhr-a{args.a}.h5", data)
+        save_h5_dict(f"{WDIR}/data/production/pbhhr-a{args.a:.3f}.h5", data)
 
     else:
         raise ValueError('Invalid step number!')

@@ -85,7 +85,7 @@ elif args.channel.startswith('pwave'):
         c_s = pwave_elec_c_sigma(m_s)
         primary = 'elec_delta'
     elif args.channel == 'pwave-tau':
-        m_s = 10**np.array([9.70, 10., 11., 12.]) # [eV]
+        m_s = 10**np.array([10.5, 11.5]) # [eV]
         c_s = pwave_tau_c_sigma(m_s)
         primary = 'tau'
     else:
@@ -103,18 +103,20 @@ elif args.channel.startswith('pwave'):
     )
     m_fn = m_DM
 
-elif args.channel == 'pbhhr':
+elif args.channel.startswith('pbhhr'):
 
-    m_s = 10**np.array([13.25, 13.75, 14.00, 14.25, 14.50, 14.75, 15.25, 15.50, 15.75, 16.00, 16.25, 16.75, 17.00, 17.25, 17.50, 17.75])
+    m_s = 10**np.array([13.50, 14.25, 15.00, 15.75, 16.50, 17.25, 18.00])
+    a_PBH = float(args.channel.split('-')[1][1:]) # e.g., 0.999 for pbhhr-a0.999
 
     mass_ind, inj_ind = np.unravel_index(args.run_index, (len(m_s), 2))
     m_PBH = m_s[mass_ind] # [g]
-    f_PBH = pbhhr_f(m_PBH) # [1]
+    f_PBH = pbhhr_f(m_PBH, a=a_PBH) # [1]
     inj_multiplier = inj_multiplier_s[inj_ind]
     
     injection = PBHHRInjection(
         m_PBH = m_PBH,
         f_PBH = f_PBH * inj_multiplier,
+        a_PBH = a_PBH,
     )
     m_fn = m_PBH
 
@@ -122,7 +124,7 @@ elif args.channel.startswith('pbhacc'):
 
     model = args.channel.split('-')[1]
 
-    m_s = 10**np.array([0., 2., 4.]) # [M_sun]
+    m_s = 10**np.array([1., 3.]) # [M_sun]
 
     mass_ind, inj_ind = np.unravel_index(args.run_index, (len(m_s), 2))
     m_PBH = m_s[mass_ind] # [M_sun]
@@ -272,5 +274,5 @@ print("cache currently not cleared")
 
 print('\n===== Update Status =====')
 
-with open(WDIR + '/scripts/run_results', 'a') as f:
+with open(WDIR + '/scripts/run_results.txt', 'a') as f:
     f.write(f'{run_fullname} completed.\n')

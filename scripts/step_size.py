@@ -133,26 +133,7 @@ def pbhacc_f(m, model):
     elif model in ['PRc23dp']: # PRdp
         log10f = -1.4 * log10m - 2.00
     elif model == 'BHLl2':
-        log10f = -0.3 * log10m - 10.75
-    else:
-        raise NotImplementedError(model)
-    return 10 ** log10f
-
-def pbhacc_f_base(m, model):
-    """PBH accretion fraction step size [1] for a given PBH mass [Msun]."""
-    log10m = np.log10(m)
-    if model in ['PRc23', 'PRc23B', 'PRc23H']:
-        log10f = -1.5 * log10m - 0.5
-    elif model in ['PRc50']:
-        log10f = -1.5 * log10m + 2
-    elif model in ['PRc10']:
-        log10f = -1.4 * log10m - 3
-    elif model in ['PRc23dm']: # PRdm
-        log10f = -1.5 * log10m + 0.5
-    elif model in ['PRc23dp']: # PRdp
-        log10f = -1.4 * log10m - 1.5
-    elif model == 'BHLl2':
-        log10f = -1.0 * log10m - 8.5
+        log10f = -0.1 * log10m - 10.5
     else:
         raise NotImplementedError(model)
     return 10 ** log10f

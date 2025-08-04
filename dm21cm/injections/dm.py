@@ -81,14 +81,14 @@ class DMPWaveAnnihilationInjection (Injection):
         cell_size (float): Cell size in [cMpc].
     """
 
-    def __init__(self, primary=None, m_DM=None, c_sigma=None, cell_size=2.):
+    def __init__(self, primary=None, m_DM=None, c_sigma=None, cell_size=2., debug_modifier=''):
         self.mode = 'DM p-wave annihilation'
         self.primary = primary
         self.m_DM = m_DM
         self.c_sigma = c_sigma
         self.cell_size = cell_size
 
-        self.data = load_h5_dict(os.environ['DM21CM_DATA_DIR'] + '/pwave_hmf_summed_rate.h5') # tables have unit [eV^2 / pcm^3 / cfcm^3]
+        self.data = load_h5_dict(os.environ['DM21CM_DATA_DIR'] + f"/pwave_hmf_summed_rate{debug_modifier}.h5") # tables have unit [eV^2 / pcm^3 / cfcm^3]
         self.z_range = self.data['z']
         self.d_range = self.data['d']
         assert self.cell_size == self.data['cell_size'], "Cell size mismatch."

@@ -74,6 +74,7 @@ if args.channel.startswith('decay'):
     m_fn = m_DM
 
 elif args.channel.startswith('pwave'):
+    debug_modifier = ''
     if args.channel == 'pwave-phot':
         # m_s = 10**np.array([1.5, 2., 3., 4., 5., 6., 7., 8., 9., 10., 11., 12.]) # [eV]
         m_s = 10**np.array([1.5, 5., 8.5, 12.]) # [eV]
@@ -88,6 +89,11 @@ elif args.channel.startswith('pwave'):
         m_s = 10**np.array([10.5, 11.5]) # [eV]
         c_s = pwave_tau_c_sigma(m_s)
         primary = 'tau'
+    elif args.channel == 'pwave-phot-mc1e11':
+        m_s = 10**np.array([1.5, 5., 8.5, 12.]) # [eV]
+        c_s = pwave_phot_c_sigma(m_s)
+        primary = 'phot_delta'
+        debug_modifier = '_mc1e11'
     else:
         raise ValueError('Invalid channel')
 
@@ -100,6 +106,7 @@ elif args.channel.startswith('pwave'):
         m_DM = m_DM,
         c_sigma = c_sigma * inj_multiplier,
         cell_size = 2, # [cMpc]
+        debug_modifier = debug_modifier,
     )
     m_fn = m_DM
 

@@ -20,6 +20,10 @@ from dm21cm.precompute.halo import DM_FRAC, cmz, rel_v_disp, nfw_density, nfw_in
 
 if __name__ == '__main__':
 
+    #===== setting =====
+    m_high_cutoff = 1e11 # [Msun]
+    filename = 'pwave_hmf_summed_rate_mc1e11.h5'
+
     #===== Initialization =====
     hmfdata = load_h5_dict(f"{WDIR}/data/hmf/hmf.h5")
     z_s = hmfdata['z'] # [1]    | redshift
@@ -82,7 +86,8 @@ if __name__ == '__main__':
         if z > z_max:
             continue
         for i_d, d in enumerate(d_s):
-            cond_table[i_z,i_d] = np.trapz(ann_rates[i_z] * dndm[i_z, i_d], m_s) # [Msun^2/pc^3 / cMpc^3]
+            dndm_zd = dndm[i_z, i_d] * (m_s <= m_high_cutoff)
+            cond_table[i_z,i_d] = np.trapz(ann_rates[i_z] * dndm_zd, m_s) # [Msun^2/pc^3 / cMpc^3]
 
     # Unconditional PS
     ps_table = np.zeros((len(zext_s),))
@@ -90,7 +95,8 @@ if __name__ == '__main__':
     for i_z, z in enumerate(tqdm(zext_s, desc='Unconditional PS')):
         if z > z_max:
             continue
-        ps_table[i_z] = np.trapz(ann_rates[i_z] * dndm[i_z], m_s) # [Msun^2/pc^3 / cMpc^3]
+        dndm_z = dndm[i_z] * (m_s <= m_high_cutoff)
+        ps_table[i_z] = np.trapz(ann_rates[i_z] * dndm_z, m_s) # [Msun^2/pc^3 / cMpc^3]
 
     # Sheth-Tormen
     st_table = np.zeros((len(zext_s),))
@@ -98,7 +104,8 @@ if __name__ == '__main__':
     for i_z, z in enumerate(tqdm(zext_s, desc='Unconditional ST')):
         if z > z_max:
             continue
-        st_table[i_z] = np.trapz(ann_rates[i_z] * dndm[i_z], m_s) # [Msun^2/pc^3 / cMpc^3]
+        dndm_z = dndm[i_z] * (m_s <= m_high_cutoff)
+        st_table[i_z] = np.trapz(ann_rates[i_z] * dndm_z, m_s) # [Msun^2/pc^3 / cMpc^3]
 
 
     #===== Save =====
@@ -117,4 +124,4 @@ if __name__ == '__main__':
         'units' : 'cell_size: [cMpc]. r_fixed: [cMpc]. z: [1]. d: [1]. All rates: [eV^2 / cm^3 / cfcm^3].',
         'shapes' : 'ps_cond: (z, d). ps, st: (z,).',
     }
-    save_h5_dict(save_dir + "/pwave_hmf_summed_rate.h5", data)
+    save_h5_dict(save_dir + "/" + filename, data)

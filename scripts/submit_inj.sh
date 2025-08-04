@@ -1,7 +1,7 @@
 #!/bin/bash
 
-#SBATCH --job-name=pbhhr-a0.999-250708
-#SBATCH --array=0-25
+#SBATCH --job-name=pwave-phot-mc1e11
+#SBATCH --array=0-7
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks=1
@@ -24,7 +24,7 @@ echo "DATA:  HOLYSTORE"
 echo "SAVE:  HOLYSTORE & HOLYSCRATCH"
 
 #--- pwave / pbhhr / pbhacc ---
-python inj_script.py --run_name pbhhr-a0.999-250708 --channel pbhhr-a0.999 -i $SLURM_ARRAY_TASK_ID
+python inj_script.py --run_name pwave-phot-mc1e11-250630 --channel pwave-phot-mc1e11 -i $SLURM_ARRAY_TASK_ID
 # python inj_script.py --run_name pbhacc-MODEL-250630 --channel pbhacc-MODEL -i $SLURM_ARRAY_TASK_ID
 #--- test ---
 # python inj_script.py -r test0428 -c pbhacc-PRc23 -i 2 -d 32

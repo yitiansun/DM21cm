@@ -70,8 +70,7 @@ else:
     run_fullname = f'{run_name}_{run_subname}'
     lc_filename = f'LightCone_z5.0_HIIDIM={args.box_dim}_BOXLEN={box_len}_fisher_{param_names[param_index]}_{shift}_r54321.h5'
 
-# save_dir = f'/n/holyscratch01/iaifi_lab/yitians/dm21cm/prod_outputs/{run_name}/Mass_{mass_ind}/'
-save_dir = f'/n/holystore01/LABS/iaifi_lab/Users/yitians/dm21cm/outputs/{run_name}/{run_subname}/LightCones/'
+save_dir = f'/n/holystore01/LABS/iaifi_lab/Users/yitians/dm21cm/outputs/{run_name}/{run_subname}/'
 os.makedirs(save_dir, exist_ok=True)
 
 cache_dir = os.path.join(os.environ['P21C_CACHE_DIR'], run_fullname)
@@ -99,6 +98,7 @@ return_dict = evolve(
             HII_DIM = args.box_dim,
             BOX_LEN = box_len, # [conformal Mpc]
             N_THREADS = args.n_threads,
+            USE_RELATIVE_VELOCITIES = True,
         ),
         cosmo_params = p21c.CosmoParams(
             OMm = Planck18.Om0,

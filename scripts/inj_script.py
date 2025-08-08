@@ -209,29 +209,28 @@ print('global_params:', p21c.global_params)
 print('astro_params:', astro_params)
 
 
-print('\n===== Pre-Evolve =====')
-
-if args.channel.startswith('pbhacc'):
-    p21c_initial_conditions = p21c.initial_conditions(
-        user_params = p21c.UserParams(
-            HII_DIM = args.box_dim,
-            BOX_LEN = box_len, # [conformal Mpc]
-            N_THREADS = args.n_threads,
-            USE_RELATIVE_VELOCITIES = True,
-        ),
-        cosmo_params = p21c.CosmoParams(
-            OMm = Planck18.Om0,
-            OMb = Planck18.Ob0,
-            POWER_INDEX = Planck18.meta['n'],
-            SIGMA_8 = Planck18.meta['sigma8'],
-            hlittle = Planck18.h,
-        ),
-        random_seed = 54321,
-        write = False,
-    )
-    injection.init_vcb(p21c_initial_conditions.lowres_vcb)
 
 print('\n===== Evolve =====')
+
+p21c_initial_conditions = p21c.initial_conditions(
+    user_params = p21c.UserParams(
+        HII_DIM = args.box_dim,
+        BOX_LEN = box_len, # [conformal Mpc]
+        N_THREADS = args.n_threads,
+        USE_RELATIVE_VELOCITIES = True,
+    ),
+    cosmo_params = p21c.CosmoParams(
+        OMm = Planck18.Om0,
+        OMb = Planck18.Ob0,
+        POWER_INDEX = Planck18.meta['n'],
+        SIGMA_8 = Planck18.meta['sigma8'],
+        hlittle = Planck18.h,
+    ),
+    random_seed = 54321,
+    write = True,
+)
+if args.channel.startswith('pbhacc'):
+    injection.init_vcb(p21c_initial_conditions.lowres_vcb)
 
 return_dict = evolve(
     run_name = run_fullname,
@@ -239,23 +238,7 @@ return_dict = evolve(
     z_end = 5.,
     injection = injection,
 
-    p21c_initial_conditions = p21c.initial_conditions(
-        user_params = p21c.UserParams(
-            HII_DIM = args.box_dim,
-            BOX_LEN = box_len, # [conformal Mpc]
-            N_THREADS = args.n_threads,
-            USE_RELATIVE_VELOCITIES = False,
-        ),
-        cosmo_params = p21c.CosmoParams(
-            OMm = Planck18.Om0,
-            OMb = Planck18.Ob0,
-            POWER_INDEX = Planck18.meta['n'],
-            SIGMA_8 = Planck18.meta['sigma8'],
-            hlittle = Planck18.h,
-        ),
-        random_seed = 54321,
-        write = True,
-    ),
+    p21c_initial_conditions = p21c_initial_conditions,
     p21c_astro_params = astro_params,
 
     use_DH_init = True,

@@ -112,7 +112,7 @@ elif args.channel.startswith('pwave'):
 
 elif args.channel.startswith('pbhhr'):
 
-    # m_s = 10**np.array([13.50, 14.25, 15.00, 15.75, 16.50, 17.25, 18.00])
+    # m_s = 10**np.array([13.50, 14.25, 15.00, 15.75, 16.50, 17.25, 18.00]) # batch 1
     m_s = 10**np.array([13.25, 13.75, 14.00, 14.50, 14.75, 15.25, 15.50, 16.00, 16.25, 16.75, 17.00, 17.50, 17.75])
     a_PBH = float(args.channel.split('-')[1][1:]) # e.g., 0.999 for pbhhr-a0.999
 

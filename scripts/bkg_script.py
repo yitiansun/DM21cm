@@ -38,11 +38,6 @@ param_names = ['F_STAR10', 'F_STAR7_MINI', 'ALPHA_STAR', 'ALPHA_STAR_MINI', 't_S
 default_param_values = [-1.25, -2.5, 0.5, 0.0, 0.5, -1.35, -1.35, -0.3, 40.5, 40.5, 500, 2.0]
 param_shifts = [0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.001, 0.001, 0.03, 0.03]
 param_dict = dict(zip(param_names, default_param_values))
-astro_params = p21c.AstroParams(param_dict)
-
-print('box_len:', box_len)
-print('global_params:', p21c.global_params)
-print('astro_params:', astro_params)
 
 if args.run_index == -1:
 
@@ -69,6 +64,12 @@ else:
     run_subname = f'P{param_index}S{shift_index}'
     run_fullname = f'{run_name}_{run_subname}'
     lc_filename = f'LightCone_z5.0_HIIDIM={args.box_dim}_BOXLEN={box_len}_fisher_{param_names[param_index]}_{shift}_r54321.h5'
+
+astro_params = p21c.AstroParams(param_dict)
+
+print('box_len:', box_len)
+print('global_params:', p21c.global_params)
+print('astro_params:', astro_params)
 
 save_dir = f'/n/holystore01/LABS/iaifi_lab/Users/yitians/dm21cm/outputs/{run_name}/{run_subname}/'
 os.makedirs(save_dir, exist_ok=True)

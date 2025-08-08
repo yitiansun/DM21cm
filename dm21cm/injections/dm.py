@@ -122,17 +122,15 @@ class DMPWaveAnnihilationInjection (Injection):
 
         ps_cond_delta = interp1d(self.data['ps_cond'], self.z_range, z_in)
         ps_cond_box   = interp1d(ps_cond_delta, self.d_range, d_box_in)
-        ps_uncond_val = interp1d(self.data['ps'], self.z_range, z_in)
-        st_val        = interp1d(self.data['st'], self.z_range, z_in)
-        dNtilde_dt_box = ps_cond_box * st_val / ps_uncond_val # [eV^2 / pcm^3 ccm^3]
+        dNtilde_dt_box = ps_cond_box # [eV^2 / pcm^3 ccm^3]
         return dNtilde_dt_box * self.c_sigma / self.m_DM**2 * (1 + z)**3 # [inj / pcm^3 s]
 
     
     def inj_rate(self, z_start, z_end=None, **kwargs):
         """Instantaneous rate in a homogeneous universe. Use ST table."""
         z_in = bound_action(z_start, self.z_range, 'clip')
-        st_val = interp1d(self.data['st'], self.z_range, z_in) # [eV^2 / pcm^3 ccm^3]
-        return np.clip(np.float32(st_val * self.c_sigma / self.m_DM**2 * (1 + z_start)**3), 1e-200, None) # [inj / pcm^3 s]
+        ps_val = interp1d(self.data['ps'], self.z_range, z_in) # [eV^2 / pcm^3 ccm^3]
+        return np.clip(np.float32(ps_val * self.c_sigma / self.m_DM**2 * (1 + z_start)**3), 1e-200, None) # [inj / pcm^3 s]
     
     def inj_power(self, z_start, z_end=None, **kwargs):
         """Instantaneous rate in a homogeneous universe. Use ST table."""

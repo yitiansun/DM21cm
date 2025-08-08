@@ -1,7 +1,7 @@
 #!/bin/bash
 
-#SBATCH --job-name=bkg
-#SBATCH --array=0
+#SBATCH --job-name=bkgvar
+#SBATCH --array=0-23
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks=1
@@ -24,7 +24,7 @@ echo "DATA:  HOLYSTORE"
 echo "SAVE:  HOLYSTORE & HOLYSCRATCH"
 
 #--- bkg ---
-python bkg_script.py -r bkg -i -1
+python bkg_script.py -r bkg -i $SLURM_ARRAY_TASK_ID
 #--- pwave / pbhhr / pbhacc ---
 # python inj_script.py --run_name pwave-phot-mc1e11-250630 --channel pwave-phot-mc1e11 -i $SLURM_ARRAY_TASK_ID
 # python inj_script.py --run_name pbhacc-MODEL-250630 --channel pbhacc-MODEL -i $SLURM_ARRAY_TASK_ID

@@ -172,10 +172,10 @@ class PBHAccretionInjection (Injection):
         self.vcb_s         = jnp.array(self.cosmo_data['vcb']) # [km/s]
         self.halo_ps_cond  = jnp.array(self.halo_data ['ps_cond']) # [eV / s / cfcm^3]
         self.halo_ps       = jnp.array(self.halo_data ['ps'])
-        self.halo_st       = jnp.array(self.halo_data ['st'])
+        # self.halo_st       = jnp.array(self.halo_data ['st'])
         self.cosmo_ps_cond = jnp.array(self.cosmo_data['ps_cond'])
         self.cosmo_ps      = jnp.array(self.cosmo_data['ps'])
-        self.cosmo_st      = jnp.array(self.cosmo_data['st'])
+        # self.cosmo_st      = jnp.array(self.cosmo_data['st'])
 
         self.init_specs()
 
@@ -190,12 +190,12 @@ class PBHAccretionInjection (Injection):
         self.phot_spec = Spectrum(E, dNdE / E_tot, spec_type='dNdE') # [phot/eV / eV(injected)]
         self.zero_elec_spec = Spectrum(E, 0. * abscs['elecEk'], spec_type='dNdE') # [elec/eV / eV(injected)]
 
-    def init_vcb(self, vcb_box_decoupling, z_decoupling=1020):
+    def init_vcb(self, vcb_box_decoupling, z_decoupling=1060):
         """Initialize the Vcb box at the decoupling redshift.
         
         Args:
             vcb_box_decoupling (array): Vcb box at the decoupling redshift [km/s].
-            z_decoupling (float): Redshift of decoupling. Default is 1020.
+            z_decoupling (float): Redshift of decoupling. Default is 1060.
         """
         self.vcb_box_decoupling = jnp.asarray(vcb_box_decoupling)
         self.z_decoupling = z_decoupling
@@ -245,8 +245,8 @@ class PBHAccretionInjection (Injection):
             x_e = dh_phys.xHII_std(1+z_start) # [1]
         cinf_in = self.cinf(T_k, x_e)
         cinf_in = bound_action(cinf_in, self.cinf_s, 'clip') # [km/s]
-        halo_power = interp1d(self.halo_st, self.zfull_s, z_in) # [eV / s / cfcm^3]
-        cosmo_power = interp1d(interp1d(self.cosmo_st, self.zfull_s, z_in), self.cinf_s, cinf_in) # [eV / s / cfcm^3]
+        halo_power = interp1d(self.halo_ps, self.zfull_s, z_in) # [eV / s / cfcm^3]
+        cosmo_power = interp1d(interp1d(self.cosmo_ps, self.zfull_s, z_in), self.cinf_s, cinf_in) # [eV / s / cfcm^3]
         if debug == 'halo only':
             cosmo_power = 0
         elif debug == 'cosmo only':
@@ -262,43 +262,25 @@ class PBHAccretionInjection (Injection):
     def inj_phot_spec_box(self, z_start, z_end=None, delta_plus_one_box=None, T_k_box=None, x_e_box=None, **kwargs):
         z_in = bound_action(z_start, self.z_s, 'raise') # can only access from DM21cm
         cinf_box_in = bound_action(self.cinf(T_k_box, x_e_box), self.cinf_s, 'clip') # [km/s]
-        cinf_avg = jnp.mean(cinf_box_in) # [km/s]
+        # cinf_avg = jnp.mean(cinf_box_in) # [km/s]
         d_box_in = bound_action(delta_plus_one_box - 1, self.d_s, 'clip')
         vcb_box = self.get_vcb_box(z_start) # [km/s]
         vcb_box_in = bound_action(vcb_box, self.vcb_s, 'clip') # [km/s]
 
         # table units: [eV / s / cfcm^3]
         halo_ps_cond_val = interp1d(interp1d(self.halo_ps_cond, self.z_s, z_in), self.d_s, d_box_in) # shape=box
-        halo_ps_val = interp1d(self.halo_ps, self.z_s, z_in) # shape=()
-        halo_st_val = interp1d(self.halo_st, self.z_s, z_in) # shape=()
-        halo_power = (halo_st_val / halo_ps_val) * halo_ps_cond_val # shape=box
+        # halo_ps_val = interp1d(self.halo_ps, self.z_s, z_in) # shape=()
+        # halo_st_val = interp1d(self.halo_st, self.z_s, z_in) # shape=()
+        halo_power = halo_ps_cond_val # shape=box
 
         cosmo_ps_cond_cdv = interp1d(self.cosmo_ps_cond, self.zfull_s, z_in) # shape=(cinf, d, vcb)
         cdv_in = jnp.stack([cinf_box_in.flatten(), d_box_in.flatten(), vcb_box_in.flatten()], axis=-1) # shape=(boxlen, 3)
         cosmo_ps_cond_val = interp3d_vmap(cosmo_ps_cond_cdv, self.cinf_s, self.dsub_s, self.vcb_s, cdv_in).reshape(cinf_box_in.shape) # shape=box
 
-        cosmo_ps_val = interp1d(interp1d(self.cosmo_ps, self.zfull_s, z_in), self.cinf_s, cinf_avg) # shape=()
-        cosmo_st_val = interp1d(interp1d(self.cosmo_st, self.zfull_s, z_in), self.cinf_s, cinf_avg) # shape=()
-        cosmo_power = (cosmo_st_val / cosmo_ps_val) * cosmo_ps_cond_val # shape=box
+        # cosmo_ps_val = interp1d(interp1d(self.cosmo_ps, self.zfull_s, z_in), self.cinf_s, cinf_avg) # shape=()
+        # cosmo_st_val = interp1d(interp1d(self.cosmo_st, self.zfull_s, z_in), self.cinf_s, cinf_avg) # shape=()
+        cosmo_power = cosmo_ps_cond_val # shape=box
 
         power_box = (halo_power + cosmo_power) * self.f_PBH * (1 + z_start)**3 # [eV / pcm^3 s]
         power_mean = jnp.mean(power_box)
         return self.phot_spec * float(power_mean), power_box / power_mean # [phot/eV / pcm^3 s], [1]
-
-
-    # #===== auxiliary functions =====
-    # def inj_halo_power(self, z_start, z_end=None, state=None, **kwargs):
-    #     z_in = bound_action(z_start, self.zfull_s, 'clip')
-    #     cinf_in = self.cinf(state['Tm'], state['xHII']) if state is not None else self.cinf_std(z_start)
-    #     cinf_in = bound_action(cinf_in, self.cinf_s, 'clip') # [km/s]
-    #     halo_power = interp1d(self.halo_st, self.zfull_s, z_in) # [eV / s / cfcm^3]
-    #     # cosmo_power = interp1d(interp1d(self.cosmo_st, self.zfull_s, z_in), self.cinf_s, cinf_in) # [eV / s / cfcm^3]
-    #     return self.f_PBH * halo_power * (1 + z_start)**3 # [eV / pcm^3 s]
-    
-    # def inj_cosmo_power(self, z_start, z_end=None, state=None, **kwargs):
-    #     z_in = bound_action(z_start, self.zfull_s, 'clip')
-    #     cinf_in = self.cinf(state['Tm'], state['xHII']) if state is not None else self.cinf_std(z_start)
-    #     cinf_in = bound_action(cinf_in, self.cinf_s, 'clip') # [km/s]
-    #     # halo_power = interp1d(self.halo_st, self.zfull_s, z_in) # [eV / s / cfcm^3]
-    #     cosmo_power = interp1d(interp1d(self.cosmo_st, self.zfull_s, z_in), self.cinf_s, cinf_in) # [eV / s / cfcm^3]
-    #     return self.f_PBH * cosmo_power * (1 + z_start)**3 # [eV / pcm^3 s]

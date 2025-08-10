@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# dispatch submit_inj.sh for every injection variant
+# dispatch submit.sh for every injection variant
 
 set -euo pipefail
 
@@ -10,7 +10,7 @@ for v in "${variants[@]}"; do
     trap 'rm -f "$tmp"' RETURN      # always clean up temp file
 
     # Substitute every literal occurrence of "MODEL"
-    sed "s/MODEL/${v}/g" submit_inj.sh > "$tmp"
+    sed "s/MODEL/${v}/g" submit.sh > "$tmp"
 
     sbatch "$tmp"                   # submit to Slurm
     echo " → submitted variant: $v"

@@ -58,6 +58,9 @@ if __name__ == '__main__':
     }
     am = PBHAccretionModel(**model_kwargs_dict[args.model])
 
+    # HMF threshold
+    m_thres = 30 * mPBH
+
     #===== File names =====
     run_name = args.model
     run_subname = f'log10m{np.log10(mPBH):.3f}'
@@ -99,7 +102,7 @@ if __name__ == '__main__':
     dndm = hmfdata['ps_cond'] # [1 / cMpc^3 Msun]
     for i_z, z in enumerate(z_s):
         for i_d, d in enumerate(d_s):
-            eff_dndm = dndm[i_z, i_d] * (m_s > mPBH)
+            eff_dndm = dndm[i_z, i_d] * (m_s > m_thres)
             cond_table[i_z,i_d] = np.trapz(L_table[i_z] * eff_dndm, m_s)
 
     # Unconditional PS: (z)
@@ -108,7 +111,7 @@ if __name__ == '__main__':
     for i_z, z in enumerate(zfull_s):
         if z > z_s[-1]:
             continue
-        eff_dndm = dndm[i_z] * (m_s > mPBH)
+        eff_dndm = dndm[i_z] * (m_s > m_thres)
         ps_table[i_z] = np.trapz(L_table[i_z] * eff_dndm, m_s)
 
     # Sheth-Tormen: (z)
@@ -117,7 +120,7 @@ if __name__ == '__main__':
     for i_z, z in enumerate(zfull_s):
         if z > z_s[-1]:
             continue
-        eff_dndm = dndm[i_z] * (m_s > mPBH)
+        eff_dndm = dndm[i_z] * (m_s > m_thres)
         st_table[i_z] = np.trapz(L_table[i_z] * eff_dndm, m_s)
     print("Done.")
 

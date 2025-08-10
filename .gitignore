@@ -27,7 +27,7 @@ plotting/**/*.h5
 plotting/**/*.p
 plotting/paper2/*.pdf
 plotting/paper2/*.png
-scripts/*.out
+scripts/run_results.txt
 step/*.out
 tests/*.h5
 tmp/

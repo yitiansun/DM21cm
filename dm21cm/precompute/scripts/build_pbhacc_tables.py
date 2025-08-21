@@ -55,11 +55,15 @@ if __name__ == '__main__':
         'PRc23dm' : dict(accretion_type='PR-ADAF', delta_e=1e-2),
         'PRc23dp' : dict(accretion_type='PR-ADAF', delta_e=0.5),
         'BHLl2'   : dict(accretion_type='BHL-ADAF', lambda_fudge=1e-2),
+        'BHLl2mt' : dict(accretion_type='BHL-ADAF', lambda_fudge=1e-2), # only changes mass threshold
     }
     am = PBHAccretionModel(**model_kwargs_dict[args.model])
 
     # HMF threshold
-    m_thres = 30 * mPBH
+    if args.model == 'BHll2mt':
+        m_thres = 100 * mPBH
+    else:
+        m_thres = 30 * mPBH
 
     #===== File names =====
     run_name = args.model

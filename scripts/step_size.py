@@ -132,7 +132,7 @@ def pbhacc_f(m, model):
         log10f = -1.5 * log10m - 0.25
     elif model in ['PRc23dp']: # PRdp
         log10f = -1.4 * log10m - 2.00
-    elif model == 'BHLl2':
+    elif model in ['BHLl2', 'BHLl2mt']:
         log10f = -0.1 * log10m - 10.5
     else:
         raise NotImplementedError(model)

@@ -60,7 +60,7 @@ if __name__ == '__main__':
     am = PBHAccretionModel(**model_kwargs_dict[args.model])
 
     # HMF threshold
-    if args.model == 'BHll2mt':
+    if args.model == 'BHLl2mt':
         m_thres = 100 * mPBH
     else:
         m_thres = 30 * mPBH

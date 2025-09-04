@@ -37,10 +37,8 @@ return_dict = evolve(
 ## Installation
 
 ### Prerequisite: DarkHistory
-- Clone the DarkHistory repository [here](https://github.com/hongwanliu/DarkHistory/tree/DM21cm). Checkout branch `DM21cm`.
-- Install the require packages via `pip install -r requirements.txt`.
-- Set environment variable `DH_DIR` to point to the project folder (directory containing `README.md`).
-- Set environment variable `DH_DATA_DIR` to point to the DarkHistory data (v1.1) folder (directory containing `binning.p`). The data files can be downloaded [here](https://zenodo.org/records/6819310).
+- Clone the DarkHistory repository [here](https://github.com/hongwanliu/DarkHistory/tree/DM21cm). Checkout branch `master`.
+- Install following DarkHistory's `README.md`.
 
 ### Prerequisite: 21cmFAST
 - Clone the 21cmFAST fork [here](https://github.com/joshwfoster/21cmFAST). Checkout branch `master`.

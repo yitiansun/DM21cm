@@ -142,11 +142,11 @@ elif args.channel.startswith('pbhacc'):
 
     model = args.channel.split('-')[1]
 
-    m_s = 10**np.array([0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0]) # [M_sun]
+    m_s = 10**np.array([4.0]) # [M_sun]
 
     mass_ind, inj_ind = np.unravel_index(args.run_index, (len(m_s), 2))
     m_PBH = m_s[mass_ind] # [M_sun]
-    f_PBH = pbhacc_f(m_PBH, model) # [1]
+    f_PBH = pbhacc_f_mod(m_PBH, model) # [1]
     inj_multiplier = inj_multiplier_s[inj_ind]
     injection = PBHAccretionInjection(
         model = model,

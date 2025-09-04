@@ -76,11 +76,8 @@ def pwave_phot_c_sigma(m):
     log10c = (log10m-12) * 1.6 - 12.1
     return 10 ** log10c
 
-# def pwave_elec_c_sigma(m):
-# """P-wave annihilation to electrons cross section at v=c step size [pcm^3/s] for a given DM mass [eV]."""
-#     log10m = np.log10(m)
-#     log10c = (log10m-9) * 1.5 - 19
-#     return 10 ** log10c
+def pwave_phot_c_sigma_mod(m):
+    return pwave_phot_c_sigma(m) * 3
 
 def pwave_elec_c_sigma(m):
     """P-wave annihilation to electrons cross section at v=c step size [pcm^3/s] for a given DM mass [eV]."""

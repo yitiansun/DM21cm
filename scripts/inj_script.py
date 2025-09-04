@@ -76,9 +76,9 @@ if args.channel.startswith('decay'):
 elif args.channel.startswith('pwave'):
     debug_modifier = ''
     if args.channel == 'pwave-phot':
-        # m_s = 10**np.array([1.5, 5., 8.5, 12.]) # [eV]
-        m_s = 10**np.array([2., 2.5, 3., 3.5, 4., 4.5, 5.5, 6., 6.5, 7., 7.5, 8., 9., 9.5, 10., 10.5, 11., 11.5]) # [eV]
-        c_s = pwave_phot_c_sigma(m_s)
+        m_s = 10**np.array([5.]) # [eV]
+        # m_s = 10**np.array([2., 2.5, 3., 3.5, 4., 4.5, 5.5, 6., 6.5, 7., 7.5, 8., 9., 9.5, 10., 10.5, 11., 11.5]) # [eV]
+        c_s = pwave_phot_c_sigma_mod(m_s)
         primary = 'phot_delta'
     elif args.channel == 'pwave-elec':
         # m_s = 10**np.array([6.5, 8.5, 10.5, 12.]) # [eV]

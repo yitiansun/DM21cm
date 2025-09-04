@@ -2,6 +2,7 @@
 **/.DS_Store
 **/slurm_outputs/
 **/__pycache__/
+analysis/fisher_derivatives
 build_tf/*.pdf
 build_tf/ionhist_outputs/
 cross_check/ionhist_outputs/

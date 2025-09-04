@@ -134,3 +134,12 @@ def pbhacc_f(m, model):
     else:
         raise NotImplementedError(model)
     return 10 ** log10f
+
+def pbhacc_f_mod(m, model):
+    """PBH accretion fraction step size [1] for a given PBH mass [Msun]."""
+    log10m = np.log10(m)
+    if model in ['PRc23']:
+        log10f = -1.5 * log10m - 2.00
+    else:
+        raise NotImplementedError(model)
+    return 10 ** log10f

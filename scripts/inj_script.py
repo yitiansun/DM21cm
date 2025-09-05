@@ -79,7 +79,7 @@ elif args.channel.startswith('pwave'):
     if args.channel == 'pwave-phot':
         m_s = 10**np.array([5.]) # [eV]
         # m_s = 10**np.array([2., 2.5, 3., 3.5, 4., 4.5, 5.5, 6., 6.5, 7., 7.5, 8., 9., 9.5, 10., 10.5, 11., 11.5]) # [eV]
-        c_s = pwave_phot_c_sigma_mod(m_s)
+        c_s = pwave_phot_c_sigma(m_s)
         primary = 'phot_delta'
     elif args.channel == 'pwave-elec':
         # m_s = 10**np.array([6.5, 8.5, 10.5, 12.]) # [eV]
@@ -147,7 +147,7 @@ elif args.channel.startswith('pbhacc'):
 
     mass_ind, inj_ind = np.unravel_index(args.run_index, (len(m_s), 2))
     m_PBH = m_s[mass_ind] # [M_sun]
-    f_PBH = pbhacc_f_mod(m_PBH, model) # [1]
+    f_PBH = pbhacc_f(m_PBH, model) # [1]
     inj_multiplier = inj_multiplier_s[inj_ind]
     injection = PBHAccretionInjection(
         model = model,
@@ -189,7 +189,10 @@ if args.step_mult != 1.:
 run_fullname = f'{run_name}_{run_subname}'
 lc_filename = f'LightCone_z5.0_HIIDIM={args.box_dim}_BOXLEN={box_len}_fisher_DM_{inj_multiplier}_r54321.h5'
 
-save_dir = f'/n/holystore01/LABS/iaifi_lab/Users/yitians/dm21cm/outputs/active/{run_name}/log10m{np.log10(m_fn):.3f}/'
+folder_name = f'log10m{np.log10(m_fn):.3f}'
+if args.step_mult != 1.:
+    folder_name += f'_stm{args.step_mult:.3e}'
+save_dir = f'/n/holystore01/LABS/iaifi_lab/Users/yitians/dm21cm/outputs/active/{run_name}/{folder_name}/'
 os.makedirs(save_dir, exist_ok=True)
 
 cache_dir = os.path.join(os.environ['P21C_CACHE_DIR'], run_fullname)

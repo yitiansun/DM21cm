@@ -76,8 +76,8 @@ def pwave_phot_c_sigma(m):
     log10c = (log10m-12) * 1.6 - 12.1
     return 10 ** log10c
 
-def pwave_phot_c_sigma_mod(m):
-    return pwave_phot_c_sigma(m) * 3
+# def pwave_phot_c_sigma_mod(m):
+#     return pwave_phot_c_sigma(m) * 3
 
 def pwave_elec_c_sigma(m):
     """P-wave annihilation to electrons cross section at v=c step size [pcm^3/s] for a given DM mass [eV]."""
@@ -135,11 +135,11 @@ def pbhacc_f(m, model):
         raise NotImplementedError(model)
     return 10 ** log10f
 
-def pbhacc_f_mod(m, model):
-    """PBH accretion fraction step size [1] for a given PBH mass [Msun]."""
-    log10m = np.log10(m)
-    if model in ['PRc23']:
-        log10f = -1.5 * log10m - 2.00
-    else:
-        raise NotImplementedError(model)
-    return 10 ** log10f
+# def pbhacc_f_mod(m, model):
+#     """PBH accretion fraction step size [1] for a given PBH mass [Msun]."""
+#     log10m = np.log10(m)
+#     if model in ['PRc23']:
+#         log10f = -1.5 * log10m - 2.00
+#     else:
+#         raise NotImplementedError(model)
+#     return 10 ** log10f

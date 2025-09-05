@@ -33,6 +33,7 @@ parser.add_argument('-s', '--sf', type=int, default=10)    #  2   4  10  20   40
 parser.add_argument('-n', '--n_threads', type=int, default=32)
 parser.add_argument('-d', '--box_dim', type=int, default=128)
 parser.add_argument('--homogeneous', action='store_true')
+parser.add_argument('--step_mult', type=float, default=1.) # step size multiplier
 
 # debug
 parser.add_argument('--debug_rs_start', type=float, default=3000)
@@ -68,7 +69,7 @@ if args.channel.startswith('decay'):
     injection = DMDecayInjection(
         primary = primary,
         m_DM = m_DM,
-        lifetime = tau / inj_multiplier,
+        lifetime = tau / (inj_multiplier * args.step_mult),
         cell_size = 2, # [cMpc]
     )
     m_fn = m_DM
@@ -114,7 +115,7 @@ elif args.channel.startswith('pwave'):
     injection = DMPWaveAnnihilationInjection(
         primary = primary,
         m_DM = m_DM,
-        c_sigma = c_sigma * inj_multiplier,
+        c_sigma = c_sigma * inj_multiplier * args.step_mult,
         cell_size = 2, # [cMpc]
         debug_modifier = debug_modifier,
     )
@@ -133,7 +134,7 @@ elif args.channel.startswith('pbhhr'):
     
     injection = PBHHRInjection(
         m_PBH = m_PBH,
-        f_PBH = f_PBH * inj_multiplier,
+        f_PBH = f_PBH * inj_multiplier * args.step_mult,
         a_PBH = a_PBH,
     )
     m_fn = m_PBH
@@ -151,7 +152,7 @@ elif args.channel.startswith('pbhacc'):
     injection = PBHAccretionInjection(
         model = model,
         m_PBH = m_PBH,
-        f_PBH = f_PBH * inj_multiplier,
+        f_PBH = f_PBH * inj_multiplier * args.step_mult,
     )
     m_fn = m_PBH
 
@@ -183,6 +184,8 @@ box_len = max(256, 2 * args.box_dim)
 
 run_name = args.run_name
 run_subname = f'log10m{np.log10(m_fn):.3f}_injm{inj_multiplier}'
+if args.step_mult != 1.:
+    run_subname += f'_stm{args.step_mult:.3e}'
 run_fullname = f'{run_name}_{run_subname}'
 lc_filename = f'LightCone_z5.0_HIIDIM={args.box_dim}_BOXLEN={box_len}_fisher_DM_{inj_multiplier}_r54321.h5'
 

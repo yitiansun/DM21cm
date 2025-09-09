@@ -33,6 +33,7 @@ parser.add_argument('-s', '--sf', type=int, default=10)    #  2   4  10  20   40
 parser.add_argument('-n', '--n_threads', type=int, default=32)
 parser.add_argument('-d', '--box_dim', type=int, default=128)
 parser.add_argument('--homogeneous', action='store_true')
+parser.add_argument('--n_inj_steps', type=int, default=2)
 parser.add_argument('--step_mult', type=float, default=1.) # step size multiplier
 
 # debug
@@ -46,7 +47,7 @@ print(args)
 
 print('\n===== Injection parameters =====')
 
-inj_multiplier_s = [1, 2]
+inj_multiplier_s = np.arange(1, 1+args.n_inj_steps) # [1, 2, ..., n_inj_steps]
 use_rel_v = True # set to universally true for now
 
 if args.channel.startswith('decay'):
@@ -61,7 +62,7 @@ if args.channel.startswith('decay'):
     else:
         raise ValueError('Invalid channel')
 
-    mass_ind, inj_ind = np.unravel_index(args.run_index, (len(m_s), 2))
+    mass_ind, inj_ind = np.unravel_index(args.run_index, (len(m_s), len(inj_multiplier_s)))
     m_DM = m_s[mass_ind]
     tau = tau_s[mass_ind]
     inj_multiplier = inj_multiplier_s[inj_ind]
@@ -108,7 +109,7 @@ elif args.channel.startswith('pwave'):
     else:
         raise ValueError('Invalid channel')
 
-    mass_ind, inj_ind = np.unravel_index(args.run_index, (len(m_s), 2))
+    mass_ind, inj_ind = np.unravel_index(args.run_index, (len(m_s), len(inj_multiplier_s)))
     m_DM = m_s[mass_ind]
     c_sigma = c_s[mass_ind]
     inj_multiplier = inj_multiplier_s[inj_ind]
@@ -127,7 +128,7 @@ elif args.channel.startswith('pbhhr'):
     m_s = 10**np.arange(13.25, 18.01, 0.25) # len=20
     a_PBH = float(args.channel.split('-')[1][1:]) # e.g., 0.999 for pbhhr-a0.999
 
-    mass_ind, inj_ind = np.unravel_index(args.run_index, (len(m_s), 2))
+    mass_ind, inj_ind = np.unravel_index(args.run_index, (len(m_s), len(inj_multiplier_s)))
     m_PBH = m_s[mass_ind] # [g]
     f_PBH = pbhhr_f(m_PBH, a=a_PBH) # [1]
     inj_multiplier = inj_multiplier_s[inj_ind]
@@ -145,7 +146,7 @@ elif args.channel.startswith('pbhacc'):
 
     m_s = 10**np.array([4.0]) # [M_sun]
 
-    mass_ind, inj_ind = np.unravel_index(args.run_index, (len(m_s), 2))
+    mass_ind, inj_ind = np.unravel_index(args.run_index, (len(m_s), len(inj_multiplier_s)))
     m_PBH = m_s[mass_ind] # [M_sun]
     f_PBH = pbhacc_f(m_PBH, model) # [1]
     inj_multiplier = inj_multiplier_s[inj_ind]

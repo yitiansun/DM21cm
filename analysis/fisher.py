@@ -22,14 +22,15 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('-r', '--run_name', type=str)
-    parser.add_argument('--log10m', type=float)
+    parser.add_argument('--log10m', type=float, help='If provided, only process this mass.')
+    parser.add_argument('--new', action='store_true')
+    parser.add_argument('--dm_deriv_order', type=int, default=2, help='Order of finite derivative for DM parameter. Default 2.')
     args = parser.parse_args()
 
 
     #===== config =====
     noise_dir = "/n/home07/yitians/dm21cm/21cmSense_fid_EOS21/"
     outputs_dir = "/n/holystore01/LABS/iaifi_lab/Users/yitians/dm21cm/outputs"
-    force_new = False
 
 
     #===== bkg =====
@@ -50,7 +51,8 @@ if __name__ == '__main__':
             HII_DIM=128, BOX_LEN=256, param=param,
             output_dir = bkg_dir,
             PS_err_dir = noise_dir,
-            new = False
+            new = False,
+            dm_deriv_order = args.dm_deriv_order,
     )
 
 
@@ -115,7 +117,7 @@ if __name__ == '__main__':
     for m in tqdm(m_s):
 
         lc_dir = f'{inj_dir}/log10m{np.log10(m):.3f}/'
-        new = ('lc_redshifts.npy' not in os.listdir(lc_dir)) or force_new
+        new = ('lc_redshifts.npy' not in os.listdir(lc_dir)) or args.new
         
         for param in astro_params_vary[:1]:
             params_EoS[param] = py21cmfish.Parameter(

@@ -11,7 +11,10 @@ limits_dir = f"{WDIR}/outputs/limits"
 # pwave: c_sigma
 # pbh: f
 def get_limits(channel):
-    mass_s, inj_s, sigma_s = np.loadtxt(f"{limits_dir}/{channel}.txt", unpack=True)
+    data = np.loadtxt(f"{limits_dir}/{channel}.txt", unpack=True)
+    if len(data.shape) == 1:
+        data = data[:, np.newaxis]
+    mass_s, inj_s, sigma_s = data
     limit_s = np.sqrt(stats.chi2.ppf(.9, df=1)) * inj_s * sigma_s
     return mass_s, inj_s, sigma_s, limit_s
 

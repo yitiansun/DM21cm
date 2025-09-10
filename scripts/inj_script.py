@@ -13,7 +13,7 @@ from dm21cm.injections.pbh import PBHHRInjection, PBHAccretionInjection
 from dm21cm.injections.dm import DMDecayInjection, DMPWaveAnnihilationInjection
 from dm21cm.injections.modifiers import Multiplier
 
-from step_size import *
+from step_size import StepSize250909
 
 sys.path.append(os.environ['DH_DIR'])
 import darkhistory
@@ -49,15 +49,16 @@ print('\n===== Injection parameters =====')
 
 inj_multiplier_s = np.arange(1, 1+args.n_inj_steps) # [1, 2, ..., n_inj_steps]
 use_rel_v = True # set to universally true for now
+ss = StepSize250909()
 
 if args.channel.startswith('decay'):
     if args.channel == 'decay-phot':
-        m_s = decay_phot_m_s
-        tau_s = decay_phot_lifetime(m_s)
+        m_s = ss.decay_phot_m_s
+        tau_s = ss.decay_phot_lifetime(m_s)
         primary = 'phot_delta'
     elif args.channel == 'decay-elec':
-        m_s = decay_elec_m_s
-        tau_s = decay_elec_lifetime(m_s)
+        m_s = ss.decay_elec_m_s
+        tau_s = ss.decay_elec_lifetime(m_s)
         primary = 'elec_delta'
     else:
         raise ValueError('Invalid channel')
@@ -80,30 +81,30 @@ elif args.channel.startswith('pwave'):
     if args.channel == 'pwave-phot':
         m_s = 10**np.array([5.]) # [eV]
         # m_s = 10**np.array([2., 2.5, 3., 3.5, 4., 4.5, 5.5, 6., 6.5, 7., 7.5, 8., 9., 9.5, 10., 10.5, 11., 11.5]) # [eV]
-        c_s = pwave_phot_c_sigma(m_s)
+        c_s = ss.pwave_phot_c_sigma(m_s)
         primary = 'phot_delta'
     elif args.channel == 'pwave-elec':
         # m_s = 10**np.array([6.5, 8.5, 10.5, 12.]) # [eV]
         m_s = 10**np.array([7.0, 7.5, 8.0, 9.0, 9.5, 10.0, 11.0, 11.5]) # [eV]
-        c_s = pwave_elec_c_sigma(m_s)
+        c_s = ss.pwave_elec_c_sigma(m_s)
         primary = 'elec_delta'
     elif args.channel == 'pwave-tau':
         m_s = 10**np.array([9.7, 10.0, 10.5, 11.0, 11.5, 12.0]) # [eV]
-        c_s = pwave_tau_c_sigma(m_s)
+        c_s = ss.pwave_tau_c_sigma(m_s)
         primary = 'tau'
     elif args.channel == 'pwave-phot-mc1e11':
         m_s = 10**np.array([2, 3, 4, 5, 6, 7, 8, 9, 10, 11]) # [eV]
-        c_s = pwave_phot_c_sigma(m_s)
+        c_s = ss.pwave_phot_c_sigma(m_s)
         primary = 'phot_delta'
         debug_modifier = '_mc1e11'
     elif args.channel == 'pwave-elec-mc1e11':
         m_s = 10**np.array([6.5, 8.5, 10.5, 12.]) # [eV]
-        c_s = pwave_elec_c_sigma(m_s)
+        c_s = ss.pwave_elec_c_sigma(m_s)
         primary = 'elec_delta'
         debug_modifier = '_mc1e11'
     elif args.channel == 'pwave-tau-mc1e11':
         m_s = 10**np.array([9.7, 10.0, 10.5, 11.0, 11.5, 12.0]) # [eV]
-        c_s = pwave_tau_c_sigma(m_s)
+        c_s = ss.pwave_tau_c_sigma(m_s)
         primary = 'tau'
         debug_modifier = '_mc1e11'
     else:
@@ -125,12 +126,13 @@ elif args.channel.startswith('pwave'):
 elif args.channel.startswith('pbhhr'):
 
     # m_s = 10**np.array([13.50, 14.25, 15.00, 15.75, 16.50, 17.25, 18.00]) # batch 1
-    m_s = 10**np.arange(13.25, 18.01, 0.25) # len=20
+    # m_s = 10**np.arange(13.25, 18.01, 0.25) # len=20
+    m_s = 10**np.array([16.5]) # len=20
     a_PBH = float(args.channel.split('-')[1][1:]) # e.g., 0.999 for pbhhr-a0.999
 
     mass_ind, inj_ind = np.unravel_index(args.run_index, (len(m_s), len(inj_multiplier_s)))
     m_PBH = m_s[mass_ind] # [g]
-    f_PBH = pbhhr_f(m_PBH, a=a_PBH) # [1]
+    f_PBH = ss.pbhhr_f(m_PBH, a=a_PBH) # [1]
     inj_multiplier = inj_multiplier_s[inj_ind]
     
     injection = PBHHRInjection(
@@ -148,7 +150,7 @@ elif args.channel.startswith('pbhacc'):
 
     mass_ind, inj_ind = np.unravel_index(args.run_index, (len(m_s), len(inj_multiplier_s)))
     m_PBH = m_s[mass_ind] # [M_sun]
-    f_PBH = pbhacc_f(m_PBH, model) # [1]
+    f_PBH = ss.pbhacc_f(m_PBH, model) # [1]
     inj_multiplier = inj_multiplier_s[inj_ind]
     injection = PBHAccretionInjection(
         model = model,

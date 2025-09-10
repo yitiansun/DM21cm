@@ -112,18 +112,37 @@ class StepSize250909:
         if model in ['PRc23', 'PRc23B', 'PRc23H']:
             log10f = -1.5 * log10m - 0.00
         elif model in ['PRc29']: # PRcp
-            log10f = -1.5 * log10m - 0.50
+            log10f = -1.5 * log10m + 0.75
         elif model in ['PRc14']: # PRcm
             log10f = -1.4 * log10m - 1.50
         elif model in ['PRc23dm']: # PRdm
-            log10f = -1.5 * log10m + 0.75
+            log10f = -1.5 * log10m + 0.5
         elif model in ['PRc23dp']: # PRdp
-            log10f = -1.4 * log10m - 1.00
+            log10f = -1.4 * log10m - 0.75
         elif model in ['BHLl2', 'BHLl2mt']:
             log10f = -0.1 * log10m - 8.5
         else:
             raise NotImplementedError(model)
         return 10 ** log10f
+
+        #     def pbhacc_f(self, m, model):
+        # """PBH accretion fraction step size [1] for a given PBH mass [Msun]."""
+        # log10m = np.log10(m)
+        # if model in ['PRc23', 'PRc23B', 'PRc23H']:
+        #     log10f = -1.5 * log10m - 1.00
+        # elif model in ['PRc29']: # PRcp
+        #     log10f = -1.5 * log10m - 0.25
+        # elif model in ['PRc14']: # PRcm
+        #     log10f = -1.4 * log10m - 2.25
+        # elif model in ['PRc23dm']: # PRdm
+        #     log10f = -1.5 * log10m - 0.25
+        # elif model in ['PRc23dp']: # PRdp
+        #     log10f = -1.4 * log10m - 2.00
+        # elif model in ['BHLl2', 'BHLl2mt']:
+        #     log10f = -0.1 * log10m - 10.5
+        # else:
+        #     raise NotImplementedError(model)
+        # return 10 ** log10f
 
 
 class StepSize250808:

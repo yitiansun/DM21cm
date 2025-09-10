@@ -79,31 +79,29 @@ if args.channel.startswith('decay'):
 elif args.channel.startswith('pwave'):
     debug_modifier = ''
     if args.channel == 'pwave-phot':
-        m_s = 10**np.array([5.]) # [eV]
-        # m_s = 10**np.array([2., 2.5, 3., 3.5, 4., 4.5, 5.5, 6., 6.5, 7., 7.5, 8., 9., 9.5, 10., 10.5, 11., 11.5]) # [eV]
+        m_s = 10**np.arange(1.5, 12.01, 0.5) # [eV] | len=22
         c_s = ss.pwave_phot_c_sigma(m_s)
         primary = 'phot_delta'
     elif args.channel == 'pwave-elec':
-        # m_s = 10**np.array([6.5, 8.5, 10.5, 12.]) # [eV]
-        m_s = 10**np.array([7.0, 7.5, 8.0, 9.0, 9.5, 10.0, 11.0, 11.5]) # [eV]
+        m_s = 10**np.arange(6.5, 12.01, 0.5) # [eV] | len=12
         c_s = ss.pwave_elec_c_sigma(m_s)
         primary = 'elec_delta'
     elif args.channel == 'pwave-tau':
-        m_s = 10**np.array([9.7, 10.0, 10.5, 11.0, 11.5, 12.0]) # [eV]
+        m_s = 10**np.array([9.7, 10.0, 10.5, 11.0, 11.5, 12.0]) # [eV] | len=6
         c_s = ss.pwave_tau_c_sigma(m_s)
         primary = 'tau'
     elif args.channel == 'pwave-phot-mc1e11':
-        m_s = 10**np.array([2, 3, 4, 5, 6, 7, 8, 9, 10, 11]) # [eV]
+        m_s = 10**np.arange(1.5, 12.01, 0.5) # [eV] | len=22
         c_s = ss.pwave_phot_c_sigma(m_s)
         primary = 'phot_delta'
         debug_modifier = '_mc1e11'
     elif args.channel == 'pwave-elec-mc1e11':
-        m_s = 10**np.array([6.5, 8.5, 10.5, 12.]) # [eV]
+        m_s = 10**np.arange(6.5, 12.01, 0.5) # [eV] | len=12
         c_s = ss.pwave_elec_c_sigma(m_s)
         primary = 'elec_delta'
         debug_modifier = '_mc1e11'
     elif args.channel == 'pwave-tau-mc1e11':
-        m_s = 10**np.array([9.7, 10.0, 10.5, 11.0, 11.5, 12.0]) # [eV]
+        m_s = 10**np.array([9.7, 10.0, 10.5, 11.0, 11.5, 12.0]) # [eV] | len=6
         c_s = ss.pwave_tau_c_sigma(m_s)
         primary = 'tau'
         debug_modifier = '_mc1e11'
@@ -125,9 +123,7 @@ elif args.channel.startswith('pwave'):
 
 elif args.channel.startswith('pbhhr'):
 
-    # m_s = 10**np.array([13.50, 14.25, 15.00, 15.75, 16.50, 17.25, 18.00]) # batch 1
-    # m_s = 10**np.arange(13.25, 18.01, 0.25) # len=20
-    m_s = 10**np.array([16.5]) # len=20
+    m_s = 10**np.arange(13.25, 18.01, 0.25) # [Msun] | len=20
     a_PBH = float(args.channel.split('-')[1][1:]) # e.g., 0.999 for pbhhr-a0.999
 
     mass_ind, inj_ind = np.unravel_index(args.run_index, (len(m_s), len(inj_multiplier_s)))
@@ -146,7 +142,7 @@ elif args.channel.startswith('pbhacc'):
 
     model = args.channel.split('-')[1]
 
-    m_s = 10**np.array([4.0]) # [M_sun]
+    m_s = 10**np.array([0, 1, 2, 3, 4]) # [M_sun]
 
     mass_ind, inj_ind = np.unravel_index(args.run_index, (len(m_s), len(inj_multiplier_s)))
     m_PBH = m_s[mass_ind] # [M_sun]

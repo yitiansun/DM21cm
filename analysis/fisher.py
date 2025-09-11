@@ -15,7 +15,7 @@ from py21cmfish.io import *
 WDIR = os.environ['DM21CM_DIR']
 sys.path.append(WDIR)
 
-from scripts.step_size import *
+from scripts.step_size import StepSize250909
 
 
 if __name__ == '__main__':
@@ -76,28 +76,29 @@ if __name__ == '__main__':
 
     EPSILON = 1e-6
 
+    ss = StepSize250909()
     if channel == 'decay-phot':
-        tau_s = decay_phot_lifetime(m_s)
+        tau_s = ss.decay_phot_lifetime(m_s)
         inj_s = 1/tau_s
     elif channel == 'decay-elec':
-        tau_s = decay_elec_lifetime(m_s)
+        tau_s = ss.decay_elec_lifetime(m_s)
         inj_s = 1/tau_s
     elif channel.startswith('pwave-phot'):
-        c_s = pwave_phot_c_sigma(m_s)
+        c_s = ss.pwave_phot_c_sigma(m_s)
         inj_s = c_s
     elif channel.startswith('pwave-elec'):
-        c_s = pwave_elec_c_sigma(m_s)
+        c_s = ss.pwave_elec_c_sigma(m_s)
         inj_s = c_s
     elif channel.startswith('pwave-tau'):
-        c_s = pwave_tau_c_sigma(m_s)
+        c_s = ss.pwave_tau_c_sigma(m_s)
         inj_s = c_s
     elif channel.startswith('pbhhr'):
         a_PBH = float(channel.split('-')[1][1:])
-        f_s = pbhhr_f(m_s, a=a_PBH)
+        f_s = ss.pbhhr_f(m_s, a=a_PBH)
         inj_s = f_s
     elif channel.startswith('pbhacc'):
         model = channel.split('-')[1]
-        f_s = pbhacc_f(m_s, model)
+        f_s = ss.pbhacc_f(m_s, model)
         inj_s = f_s
 
     # Copy the fiducial lightcone in each mass directory

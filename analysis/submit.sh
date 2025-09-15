@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #SBATCH --job-name=fish
-#SBATCH --array=0-16
+#SBATCH --array=0-8
 #SBATCH --partition=shared
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=32
@@ -18,14 +18,14 @@ source /n/home07/yitians/setup/dm21cm.sh
 cd /n/home07/yitians/dm21cm/DM21cm/analysis
 
 MODELS=(
-    "pwave-phot-250909"
-    "pwave-elec-250909"
-    "pwave-tau-250909"
-    "pwave-phot-mc1e11-250909"
-    "pwave-elec-mc1e11-250909"
-    "pwave-tau-mc1e11-250909"
-    "pbhhr-a0.000-250909"
-    "pbhhr-a0.999-250909"
+    # "pwave-phot-250909"
+    # "pwave-elec-250909"
+    # "pwave-tau-250909"
+    # "pwave-phot-mc1e11-250909"
+    # "pwave-elec-mc1e11-250909"
+    # "pwave-tau-mc1e11-250909"
+    # "pbhhr-a0.000-250909"
+    # "pbhhr-a0.999-250909"
     "pbhacc-PRc23-250909"
     "pbhacc-PRc14-250909"
     "pbhacc-PRc29-250909"

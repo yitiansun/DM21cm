@@ -123,7 +123,8 @@ elif args.channel.startswith('pwave'):
 
 elif args.channel.startswith('pbhhr'):
 
-    m_s = 10**np.arange(13.25, 18.01, 0.25) # [Msun] | len=20
+    # m_s = 10**np.arange(13.25, 18.01, 0.25) # [Msun] | len=20
+    m_s = 10**np.array([14.45, 14.55])
     a_PBH = float(args.channel.split('-')[1][1:]) # e.g., 0.999 for pbhhr-a0.999
 
     mass_ind, inj_ind = np.unravel_index(args.run_index, (len(m_s), len(inj_multiplier_s)))
@@ -135,6 +136,7 @@ elif args.channel.startswith('pbhhr'):
         m_PBH = m_PBH,
         f_PBH = f_PBH * inj_multiplier * args.step_mult,
         a_PBH = a_PBH,
+        debug_fn = '-extra',
     )
     m_fn = m_PBH
 
@@ -142,7 +144,7 @@ elif args.channel.startswith('pbhacc'):
 
     model = args.channel.split('-')[1]
 
-    m_s = 10**np.array([0, 1, 2, 3, 4]) # [M_sun]
+    m_s = 10**np.array([0.5, 1.5, 2.5, 3.5]) # [M_sun]
 
     mass_ind, inj_ind = np.unravel_index(args.run_index, (len(m_s), len(inj_multiplier_s)))
     m_PBH = m_s[mass_ind] # [M_sun]

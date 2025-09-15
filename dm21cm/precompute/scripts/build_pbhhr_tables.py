@@ -30,8 +30,8 @@ def main():
 
     if args.step == 1:
 
-        log10m_list = np.arange(13.75, 18 + 1e-3, 0.25)
-        # log10m_list = np.arange(13.25, 13.50 + 1e-3, 0.25)
+        # log10m_list = np.arange(13.75, 18 + 1e-3, 0.25)
+        log10m_list = np.array([14.450, 14.550]) # extras
 
         for log10m in log10m_list:
             print(f'{log10m:.3f}', end=' ')
@@ -39,8 +39,14 @@ def main():
 
     elif args.step == 2:
 
-        f_list = [f for f in os.listdir(results_dir) if f.startswith('m') and f.endswith('_pri')]
-        logm_s = [float(f.split('m')[1].split('_pri')[0]) for f in f_list]
+        debug = True
+        if debug:
+            logm_s = [14.375, 14.450, 14.499, 14.501, 14.550, 14.625] # debug
+            debug_fn = '-extra'
+        else:
+            f_list = [f for f in os.listdir(results_dir) if f.startswith('m') and f.endswith('_pri')]
+            logm_s = [float(f.split('m')[1].split('_pri')[0]) for f in f_list]
+            debug_fn = ''
         logm_s.sort()
         print('Processing log10m = ', logm_s)
 
@@ -65,7 +71,7 @@ def main():
                 'elec dNdEdt': dNdEdt_elec_sec,
                 'units' : 't: [s]. dNdEdt: [1/eV s BH]. M: [g]. M0: [g].'
             }
-        save_h5_dict(f"{WDIR}/data/production/pbhhr-a{args.a:.3f}.h5", data)
+        save_h5_dict(f"{WDIR}/data/production/pbhhr-a{args.a:.3f}{debug_fn}.h5", data)
 
     else:
         raise ValueError('Invalid step number!')

@@ -31,7 +31,7 @@ def main():
     if args.step == 1:
 
         # log10m_list = np.arange(13.75, 18 + 1e-3, 0.25)
-        log10m_list = np.array([14.450, 14.550]) # extras
+        log10m_list = np.array([13.875, 14.125, 14.375]) # extras
 
         for log10m in log10m_list:
             print(f'{log10m:.3f}', end=' ')
@@ -41,7 +41,8 @@ def main():
 
         debug = True
         if debug:
-            logm_s = [14.375, 14.450, 14.499, 14.501, 14.550, 14.625] # debug
+            logm_s = [13.875, 14.125, 14.375] # debug 0.000
+            # logm_s = [14.375, 14.450, 14.499, 14.501, 14.550, 14.625] # debug 0.999
             debug_fn = '-extra'
         else:
             f_list = [f for f in os.listdir(results_dir) if f.startswith('m') and f.endswith('_pri')]

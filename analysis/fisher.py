@@ -142,9 +142,12 @@ if __name__ == '__main__':
 
 
     #===== save =====
-    print('\n\nsave\n\n')
-    save_fn = f"{WDIR}/outputs/limits/{run_name}.txt"
-    dir_path = os.path.dirname(save_fn)
-    os.makedirs(dir_path, exist_ok=True)
-    np.savetxt(save_fn, np.array([m_s, inj_s, sigma_s]).T, header='mass_s inj_s sigma_s')
-    print('saved.')
+    print('\n\nsave...\n\n')
+    if args.log10m:
+        print('only one mass, not saving.')
+    else:
+        save_fn = f"{WDIR}/outputs/limits/{run_name}.txt"
+        dir_path = os.path.dirname(save_fn)
+        os.makedirs(dir_path, exist_ok=True)
+        np.savetxt(save_fn, np.array([m_s, inj_s, sigma_s]).T, header='mass_s inj_s sigma_s')
+        print('saved.')

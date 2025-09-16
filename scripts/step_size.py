@@ -90,7 +90,7 @@ class StepSize250909:
         log10c = (log10m-12) * 1.8 - 13.8
         return 10 ** log10c
 
-    def pbhhr_f(self, m, a=0.):
+    def pbhhr_f_old(self, m, a=0.):
         """PBH fraction step size [1] for a given PBH mass [g]."""
         log10m = np.log10(m)
 
@@ -98,6 +98,22 @@ class StepSize250909:
             l_func = lambda x: - 8 * (x - 14) - 16
             r_func = lambda x: 3.5 * (x - 14) - 14
             log10f = interp_between(l_func, r_func, 13.6, 14.2, log10m)
+        elif a == 0.999:
+            l_func = lambda x: - 8 * (x - 14) - 16
+            r_func = lambda x: 3.5 * (x - 14) - 16
+            log10f = interp_between(l_func, r_func, 13.6, 14.5, log10m) + 1.7
+        else:
+            raise NotImplementedError
+        return 10 ** log10f
+
+    def pbhhr_f(self, m, a=0.):
+        """PBH fraction step size [1] for a given PBH mass [g]."""
+        log10m = np.log10(m)
+
+        if a == 0.:
+            l_func = lambda x: - 7 * (x - 14) - 14
+            r_func = lambda x: 3.5 * (x - 14) - 13
+            log10f = interp_between(l_func, r_func, 13.5, 14.5, log10m)
         elif a == 0.999:
             l_func = lambda x: - 8 * (x - 14) - 16
             r_func = lambda x: 3.5 * (x - 14) - 16

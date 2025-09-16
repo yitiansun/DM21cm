@@ -124,7 +124,7 @@ elif args.channel.startswith('pwave'):
 elif args.channel.startswith('pbhhr'):
 
     # m_s = 10**np.arange(13.25, 18.01, 0.25) # [Msun] | len=20
-    m_s = 10**np.array([14.45, 14.55])
+    m_s = 10**np.array([13.875, 14.125, 14.375]) # extras
     a_PBH = float(args.channel.split('-')[1][1:]) # e.g., 0.999 for pbhhr-a0.999
 
     mass_ind, inj_ind = np.unravel_index(args.run_index, (len(m_s), len(inj_multiplier_s)))

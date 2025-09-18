@@ -1,5 +1,6 @@
 import os
 import sys
+import shutil
 import argparse
 import numpy as np
 
@@ -32,8 +33,40 @@ parser.add_argument('-d', '--box_dim', type=int, default=128)
 parser.add_argument('--n_inj_steps', type=int, default=2)
 parser.add_argument('--homogeneous', action='store_true')
 parser.add_argument('--save_cache', action='store_true')
+parser.add_argument('--seed', type=int, default=54321)
 args = parser.parse_args()
 print(args)
+
+
+
+print('\n===== Astro parameters =====')
+
+astro_param_names = ['F_STAR10', 'F_STAR7_MINI', 'ALPHA_STAR', 'ALPHA_STAR_MINI', 't_STAR',
+                     'F_ESC10', 'F_ESC7_MINI', 'ALPHA_ESC', 'L_X', 'L_X_MINI', 'NU_X_THRESH', 'A_LW']
+astro_param_values = [-1.25, -2.5, 0.5, 0.0, 0.5, -1.35, -1.35, -0.3, 40.5, 40.5, 500, 2.0]
+astro_param_shifts = [0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.001, 0.001, 0.03, 0.03]
+astro_param_dict = dict(zip(astro_param_names, astro_param_values))
+
+if args.channel == 'bkg':
+    
+    if args.run_index == 0: # fiducial
+        print('Background fiducial')
+
+    else:
+        param_ind, shift_ind = np.unravel_index(1 + args.run_index, (12, 2))
+        name = astro_param_names[param_ind]
+        if name == 'ALPHA_STAR_MINI':
+            astro_param_dict[name] = [-.1, .1][shift_ind]
+        else:
+            shift = astro_param_shifts[param_ind] * [-1, 1][shift_ind]
+            astro_param_dict[name] *= (1 + shift)
+
+        print('Background with varied parameter:', name)
+        print(' - Run parameter value:', astro_param_dict[name])
+        print(' - Default parameter value:', astro_param_values[param_ind])
+
+astro_params = p21c.AstroParams(astro_param_dict)
+print('astro_params:', astro_params)
 
 
 
@@ -42,7 +75,11 @@ print('\n===== Injection parameters =====')
 inj_multiplier_s = np.arange(1, 1+args.n_inj_steps) # [1, 2, ..., n_inj_steps]
 ss = StepSize()
 
-if args.channel.startswith('decay'):
+if args.channel == 'bkg':
+    mass_ind, inj_ind = None, None
+    injection = None
+
+elif args.channel.startswith('decay'):
     if args.channel == 'decay-phot':
         m_s = 10**np.arange(1.5, 12.01, 0.5) # [eV] | len=22
         tau_s = ss.decay_phot_lifetime(m_s)
@@ -155,18 +192,38 @@ print('injection:', injection)
 
 
 
+print('\n===== Other parameters =====')
+
+p21c.global_params.CLUMPING_FACTOR = 1.
+print('global_params:', p21c.global_params)
+box_len = max(256, 2 * args.box_dim) # [cMpc]
+print('box_len:', box_len)
+
+
+
 print('\n===== Save paths =====')
 
-box_len = max(256, 2 * args.box_dim)
+if args.channel == 'bkg':
 
-run_name = args.run_name
-run_subname = f'log10m{np.log10(m_fn):.3f}_injm{inj_multiplier}'
-run_fullname = f'{run_name}_{run_subname}'
-lc_filename = f'LightCone_z5.0_HIIDIM={args.box_dim}_BOXLEN={box_len}_fisher_DM_{inj_multiplier}_r54321.h5'
+    run_name = args.run_name
+    run_subname = 'fid' if args.run_index == 0 else f'{name}_{shift}'
+    run_fullname = f'{run_name}_{run_subname}'
+    lc_filename = f'LightCone_z5.0_HIIDIM={args.box_dim}_BOXLEN={box_len}_fisher_{run_subname}_r{args.seed}.h5'
 
-folder_name = f'log10m{np.log10(m_fn):.3f}'
-save_dir = f'/n/holystore01/LABS/iaifi_lab/Users/yitians/dm21cm/outputs/active/{run_name}/{folder_name}/'
-os.makedirs(save_dir, exist_ok=True)
+    save_dir = f''
+    save_dir = os.environ['DM21CM_OUTPUT_DIR'] + '/bkg/'
+    os.makedirs(save_dir, exist_ok=True)
+
+else:
+
+    run_name = args.run_name
+    run_subname = f'log10m{np.log10(m_fn):.3f}_injm{inj_multiplier}'
+    run_fullname = f'{run_name}_{run_subname}'
+    lc_filename = f'LightCone_z5.0_HIIDIM={args.box_dim}_BOXLEN={box_len}_fisher_DM_{inj_multiplier}_r{args.seed}.h5'
+
+    folder_name = f'log10m{np.log10(m_fn):.3f}'
+    save_dir = os.environ['DM21CM_OUTPUT_DIR'] + f'/active/{run_name}/{folder_name}/'
+    os.makedirs(save_dir, exist_ok=True)
 
 cache_dir = os.path.join(os.environ['P21C_CACHE_DIR'], run_fullname)
 p21c.config['direc'] = cache_dir
@@ -178,24 +235,6 @@ print('run_fullname:', run_fullname)
 print('lc_filename:', lc_filename)
 print('save_dir:', save_dir)
 print('cache_dir:', cache_dir)
-
-
-
-print('\n===== Default parameters =====')
-
-p21c.global_params.CLUMPING_FACTOR = 1.
-
-param_names = ['F_STAR10', 'F_STAR7_MINI', 'ALPHA_STAR', 'ALPHA_STAR_MINI', 't_STAR',
-               'F_ESC10', 'F_ESC7_MINI', 'ALPHA_ESC', 'L_X', 'L_X_MINI', 'NU_X_THRESH', 'A_LW']
-default_param_values = [-1.25, -2.5, 0.5, 0.0, 0.5, -1.35, -1.35, -0.3, 40.5, 40.5, 500, 2.0]
-param_shifts = [0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.001, 0.001, 0.03, 0.03]
-param_dict = dict(zip(param_names, default_param_values))
-param_dict['DM'] = inj_multiplier
-astro_params = p21c.AstroParams(param_dict)
-
-print('box_len:', box_len)
-print('global_params:', p21c.global_params)
-print('astro_params:', astro_params)
 
 
 
@@ -215,7 +254,7 @@ p21c_initial_conditions = p21c.initial_conditions(
         SIGMA_8 = Planck18.meta['sigma8'],
         hlittle = Planck18.h,
     ),
-    random_seed = 54321,
+    random_seed = args.seed,
     write = True,
 )
 if args.channel.startswith('pbhacc'):
@@ -245,9 +284,10 @@ print('\n===== Finalizing =====')
 
 print("cache_dir:", cache_dir)
 if args.save_cache:
-    print("cache saved")
+    print("cache not removed")
 else:
-    os.rmdir(cache_dir)
+    shutil.rmtree(cache_dir)
+    print("cache removed")
 
 with open(WDIR + '/scripts/run_results.txt', 'a') as f:
     f.write(f'{run_fullname} completed.\n')

@@ -31,19 +31,19 @@ def main():
     if args.step == 1:
 
         # log10m_list = np.arange(13.75, 18 + 1e-3, 0.25)
-        log10m_list = np.array([13.875, 14.125, 14.375]) # extras
+        log10m_list = np.array([14.0625, 14.1875, 14.3125, 14.4375, 14.625]) # extras
 
         for log10m in log10m_list:
-            print(f'{log10m:.3f}', end=' ')
-            hadronize(f"{results_dir}/m{log10m:.3f}_pri")
+            print(f'{log10m:.4f}', end=' ')
+            hadronize(f"{results_dir}/m{log10m:.4f}_pri")
 
     elif args.step == 2:
 
         debug = True
         if debug:
-            logm_s = [13.875, 14.125, 14.375] # debug 0.000
-            # logm_s = [14.375, 14.450, 14.499, 14.501, 14.550, 14.625] # debug 0.999
-            debug_fn = '-extra'
+            logm_s = [13.875, 14.0625, 14.125, 14.1875, 14.3125, 14.375, 14.4375, 14.625] # extras 0.000
+            # logm_s = [14.375, 14.450, 14.499, 14.501, 14.550, 14.625] # extras 0.999
+            debug_fn = '-extras'
         else:
             f_list = [f for f in os.listdir(results_dir) if f.startswith('m') and f.endswith('_pri')]
             logm_s = [float(f.split('m')[1].split('_pri')[0]) for f in f_list]
@@ -55,7 +55,7 @@ def main():
 
         for logm in tqdm(logm_s):
 
-            run_name = f'm{logm:.3f}_pri'
+            run_name = f'm{logm:.4f}_pri'
             run_dir = f"{results_dir}/{run_name}"
 
             evol_data = read_pbh(run_dir, 'evolution')
@@ -64,7 +64,7 @@ def main():
             t_s, dNdEdt_phot_sec = interp_dNdEdt(evol_data['t'], phot_sec_data['E'], phot_sec_data['dN_dEdt'], abscs['photE'], mass=0)
             t_s, dNdEdt_elec_sec = interp_dNdEdt(evol_data['t'], elec_sec_data['E'], elec_sec_data['dN_dEdt'], abscs['elecEk'], mass=phys.m_e)
 
-            data[f'log10m{logm:.3f}'] = {
+            data[f'log10m{logm:.4f}'] = {
                 't' : t_s,
                 'M' : evol_data['M'],
                 'M0' : evol_data['M0'],

@@ -105,9 +105,9 @@ if __name__ == '__main__':
     print('Copied :', end=' ')
     for m in m_s:
         source_file = f'{bkg_dir}/LightCone_z5.0_HIIDIM=128_BOXLEN=256_fisher_fid_r54321.h5'
-        target_file = f'{inj_dir}/log10m{np.log10(m):.3f}/LightCone_z5.0_HIIDIM=128_BOXLEN=256_fisher_fid_r54321.h5'
+        target_file = f'{inj_dir}/log10m{np.log10(m):.4f}/LightCone_z5.0_HIIDIM=128_BOXLEN=256_fisher_fid_r54321.h5'
         if not os.path.isfile(target_file):
-            print(f'{np.log10(m):.3f}', end=' ')
+            print(f'{np.log10(m):.4f}', end=' ')
             shutil.copyfile(source_file, target_file)
 
 
@@ -117,7 +117,7 @@ if __name__ == '__main__':
     
     for m in tqdm(m_s):
 
-        lc_dir = f'{inj_dir}/log10m{np.log10(m):.3f}/'
+        lc_dir = f'{inj_dir}/log10m{np.log10(m):.4f}/'
         new = ('lc_redshifts.npy' not in os.listdir(lc_dir)) or args.new
         
         for param in astro_params_vary[:1]:

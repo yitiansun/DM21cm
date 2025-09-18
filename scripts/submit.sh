@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #SBATCH --job-name=pbhhr-a0.000-250909
-#SBATCH --array=0-5
+#SBATCH --array=0-9
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks=1

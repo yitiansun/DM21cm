@@ -13,7 +13,7 @@ from dm21cm.injections.pbh import PBHHRInjection, PBHAccretionInjection
 from dm21cm.injections.dm import DMDecayInjection, DMPWaveAnnihilationInjection
 from dm21cm.injections.modifiers import Multiplier
 
-from step_size import StepSize250909
+from step_size import StepSize250909 as StepSize
 
 sys.path.append(os.environ['DH_DIR'])
 import darkhistory
@@ -28,18 +28,10 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-r', '--run_name', type=str)
 parser.add_argument('-i', '--run_index', type=int)
 parser.add_argument('-c', '--channel', type=str)
-parser.add_argument('-z', '--zf', type=str, default='002') # 01 005 002 001 0005 0002
-parser.add_argument('-s', '--sf', type=int, default=10)    #  2   4  10  20   40   80
-parser.add_argument('-n', '--n_threads', type=int, default=32)
 parser.add_argument('-d', '--box_dim', type=int, default=128)
-parser.add_argument('--homogeneous', action='store_true')
 parser.add_argument('--n_inj_steps', type=int, default=2)
-parser.add_argument('--step_mult', type=float, default=1.) # step size multiplier
-
-# debug
-parser.add_argument('--debug_rs_start', type=float, default=3000)
-parser.add_argument('--multiplier_index', type=int, default=0)
-
+parser.add_argument('--homogeneous', action='store_true')
+parser.add_argument('--save_cache', action='store_true')
 args = parser.parse_args()
 print(args)
 
@@ -48,16 +40,15 @@ print(args)
 print('\n===== Injection parameters =====')
 
 inj_multiplier_s = np.arange(1, 1+args.n_inj_steps) # [1, 2, ..., n_inj_steps]
-use_rel_v = True # set to universally true for now
-ss = StepSize250909()
+ss = StepSize()
 
 if args.channel.startswith('decay'):
     if args.channel == 'decay-phot':
-        m_s = ss.decay_phot_m_s
+        m_s = 10**np.arange(1.5, 12.01, 0.5) # [eV] | len=22
         tau_s = ss.decay_phot_lifetime(m_s)
         primary = 'phot_delta'
     elif args.channel == 'decay-elec':
-        m_s = ss.decay_elec_m_s
+        m_s = 10**np.arange(6.5, 12.01, 0.25) # [eV] | len=23
         tau_s = ss.decay_elec_lifetime(m_s)
         primary = 'elec_delta'
     else:
@@ -71,40 +62,32 @@ if args.channel.startswith('decay'):
     injection = DMDecayInjection(
         primary = primary,
         m_DM = m_DM,
-        lifetime = tau / (inj_multiplier * args.step_mult),
+        lifetime = tau / inj_multiplier,
         cell_size = 2, # [cMpc]
     )
     m_fn = m_DM
 
-elif args.channel.startswith('pwave'):
-    debug_modifier = ''
-    if args.channel == 'pwave-phot':
+elif args.channel.startswith('pwave'): # e.g. pwave-phot[-modifier]
+    
+    if len(args.channel.split('-')) == 3:
+        modifier = args.channel.split('-')[2]
+        channel = '-'.join(args.channel.split('-')[:2])
+    else:
+        modifier = None
+        channel = args.channel
+
+    if channel == 'pwave-phot':
         m_s = 10**np.arange(1.5, 12.01, 0.5) # [eV] | len=22
         c_s = ss.pwave_phot_c_sigma(m_s)
         primary = 'phot_delta'
-    elif args.channel == 'pwave-elec':
+    elif channel == 'pwave-elec':
         m_s = 10**np.arange(6.5, 12.01, 0.5) # [eV] | len=12
         c_s = ss.pwave_elec_c_sigma(m_s)
         primary = 'elec_delta'
-    elif args.channel == 'pwave-tau':
+    elif channel == 'pwave-tau':
         m_s = 10**np.array([9.7, 10.0, 10.5, 11.0, 11.5, 12.0]) # [eV] | len=6
         c_s = ss.pwave_tau_c_sigma(m_s)
         primary = 'tau'
-    elif args.channel == 'pwave-phot-mc1e11':
-        m_s = 10**np.arange(1.5, 12.01, 0.5) # [eV] | len=22
-        c_s = ss.pwave_phot_c_sigma(m_s)
-        primary = 'phot_delta'
-        debug_modifier = '_mc1e11'
-    elif args.channel == 'pwave-elec-mc1e11':
-        m_s = 10**np.arange(6.5, 12.01, 0.5) # [eV] | len=12
-        c_s = ss.pwave_elec_c_sigma(m_s)
-        primary = 'elec_delta'
-        debug_modifier = '_mc1e11'
-    elif args.channel == 'pwave-tau-mc1e11':
-        m_s = 10**np.array([9.7, 10.0, 10.5, 11.0, 11.5, 12.0]) # [eV] | len=6
-        c_s = ss.pwave_tau_c_sigma(m_s)
-        primary = 'tau'
-        debug_modifier = '_mc1e11'
     else:
         raise ValueError('Invalid channel')
 
@@ -112,20 +95,21 @@ elif args.channel.startswith('pwave'):
     m_DM = m_s[mass_ind]
     c_sigma = c_s[mass_ind]
     inj_multiplier = inj_multiplier_s[inj_ind]
+
     injection = DMPWaveAnnihilationInjection(
         primary = primary,
         m_DM = m_DM,
-        c_sigma = c_sigma * inj_multiplier * args.step_mult,
+        c_sigma = c_sigma * inj_multiplier,
         cell_size = 2, # [cMpc]
-        debug_modifier = debug_modifier,
+        modifier = modifier,
     )
     m_fn = m_DM
 
-elif args.channel.startswith('pbhhr'):
+elif args.channel.startswith('pbhhr'): # e.g. pbhhr-a0.999
 
-    # m_s = 10**np.arange(13.25, 18.01, 0.25) # [Msun] | len=20
-    m_s = 10**np.array([13.875, 14.125, 14.375]) # extras
-    a_PBH = float(args.channel.split('-')[1][1:]) # e.g., 0.999 for pbhhr-a0.999
+    m_s = 10**np.arange(13.25, 18.01, 0.25) # [Msun] | len=20
+    # m_s = 10**np.array([14.0625, 14.1875, 14.3125, 14.4375, 14.625])
+    a_PBH = float(args.channel.split('-')[1][1:])
 
     mass_ind, inj_ind = np.unravel_index(args.run_index, (len(m_s), len(inj_multiplier_s)))
     m_PBH = m_s[mass_ind] # [g]
@@ -134,35 +118,27 @@ elif args.channel.startswith('pbhhr'):
     
     injection = PBHHRInjection(
         m_PBH = m_PBH,
-        f_PBH = f_PBH * inj_multiplier * args.step_mult,
+        f_PBH = f_PBH * inj_multiplier,
         a_PBH = a_PBH,
-        debug_fn = '-extra',
     )
     m_fn = m_PBH
 
-elif args.channel.startswith('pbhacc'):
+elif args.channel.startswith('pbhacc'): # e.g. pbhacc-PRc23
 
     model = args.channel.split('-')[1]
-
-    m_s = 10**np.array([0.5, 1.5, 2.5, 3.5]) # [M_sun]
+    m_s = 10**np.arange(0, 4.01, 0.5) # [M_sun] | len=9
 
     mass_ind, inj_ind = np.unravel_index(args.run_index, (len(m_s), len(inj_multiplier_s)))
     m_PBH = m_s[mass_ind] # [M_sun]
     f_PBH = ss.pbhacc_f(m_PBH, model) # [1]
     inj_multiplier = inj_multiplier_s[inj_ind]
+
     injection = PBHAccretionInjection(
         model = model,
         m_PBH = m_PBH,
-        f_PBH = f_PBH * inj_multiplier * args.step_mult,
+        f_PBH = f_PBH * inj_multiplier,
     )
     m_fn = m_PBH
-
-    # if args.multiplier_index != 0:
-    #     m1 = Multiplier(injection, lambda z, **kwargs: float(1100 < z < 3000))
-    #     m2 = Multiplier(injection, lambda z, **kwargs: float(  45 < z < 1100))
-    #     m3 = Multiplier(injection, lambda z, **kwargs: float(  15 < z < 45  ))
-    #     m4 = Multiplier(injection, lambda z, **kwargs: float(   5 < z < 15  ))
-    #     injection = [None, m1, m2, m3, m4][args.multiplier_index]
 
 elif args.channel == 'none':
 
@@ -185,14 +161,10 @@ box_len = max(256, 2 * args.box_dim)
 
 run_name = args.run_name
 run_subname = f'log10m{np.log10(m_fn):.3f}_injm{inj_multiplier}'
-if args.step_mult != 1.:
-    run_subname += f'_stm{args.step_mult:.3e}'
 run_fullname = f'{run_name}_{run_subname}'
 lc_filename = f'LightCone_z5.0_HIIDIM={args.box_dim}_BOXLEN={box_len}_fisher_DM_{inj_multiplier}_r54321.h5'
 
 folder_name = f'log10m{np.log10(m_fn):.3f}'
-if args.step_mult != 1.:
-    folder_name += f'_stm{args.step_mult:.3e}'
 save_dir = f'/n/holystore01/LABS/iaifi_lab/Users/yitians/dm21cm/outputs/active/{run_name}/{folder_name}/'
 os.makedirs(save_dir, exist_ok=True)
 
@@ -233,7 +205,7 @@ p21c_initial_conditions = p21c.initial_conditions(
     user_params = p21c.UserParams(
         HII_DIM = args.box_dim,
         BOX_LEN = box_len, # [conformal Mpc]
-        N_THREADS = args.n_threads,
+        N_THREADS = 32,
         USE_RELATIVE_VELOCITIES = True,
     ),
     cosmo_params = p21c.CosmoParams(
@@ -259,28 +231,23 @@ return_dict = evolve(
     p21c_astro_params = astro_params,
 
     use_DH_init = True,
-    subcycle_factor = args.sf,
+    subcycle_factor = 10,
 
     homogenize_deposition = args.homogeneous,
     homogenize_injection = args.homogeneous,
-
-    debug_rs_start = args.debug_rs_start
 )
 
 return_dict['lightcone']._write(fname=lc_filename, direc=save_dir, clobber=True)
 
 
 
-print('\n===== Clear Cache =====')
+print('\n===== Finalizing =====')
 
 print("cache_dir:", cache_dir)
-print("cache currently not cleared")
-
-# for entry in os.scandir(cache_dir):
-#     if entry.is_file() and entry.name.endswith('.h5') and entry.name != 'lightcones.h5':
-#         os.remove(entry.path)
-
-print('\n===== Update Status =====')
+if args.save_cache:
+    print("cache saved")
+else:
+    os.rmdir(cache_dir)
 
 with open(WDIR + '/scripts/run_results.txt', 'a') as f:
     f.write(f'{run_fullname} completed.\n')

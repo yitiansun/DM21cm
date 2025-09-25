@@ -65,9 +65,6 @@ if args.channel == 'bkg':
         print(' - Run parameter value:', astro_param_dict[name])
         print(' - Default parameter value:', astro_param_values[param_ind])
 
-astro_params = p21c.AstroParams(astro_param_dict)
-print('astro_params:', astro_params)
-
 
 
 print('\n===== Injection parameters =====')
@@ -103,6 +100,7 @@ elif args.channel.startswith('decay'):
         cell_size = 2, # [cMpc]
     )
     m_fn = m_DM
+    astro_param_dict['DM'] = inj_multiplier
 
 elif args.channel.startswith('pwave'): # e.g. pwave-phot[-modifier]
     
@@ -141,6 +139,7 @@ elif args.channel.startswith('pwave'): # e.g. pwave-phot[-modifier]
         modifier = modifier,
     )
     m_fn = m_DM
+    astro_param_dict['DM'] = inj_multiplier
 
 elif args.channel.startswith('pbhhr'): # e.g. pbhhr-a0.999
 
@@ -159,11 +158,12 @@ elif args.channel.startswith('pbhhr'): # e.g. pbhhr-a0.999
         a_PBH = a_PBH,
     )
     m_fn = m_PBH
+    astro_param_dict['DM'] = inj_multiplier
 
 elif args.channel.startswith('pbhacc'): # e.g. pbhacc-PRc23
 
     model = args.channel.split('-')[1]
-    m_s = 10**np.arange(0, 4.01, 0.5) # [M_sun] | len=9
+    m_s = 10**np.arange(0, 4.01, 0.5) # [M_sun] | len=18
 
     mass_ind, inj_ind = np.unravel_index(args.run_index, (len(m_s), len(inj_multiplier_s)))
     m_PBH = m_s[mass_ind] # [M_sun]
@@ -176,6 +176,7 @@ elif args.channel.startswith('pbhacc'): # e.g. pbhacc-PRc23
         f_PBH = f_PBH * inj_multiplier,
     )
     m_fn = m_PBH
+    astro_param_dict['DM'] = inj_multiplier
 
 elif args.channel == 'none':
 
@@ -183,13 +184,15 @@ elif args.channel == 'none':
     injection = None
     inj_multiplier = 1
     m_fn = 1.
+    astro_param_dict['DM'] = inj_multiplier
 
 else:
     raise ValueError('Invalid channel')
 
 print('mass_ind, inj_ind:', mass_ind, inj_ind)
 print('injection:', injection)
-
+astro_params = p21c.AstroParams(astro_param_dict)
+print('astro_params:', astro_params)
 
 
 print('\n===== Other parameters =====')

@@ -24,7 +24,7 @@ MODELS=(
     # "pwave-phot-mc1e11-250909"
     # "pwave-elec-mc1e11-250909"
     # "pwave-tau-mc1e11-250909"
-    "pbhhr-a0.000-250909"
+    # "pbhhr-a0.000-250909"
     # "pbhhr-a0.999-250909"
     # "pbhacc-PRc23-250909"
     # "pbhacc-PRc14-250909"
@@ -32,7 +32,7 @@ MODELS=(
     # "pbhacc-PRc23dm-250909"
     # "pbhacc-PRc23dp-250909"
     # "pbhacc-PRc23B-250909"
-    # "pbhacc-PRc23H-250909"
+    "pbhacc-PRc23H-250909"
     # "pbhacc-BHLl2-250909"
     # "pbhacc-BHLl2mt-250909"
 )

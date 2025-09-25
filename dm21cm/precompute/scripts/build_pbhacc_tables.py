@@ -61,9 +61,11 @@ if __name__ == '__main__':
 
     # HMF threshold
     if args.model == 'BHLl2mt':
-        m_thres = 100 * mPBH
+        m_thres = lambda z: 100 * mPBH
+    elif args.model == 'PRc23H':
+        m_thres = lambda z: 30 * (1 + 3000 / (1 + z)) * mPBH # PBH and UCMH
     else:
-        m_thres = 30 * mPBH
+        m_thres = lambda z: 30 * mPBH
 
     #===== File names =====
     run_name = args.model
@@ -106,7 +108,7 @@ if __name__ == '__main__':
     dndm = hmfdata['ps_cond'] # [1 / cMpc^3 Msun]
     for i_z, z in enumerate(z_s):
         for i_d, d in enumerate(d_s):
-            eff_dndm = dndm[i_z, i_d] * (m_s > m_thres)
+            eff_dndm = dndm[i_z, i_d] * (m_s > m_thres(z))
             cond_table[i_z,i_d] = np.trapz(L_table[i_z] * eff_dndm, m_s)
 
     # Unconditional PS: (z)
@@ -115,7 +117,7 @@ if __name__ == '__main__':
     for i_z, z in enumerate(zfull_s):
         if z > z_s[-1]:
             continue
-        eff_dndm = dndm[i_z] * (m_s > m_thres)
+        eff_dndm = dndm[i_z] * (m_s > m_thres(z))
         ps_table[i_z] = np.trapz(L_table[i_z] * eff_dndm, m_s)
 
     # Sheth-Tormen: (z)
@@ -124,7 +126,7 @@ if __name__ == '__main__':
     for i_z, z in enumerate(zfull_s):
         if z > z_s[-1]:
             continue
-        eff_dndm = dndm[i_z] * (m_s > m_thres)
+        eff_dndm = dndm[i_z] * (m_s > m_thres(z))
         st_table[i_z] = np.trapz(L_table[i_z] * eff_dndm, m_s)
     print("Done.")
 

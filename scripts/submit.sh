@@ -1,7 +1,7 @@
 #!/bin/bash
 
-#SBATCH --job-name=pbhhr-a0.000-250909
-#SBATCH --array=0-9
+#SBATCH --job-name=pbhacc-PRc23H-250909
+#SBATCH --array=0-17
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks=1
@@ -26,7 +26,7 @@ echo "SAVE:  HOLYSTORE & HOLYSCRATCH"
 #--- bkg ---
 # python inj_script.py --run_name bkg --channel bkg -i $SLURM_ARRAY_TASK_ID  # 0-24, 0 is fiducial, 1-24 are shifts
 #--- pwave / pbhhr / pbhacc ---
-python inj_script.py --run_name pbhhr-a0.000-250909 --channel pbhhr-a0.000 -i $SLURM_ARRAY_TASK_ID
+python inj_script.py --run_name pbhacc-PRc23H-250909 --channel pbhacc-PRc23H -i $SLURM_ARRAY_TASK_ID
 # python inj_script.py --run_name pbhacc-MODEL-250909 --channel pbhacc-MODEL -i $SLURM_ARRAY_TASK_ID
 #--- test ---
 # python inj_script.py -r test0428 -c pbhacc-PRc23 -i 2 -d 32

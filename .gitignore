@@ -1,10 +1,8 @@
 #===== This project =====
 **/.DS_Store
-**/slurm_outputs/
 **/__pycache__/
 **/submit.sh
 **/submit*.sh
-analysis/fisher_derivatives
 build_tf/*.pdf
 build_tf/ionhist_outputs/
 config.yaml
@@ -20,19 +18,15 @@ data/pwave
 data/run_info/**
 data/sfrd
 debug/*.npy
-logo/*.npy
-notebooks/plots/tmp
-notebooks/tmp
+examples/test.ipynb
 outputs/
-plots/
+**/plots/
 plotting/**/tmp
 plotting/**/*.npy
 plotting/**/*.h5
 plotting/**/*.p
 plotting/paper2/*.pdf
 plotting/paper2/*.png
-scripts/run_results.txt
-step/*.out
 tests/*.h5
 tmp/
 #------------------------

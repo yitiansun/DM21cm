@@ -10,7 +10,6 @@ from astropy import constants as const
 from scipy import interpolate
 from scipy import integrate
 
-sys.path.append(os.environ['DH_DIR'])
 from darkhistory.config import load_data as dh_load_data
 
 

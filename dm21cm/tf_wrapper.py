@@ -3,8 +3,6 @@ import sys
 import numpy as np
 import jax.numpy as jnp
 
-WDIR = os.environ['DM21CM_DIR']
-sys.path.append(WDIR)
 import dm21cm.physics as phys
 from dm21cm.interpolators import BatchInterpolator
 from dm21cm.utils import init_logger

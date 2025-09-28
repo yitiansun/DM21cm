@@ -17,7 +17,6 @@ from functools import partial
 
 from hmf import Transfer
 
-sys.path.append(os.environ['DM21CM_DIR'])
 from dm21cm.utils import load_h5_dict, save_h5_dict
 
 

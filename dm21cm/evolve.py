@@ -13,10 +13,8 @@ import jax.numpy as jnp
 import py21cmfast as p21c
 from py21cmfast import cache_tools
 
-sys.path.append(os.environ['DH_DIR'])
 from darkhistory.spec.spectrum import Spectrum
 
-sys.path.append(os.environ['DM21CM_DIR'])
 import dm21cm.physics as phys
 from dm21cm.dh_wrapper import DarkHistoryWrapper
 from dm21cm.tf_wrapper import TransferFunctionWrapper

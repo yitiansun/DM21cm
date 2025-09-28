@@ -4,12 +4,10 @@ import dill as pickle
 import numpy as np
 from scipy import interpolate
 
-WDIR = os.environ['DM21CM_DIR']
-sys.path.append(WDIR)
+
 import dm21cm.physics as phys
 from dm21cm.utils import init_logger
 
-sys.path.append(os.environ['DH_DIR'])
 from darkhistory.main import evolve as evolve_DH
 from darkhistory.spec.spectrum import Spectrum
 

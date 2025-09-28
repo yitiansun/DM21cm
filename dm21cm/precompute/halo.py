@@ -15,7 +15,6 @@ import jax.scipy as jsp
 
 import halomod
 
-sys.path.append(os.environ['DM21CM_DIR'])
 from dm21cm.utils import load_h5_dict
 from dm21cm.interpolators import interp1d, bound_action
 

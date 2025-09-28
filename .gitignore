@@ -10,7 +10,6 @@ cross_check/ionhist_outputs/
 cross_check/run_info/
 cross_check/tmp
 cross_check/xray/*.pdf
-data/hmf
 data/pbh*
 data/pppc
 data/production

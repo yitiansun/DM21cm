@@ -2,9 +2,12 @@
 **/.DS_Store
 **/slurm_outputs/
 **/__pycache__/
+**/submit.sh
+**/submit*.sh
 analysis/fisher_derivatives
 build_tf/*.pdf
 build_tf/ionhist_outputs/
+config.yaml
 cross_check/ionhist_outputs/
 cross_check/run_info/
 cross_check/tmp

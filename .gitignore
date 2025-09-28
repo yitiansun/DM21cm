@@ -3,19 +3,11 @@
 **/__pycache__/
 **/submit.sh
 **/submit*.sh
-build_tf/*.pdf
-build_tf/ionhist_outputs/
+**/archive/
 config.yaml
-cross_check/ionhist_outputs/
 cross_check/run_info/
-cross_check/tmp
-cross_check/xray/*.pdf
-data/pbh*
 data/pppc
 data/production
-data/pwave
-data/run_info/**
-data/sfrd
 debug/*.npy
 examples/test.ipynb
 outputs/
@@ -27,7 +19,7 @@ plotting/**/*.p
 plotting/paper2/*.pdf
 plotting/paper2/*.png
 tests/*.h5
-tmp/
+**/tmp/
 #------------------------
 
 # Byte-compiled / optimized / DLL files

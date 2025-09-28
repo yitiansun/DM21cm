@@ -38,7 +38,7 @@ if __name__ == '__main__':
     r_fixed = cell_size / np.cbrt(4*np.pi/3) # [cMpc] | r of sphere with volume cell_size^3
     m_fixed = ws.RtoM(r_fixed) # [Msun] | m of sphere with radius r_fixed
 
-    save_dir = CONFIG['outputs_dir'] + "/hmf"
+    save_dir = CONFIG['outputs_dir'] + "/precompute"
     os.makedirs(save_dir, exist_ok=True)
 
 

@@ -8,8 +8,7 @@ from scipy import interpolate
 import astropy.units as u
 from astropy.cosmology import Planck18 as cosmo
 
-WDIR = os.environ['DM21CM_DIR']
-sys.path.append(WDIR)
+from dm21cm.config import CONFIG
 import dm21cm.physics as phys
 from dm21cm.utils import load_h5_dict, save_h5_dict, abscs
 from dm21cm.precompute.pbh_hr.read import read_pbh
@@ -26,7 +25,7 @@ def main():
     parser.add_argument('--step', type=int)
     args = parser.parse_args()
 
-    results_dir = f"/n/holystore01/LABS/iaifi_lab/Users/yitians/dm21cm/blackhawk/a{args.a:.3f}"
+    results_dir = CONFIG['blackhawk_outputs_dir'] + f"/a{args.a:.3f}"
 
     if args.step == 1:
 
@@ -72,7 +71,7 @@ def main():
                 'elec dNdEdt': dNdEdt_elec_sec,
                 'units' : 't: [s]. dNdEdt: [1/eV s BH]. M: [g]. M0: [g].'
             }
-        save_h5_dict(f"{WDIR}/data/production/pbhhr-a{args.a:.3f}{debug_fn}.h5", data)
+        save_h5_dict(CONFIG['data_dir'] + f"/pbhhr-a{args.a:.3f}{debug_fn}.h5", data)
 
     else:
         raise ValueError('Invalid step number!')

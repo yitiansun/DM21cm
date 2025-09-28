@@ -12,8 +12,7 @@ jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp
 from tqdm import tqdm
 
-WDIR = os.environ['DM21CM_DIR']
-sys.path.append(WDIR)
+from dm21cm.config import CONFIG
 from dm21cm.utils import save_h5_dict, load_h5_dict
 from dm21cm.precompute.halo import DM_FRAC, cmz, rel_v_disp, nfw_density, nfw_info
 
@@ -21,11 +20,13 @@ from dm21cm.precompute.halo import DM_FRAC, cmz, rel_v_disp, nfw_density, nfw_in
 if __name__ == '__main__':
 
     #===== setting =====
-    m_high_cutoff = 1e11 # [Msun]
-    filename = 'pwave_hmf_summed_rate_mc1e11.h5'
+    m_high_cutoff = np.inf # [Msun]
+    filename = 'pwave_hmf_summed_rate.h5'
+    # m_high_cutoff = 1e11 # [Msun]
+    # filename = 'pwave_hmf_summed_rate_mc1e11.h5'
 
     #===== Initialization =====
-    hmfdata = load_h5_dict(f"{WDIR}/data/hmf/hmf.h5")
+    hmfdata = load_h5_dict(CONFIG['outputs_dir'] + "/precompute/hmf.h5")
     z_s = hmfdata['z'] # [1]    | redshift
     d_s = hmfdata['d'] # [1]    | delta (overdensity)
     m_s = hmfdata['m'] # [Msun] | halo mass
@@ -34,7 +35,7 @@ if __name__ == '__main__':
     z_max = z_s[-1]
     zext_s = np.concatenate((z_s, [z_max+1e-6, 4000]))
 
-    save_dir = f"{WDIR}/data/production"
+    save_dir = CONFIG['data_dir']
     os.makedirs(save_dir, exist_ok=True)
 
     #===== Annihilation rate table =====

@@ -9,7 +9,6 @@ import numpy as np
 from jax.numpy import fft
 import jax.numpy as jnp
 
-sys.path.append(os.environ['DM21CM_DIR'])
 import dm21cm.physics as phys
 from dm21cm.utils import init_logger
 

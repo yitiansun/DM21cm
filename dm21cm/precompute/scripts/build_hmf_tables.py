@@ -14,8 +14,7 @@ import jax.numpy as jnp
 from functools import partial
 from tqdm import tqdm
 
-WDIR = os.environ['DM21CM_DIR']
-sys.path.append(WDIR)
+from dm21cm.config import CONFIG
 from dm21cm.utils import save_h5_dict
 from dm21cm.precompute.ps import SigmaMInterpSphere, HMFEvaluator, SphereWindow
 
@@ -39,7 +38,7 @@ if __name__ == '__main__':
     r_fixed = cell_size / np.cbrt(4*np.pi/3) # [cMpc] | r of sphere with volume cell_size^3
     m_fixed = ws.RtoM(r_fixed) # [Msun] | m of sphere with radius r_fixed
 
-    save_dir = f"{WDIR}/data/hmf"
+    save_dir = CONFIG['outputs_dir'] + "/hmf"
     os.makedirs(save_dir, exist_ok=True)
 
 

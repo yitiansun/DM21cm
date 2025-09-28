@@ -1,8 +1,8 @@
 #!/bin/bash
 
-source /n/home07/yitians/setup/dm21cm.sh
+source ~/setup/dm21cm.sh
 
-cd /n/home07/yitians/dm21cm/DM21cm/dm21cm/precompute/scripts
+cd ~/dm21cm/DM21cm/dm21cm/precompute/scripts
 
 
 #===== hmf =====
@@ -12,8 +12,7 @@ cd /n/home07/yitians/dm21cm/DM21cm/dm21cm/precompute/scripts
 # python build_pwave_tables.py
 
 #===== pbhacc =====
-# MODELS=("PRc23" "PRc14" "PRc29" "PRc23B" "PRc23H" "PRc23dm" "PRc23dp" "BHLl2")
-MODELS=("PRc23H")
+MODELS=("PRc23" "PRc14" "PRc29" "PRc23B" "PRc23H" "PRc23dm" "PRc23dp" "BHLl2")
 MVALS=(0.0 0.5 1.0 1.5 2.0 2.5 3.0 3.5 4.0)
 
 for ((i=0; i<${#MODELS[@]}; i++)); do

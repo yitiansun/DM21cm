@@ -12,10 +12,8 @@ import jax.numpy as jnp
 import jax.scipy as jsp
 from functools import partial
 
-sys.path.append(os.environ['DH_DIR'])
 from darkhistory import physics as dh_phys
 
-sys.path.append(os.environ['DM21CM_DIR'])
 from dm21cm.precompute import halo
 from dm21cm.utils import load_h5_dict
 

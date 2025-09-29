@@ -10,7 +10,6 @@ import jax
 jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp
 
-from dm21cm.config import CONFIG
 from dm21cm.precompute.accretion import veff_HALO
 from dm21cm.utils import save_h5_dict
 
@@ -22,7 +21,7 @@ if __name__ == '__main__':
     r_s = jnp.geomspace(1e-5, 1e20, 300) # [km]
     veff_s = jnp.geomspace(1e0, 1e8, 300) # [km/s]
 
-    save_dir = CONFIG['outputs_dir'] + "/precompute"
+    save_dir = os.environ['DM21CM_DATA_DIR'] + "/precompute"
     os.makedirs(save_dir, exist_ok=True)
 
     table_mzv = np.zeros((len(mPBH_s), len(z_s), len(veff_s)))

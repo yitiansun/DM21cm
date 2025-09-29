@@ -6,13 +6,11 @@ import sys
 import numpy as np
 import jax.numpy as jnp
 
-sys.path.append(os.environ['DM21CM_DIR'])
+from darkhistory.spec.spectrum import Spectrum
+
 import dm21cm.physics as phys
 from dm21cm.injections.base import Injection
 from dm21cm.utils import abscs
-
-sys.path.append(os.environ['DH_DIR'])
-from darkhistory.spec.spectrum import Spectrum
 
 
 class ZeroInjection (Injection):

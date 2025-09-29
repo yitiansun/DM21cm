@@ -4,12 +4,8 @@
 **/submit.sh
 **/submit*.sh
 **/archive/
-config.yaml
 cross_check/run_info/
-data/pppc
-data/production
-debug/*.npy
-examples/test.ipynb
+data/production/
 outputs/
 **/plots/
 plotting/**/tmp
@@ -18,7 +14,6 @@ plotting/**/*.h5
 plotting/**/*.p
 plotting/paper2/*.pdf
 plotting/paper2/*.png
-tests/*.h5
 **/tmp/
 #------------------------
 

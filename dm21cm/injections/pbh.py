@@ -13,12 +13,9 @@ import jax
 jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp
 
-sys.path.append(os.environ['DH_DIR'])
 from darkhistory.spec.spectrum import Spectrum
 from darkhistory import physics as dh_phys
 
-WDIR = os.environ['DM21CM_DIR']
-sys.path.append(WDIR)
 from dm21cm.injections.base import Injection
 from dm21cm.interpolators import interp1d, bound_action, interp3d_vmap
 import dm21cm.physics as phys

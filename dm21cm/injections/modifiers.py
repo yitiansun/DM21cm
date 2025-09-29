@@ -6,7 +6,6 @@ import sys
 import numpy as np
 from astropy.cosmology import Planck18 as cosmo
 
-sys.path.append(os.environ['DM21CM_DIR'])
 from dm21cm.injections.base import Injection
 
 

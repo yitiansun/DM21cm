@@ -16,6 +16,7 @@ dependencies = [
     "jaxlib",
     "matplotlib>=3.7",
     "numpy>=1.25.2",
+    "pytest",
     "powerbox>=0.7.3",
     "scipy>=1.11.2",
     "tqdm"

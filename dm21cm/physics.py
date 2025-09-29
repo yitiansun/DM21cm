@@ -4,11 +4,12 @@ import os
 import sys
 import numpy as np
 from astropy.cosmology import Planck18 as cosmo
+from astropy.cosmology import z_at_value
+from astropy import units as u
 from astropy import constants as const
 from scipy import interpolate
 from scipy import integrate
 
-sys.path.append(os.environ['DH_DIR'])
 from darkhistory.config import load_data as dh_load_data
 
 
@@ -175,10 +176,18 @@ def dt_step(z, zplusone_factor):
     z_next = (1+z) / zplusone_factor - 1
     return np.abs((cosmo.age(z) - cosmo.age(z_next)).to('s').value)
 
+def t_z(z):
+    """Convert redshift to time [s]."""
+    return cosmo.age(z).to('s').value
+
+def z_t(t):
+    """Convert time [s] to redshift."""
+    return z_at_value(cosmo.age, t * u.s, zmax=1e4).value
+
 
 #===== Dark Matter =====
         
-def struct_boost_func(model=...):
+def struct_boost_func(model=None):
     """Structure formation boost factor 1+B(z). (Copied from darkhistory.physics.struct_boost_func)
 
     Args:

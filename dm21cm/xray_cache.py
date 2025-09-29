@@ -6,21 +6,11 @@ import h5py
 import pickle
 import numpy as np
 
-sys.path.append(os.environ['DM21CM_DIR'])
+from jax.numpy import fft
+import jax.numpy as jnp
+
 import dm21cm.physics as phys
 from dm21cm.utils import init_logger
-
-sys.path.append(os.environ['DH_DIR'])
-from darkhistory.spec.spectrum import Spectrum
-
-
-USE_JAX_FFT = True
-if USE_JAX_FFT:
-    from jax.numpy import fft
-    import jax.numpy as jnp
-else:
-    from numpy import fft
-    jnp = np
 
 EPSILON = 1e-6
 
@@ -31,15 +21,17 @@ class CachedState:
     """Cached data for xray spectrum and emissivity.
 
     Args:
+        key (str):           Key to box in cache file.
         z_start (float):     The starting redshift of the step that hosts the emissivity.
         z_end (float):       The ending redshift of the step, at which the spectrum is saved.
         spectrum (Spectrum): The X-ray spectrum in units of photon per averaged baryon.
-        box (array):         The X-ray relative emissivity box.
+
+    Attributes:
         isinbath (bool):     Whether the spectrum has been deposited to the bath.
     """
 
     def __init__(self, key, z_start, z_end, spectrum):
-        self.key = key # key to box in the cache file
+        self.key = key
         self.z_start = z_start
         self.z_end = z_end
         self.spectrum = spectrum
@@ -68,8 +60,8 @@ class XrayCache:
 
     Args:
         data_dir (str): Path to the cache directory.
-        box_dim (int): The dimension of the box.
-        dx (float): The size of each cell [cfMpc].
+        box_dim (int): Cell number on a side of the box.
+        dx (float): The size of each cell [cMpc].
         load_snapshot (bool): If True, load the snapshot at data_dir/xray_cache_snapshot.p.
 
     Attributes:
@@ -121,7 +113,7 @@ class XrayCache:
         if os.path.exists(self.snapshot_path):
             os.remove(self.snapshot_path)
 
-    def save_snapshot(self, phot_bath_spec=...):
+    def save_snapshot(self, phot_bath_spec=None):
         """Save the current cache to a snapshot file with the photon bath spectrum."""
         pickle.dump((self.states, phot_bath_spec), open(self.snapshot_path, 'wb'))
 
@@ -163,12 +155,9 @@ class XrayCache:
         # Construct the smoothing functions in the frequency domain
         W1 = 3*(jnp.sin(self.kMag*R1) - self.kMag*R1 * jnp.cos(self.kMag*R1)) / (self.kMag*R1)**3
         W2 = 3*(jnp.sin(self.kMag*R2) - self.kMag*R2 * jnp.cos(self.kMag*R2)) / (self.kMag*R2)**3
-        if USE_JAX_FFT:
-            W1.at[0, 0, 0].set(1.)
-            W2.at[0, 0, 0].set(1.)
-        else:
-            W1[0, 0, 0] = 1.
-            W2[0, 0, 0] = 1.
+
+        W1.at[0, 0, 0].set(1.)
+        W2.at[0, 0, 0].set(1.)
 
         # Combine the window functions
         W = w2*W2 - w1*W1

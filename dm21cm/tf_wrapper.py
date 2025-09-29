@@ -3,8 +3,6 @@ import sys
 import numpy as np
 import jax.numpy as jnp
 
-WDIR = os.environ['DM21CM_DIR']
-sys.path.append(WDIR)
 import dm21cm.physics as phys
 from dm21cm.interpolators import BatchInterpolator
 from dm21cm.utils import init_logger
@@ -53,7 +51,7 @@ class TransferFunctionWrapper:
         else:
             logger.info('Skipping electron transfer functions.')
             
-    def set_params(self, rs=..., delta_plus_one_box=..., x_e_box=..., T_k_box=..., homogenize_deposition=False):
+    def set_params(self, rs=None, delta_plus_one_box=None, x_e_box=None, T_k_box=None, homogenize_deposition=False):
         """Initializes parameters for deposition."""
         delta_plus_one_box = jnp.clip(
             delta_plus_one_box,
@@ -87,15 +85,15 @@ class TransferFunctionWrapper:
         self.dep_box = np.zeros((self.box_dim, self.box_dim, self.box_dim, len(self.abscs['dep_c']))) # [eV / Bavg]
         self.dep_dt = 0.
 
-    def inject_phot(self, in_spec, inject_type=..., weight_box=...):
+    def inject_phot(self, in_spec, inject_type=None, weight_box=None):
         """Inject photons into (prop_phot_N,) emit_phot_N, and dep_box.
 
         Args:
-            in_spec (Spectrum): Input photon spectrum.
+            in_spec (Spectrum): Input photon spectrum. In 'N' mode, [N / Bavg].
             inject_type {'bath', 'ots', 'xray'}: Injection type.
-            weight_box (ndarray): Injection weight box.
+            weight_box (ndarray): Injection weight box. Dimensionless.
         """
-        unif_norm = 1 / self.box_dim**3
+        unif_norm = 1 / self.box_dim**3 # convert sum to average
 
         # Apply phot_prop_tf
         if inject_type == 'bath':
@@ -126,14 +124,14 @@ class TransferFunctionWrapper:
             in_spec=in_spec.N, sum_result=False, **self.tf_kwargs
         ).reshape(self.dep_box.shape) # [eV / Bavg]
 
-    def inject_elec(self, in_spec, weight_box=...):
+    def inject_elec(self, in_spec, weight_box=None):
         """Inject electrons into emit_phot_N and dep_box.
 
         Args:
-            in_spec (Spectrum): Input electron spectrum.
-            weight_box (ndarray): Injection weight box.
+            in_spec (Spectrum): Input electron spectrum. In 'N' mode, [N / Bavg].
+            weight_box (ndarray): Injection weight box. Dimensionless.
         """
-        unif_norm = 1 / self.box_dim**3
+        unif_norm = 1 / self.box_dim**3 # convert sum to average
 
         self.emit_phot_N += unif_norm * self.elec_scat_tf(
             in_spec=in_spec.N, sum_result=True, sum_weight=weight_box.ravel(), **self.tf_kwargs

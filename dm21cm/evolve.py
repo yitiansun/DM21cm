@@ -13,16 +13,13 @@ import jax.numpy as jnp
 import py21cmfast as p21c
 from py21cmfast import cache_tools
 
-sys.path.append(os.environ['DH_DIR'])
 from darkhistory.spec.spectrum import Spectrum
 
-sys.path.append(os.environ['DM21CM_DIR'])
 import dm21cm.physics as phys
 from dm21cm.dh_wrapper import DarkHistoryWrapper
 from dm21cm.tf_wrapper import TransferFunctionWrapper
-from dm21cm.utils import load_h5_dict, init_logger
+from dm21cm.utils import load_h5_dict, init_logger, Profiler
 from dm21cm.xray_cache import XrayCache
-from dm21cm.profiler import Profiler
 from dm21cm.injections.zero import ZeroInjection
 
 logging.getLogger('21cmFAST').setLevel(logging.CRITICAL)
@@ -33,15 +30,15 @@ logger = init_logger(__name__)
 
 
 def evolve(run_name,
-           z_start=...,
-           z_end=...,
+           z_start=None,
+           z_end=None,
            subcycle_factor=10,
            max_n_shell=None,
            resume=False,
            use_tqdm=True,
 
            injection=None,
-           p21c_initial_conditions=...,
+           p21c_initial_conditions=None,
            p21c_astro_params=None,
 
            use_DH_init=True,
@@ -102,7 +99,7 @@ def evolve(run_name,
     box_len = p21c_initial_conditions.user_params.BOX_LEN
 
     if injection:
-        injection.set_binning(abscs)
+
         tfs = TransferFunctionWrapper(
             box_dim = box_dim,
             abscs = abscs,
@@ -143,9 +140,9 @@ def evolve(run_name,
 
     if use_DH_init: # still can use DH to get initial conditions if no_injection is set
         dh_injection = ZeroInjection() if injection is None else injection
-        dh_injection.set_binning(abscs)
         dh = DarkHistoryWrapper(dh_injection, prefix=p21c.config[f'direc'])
-        dh.evolve(end_rs=(1+z_match)*0.9, rerun=rerun_DH)
+        # dh.evolve(end_rs=(1+z_match)*0.9, rerun=rerun_DH)
+        dh.evolve(end_rs=(1+z_match)*0.9, rerun=rerun_DH, start_rs=3000)
         T_k_DH_init, x_e_DH_init, phot_bath_spec = dh.get_init_cond(rs=1+z_match)
         spin_temp.Tk_box += T_k_DH_init - np.mean(spin_temp.Tk_box)
         spin_temp.x_e_box += x_e_DH_init - np.mean(spin_temp.x_e_box)
@@ -237,13 +234,25 @@ def evolve(run_name,
             #--- injection (on-the-spot) ---
             n_Bavg = phys.n_B * (1 + z_current)**3 # [Bavg / pcm^3]
 
-            inj_rate_spec, weight_box = injection.inj_phot_spec_box(z_current, delta_plus_one_box=delta_plus_one_box)
+            inj_rate_spec, weight_box = injection.inj_phot_spec_box(
+                z_current,
+                z_end = z_next,
+                delta_plus_one_box = delta_plus_one_box,
+                T_k_box = T_k_box,
+                x_e_box = x_e_box,
+            )
             if homogenize_injection:
                 weight_box = jnp.full_like(weight_box, jnp.mean(weight_box))
             tfs.inject_phot(inj_rate_spec * dt / n_Bavg, weight_box=weight_box, inject_type='ots') # ingoing spec has [phot / Bavg]
 
             if injection.is_injecting_elec():
-                inj_rate_spec, weight_box = injection.inj_elec_spec_box(z_current, delta_plus_one_box=delta_plus_one_box)
+                inj_rate_spec, weight_box = injection.inj_elec_spec_box(
+                    z_current,
+                    z_end = z_next,
+                    delta_plus_one_box = delta_plus_one_box,
+                    T_k_box = T_k_box,
+                    x_e_box = x_e_box,
+                )
                 if homogenize_injection:
                     weight_box = jnp.full_like(weight_box, jnp.mean(weight_box))
                 tfs.inject_elec(inj_rate_spec * dt / n_Bavg, weight_box=weight_box)

@@ -5,7 +5,6 @@ class Injection:
     
     Methods:
         __init__          : Initialization.
-        set_binning       : Set injection spectra according to binning chosen in dm21cm.evolve.
         is_injecting_elec : Whether DM is injecting electron/positron.
         get_config        : Get configuration of the injection. Used for reusability checks of cached solutions.
 
@@ -19,15 +18,6 @@ class Injection:
 
     def __init__(self):
         pass
-
-    def set_binning(self, abscs):
-        """Set injection spectra according to binning chosen in evolve.
-        Called by evolve during initialization.
-
-        Args:
-            abscs (dict): Abscissas/binning for the run.
-        """
-        raise NotImplementedError
 
     def is_injecting_elec(self):
         """Whether DM is injecting electron/positron. Used by evolve.
@@ -55,52 +45,63 @@ class Injection:
         return f"{self.__class__.__name__}({self.get_config()})"
 
     #===== injections =====
-    def inj_rate(self, z):
+    def inj_rate(self, z_start, z_end=None, state=None):
         """Injection event rate density in [inj / pcm^3 s].
         Used in DarkHistory. Assumes a homogeneous universe.
-        If injection cannot be thought of as events, use 1 injection per second.
+        If injection cannot be thought of as events, use 1 injection per second by convention.
         This factor is kept for DarkHistory's API, but will cancel out in the final result.
 
         Args:
-            z (float): (Starting) redshift of the redshift step of injection.
+            z_start (float): Starting redshift of the redshift step of injection.
+            z_end (float, optional): Ending redshift of the redshift step of injection.
+                Useful for calculating the average rate over a redshift step when injection rate evolves quickly.
+                If None, must return instantaneous rate. This is used in DarkHistory's TLA integrator.
+                For slow varying rates, it is sufficient to return the rate at the starting redshift for Euler steppping.
+            state (dict, optional): State of the universe at z_start. Used for rates with feedback.
 
         Returns:
             float: Injection event rate per average baryon in [inj / Bavg s].
         """
         raise NotImplementedError
     
-    def inj_power(self, z):
+    def inj_power(self, z_start, z_end=None, state=None):
         """Injection power density in [eV / pcm^3 s].
         Used in DarkHistory. Assumes a homogeneous universe.
 
         Args:
-            z (float): (Starting) redshift of the redshift step of injection.
+            z_start (float): Starting redshift of the redshift step of injection.
+            z_end (float, optional): Ending redshift of the redshift step of injection. See details in inj_rate.
+            state (dict, optional): State of the universe at z_start. Used for rates with feedback.
 
         Returns:
             float: Injection power per average baryon in [eV / pcm^3 s].
         """
         raise NotImplementedError
     
-    def inj_phot_spec(self, z, **kwargs):
+    def inj_phot_spec(self, z_start, z_end=None, state=None, **kwargs):
         """Injected photon rate density spectrum assuming a homogeneous universe.
         Used in DarkHistory.
 
         Args:
-            z (float): (Starting) redshift of the redshift step of injection.
+            z_start (float): Starting redshift of the redshift step of injection.
+            z_end (float, optional): Ending redshift of the redshift step of injection. See details in inj_rate.
+            state (dict, optional): State of the universe at z_start. Used for rates with feedback.
 
         Returns:
-            Spectrum: Injected photon rate spectrum in [spec / pcm^3 s].
+            Spectrum: Injected photon rate spectrum in [phot / pcm^3 s].
                 Spectrum value 'spec' can be either 'N' (particle in bin) or 'dNdE'.
                 See darkhistory.spec.spectrum.Spectrum
         """
         raise NotImplementedError
     
-    def inj_elec_spec(self, z, **kwargs):
+    def inj_elec_spec(self, z_start, z_end=None, state=None, **kwargs):
         """Injected electron rate density spectrum assuming a homogeneous universe.
         Used in DarkHistory.
 
         Args:
-            z (float): (Starting) redshift of the redshift step of injection.
+            z_start (float): Starting redshift of the redshift step of injection.
+            z_end (float, optional): Ending redshift of the redshift step of injection. See details in inj_rate.
+            state (dict, optional): State of the universe at z_start. Used for rates with feedback.
 
         Returns:
             Spectrum: Injected electron rate spectrum in [spec / pcm^3 s].
@@ -109,12 +110,14 @@ class Injection:
         """
         raise NotImplementedError
     
-    def inj_phot_spec_box(self, z, **kwargs):
+    def inj_phot_spec_box(self, z_start, z_end=None, state=None, **kwargs):
         """Injected photon rate density spectrum and weight box.
         Called in dm21cm.evolve every redshift step.
 
         Args:
-            z (float): (Starting) redshift of the redshift step of injection.
+            z_start (float): Starting redshift of the redshift step of injection.
+            z_end (float, optional): Ending redshift of the redshift step of injection. See details in inj_rate.
+            state (dict, optional): State of the universe at z_start. Used for rates with feedback.
 
         Returns:
             tuple : (spec, weight_box), where:
@@ -126,12 +129,14 @@ class Injection:
         """
         raise NotImplementedError
 
-    def inj_elec_spec_box(self, z, **kwargs):
+    def inj_elec_spec_box(self, z_start, z_end=None, state=None, **kwargs):
         """Injected electron rate density spectrum and weight box.
         Called in dm21cm.evolve every redshift step.
 
         Args:
-            z (float): (Starting) redshift of the redshift step of injection.
+            z_start (float): Starting redshift of the redshift step of injection.
+            z_end (float, optional): Ending redshift of the redshift step of injection. See details in inj_rate.
+            state (dict, optional): State of the universe at z_start. Used for rates with feedback.
 
         Returns:
             tuple : (spec, weight_box), where:

@@ -1,15 +1,13 @@
 import os
 import sys
-import pickle
+import dill as pickle
 import numpy as np
 from scipy import interpolate
 
-WDIR = os.environ['DM21CM_DIR']
-sys.path.append(WDIR)
+
 import dm21cm.physics as phys
 from dm21cm.utils import init_logger
 
-sys.path.append(os.environ['DH_DIR'])
 from darkhistory.main import evolve as evolve_DH
 from darkhistory.spec.spectrum import Spectrum
 
@@ -58,24 +56,37 @@ class DarkHistoryWrapper:
         logger.info('Running DarkHistory to generate initial conditions...')
 
         # Custom injection API of DarkHistory
+        start_rs = 3000
+        coarsen_factor = 10
+
+        def input_in_spec_phot(rs, next_rs=None, dt=None, state=None):
+            """Injected photon spectrum per injection event [phot / inj]."""
+            z_end = next_rs - 1 if next_rs is not None else None
+            return self.injection.inj_phot_spec(rs-1, z_end=z_end, state=state) / self.injection.inj_rate(rs-1, z_end=z_end, state=state)
+        
+        def input_in_spec_elec(rs, next_rs=None, dt=None, state=None):
+            """Injected electron spectrum per injection event [elec / inj]."""
+            z_end = next_rs - 1 if next_rs is not None else None
+            return self.injection.inj_elec_spec(rs-1, z_end=z_end, state=state) / self.injection.inj_rate(rs-1, z_end=z_end, state=state)
+        
+        def input_rate_func_N(rs, next_rs=None, dt=None, state=None):
+            """Injection event rate density [inj / pcm^3 s]."""
+            z_end = next_rs - 1 if next_rs is not None else None
+            return self.injection.inj_rate(rs-1, z_end=z_end, state=state)
+        
+        def input_rate_func_eng(rs, next_rs=None, dt=None, state=None):
+            """Injection power density [eV / pcm^3 s]."""
+            z_end = next_rs - 1 if next_rs is not None else None
+            return self.injection.inj_power(rs-1, z_end=z_end, state=state)
+
         default_kwargs = dict(
-            in_spec_phot = lambda rs: self.injection.inj_phot_spec(rs-1) / self.injection.inj_rate(rs-1), # [phot / inj]
-            in_spec_elec = lambda rs: self.injection.inj_elec_spec(rs-1) / self.injection.inj_rate(rs-1), # [elec / inj]
-            rate_func_N   = lambda rs: self.injection.inj_rate(rs-1), # [inj / pcm^3 s]
-            rate_func_eng = lambda rs: self.injection.inj_power(rs-1), # [eV / pcm^3 s]
-            start_rs = 3000, end_rs = end_rs, coarsen_factor = 10, verbose = 1,
+            in_spec_phot  = input_in_spec_phot, # [phot / inj]
+            in_spec_elec  = input_in_spec_elec, # [elec / inj]
+            rate_func_N   = input_rate_func_N,  # [inj / pcm^3 s]
+            rate_func_eng = input_rate_func_eng, # [eV / pcm^3 s]
+            start_rs = start_rs, end_rs = end_rs, coarsen_factor = coarsen_factor, verbose = 1,
             clean_up_tf = True,
         ) # default parameters use case B coefficients
-
-        # DM API of DarkHistory
-        # default_kwargs = dict(
-        #     DM_process='decay',
-        #     mDM=self.injection.m_DM,
-        #     primary=self.injection.primary,
-        #     lifetime=self.injection.lifetime,
-        #     start_rs=3000, end_rs=end_rs, coarsen_factor=10, verbose=1,
-        #     clean_up_tf=True,
-        # ) # default parameters use case B coefficients
 
         default_kwargs.update(kwargs)
         self.soln = evolve_DH(**default_kwargs)

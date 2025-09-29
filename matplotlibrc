@@ -5,10 +5,17 @@ font.size : 12
 font.family : serif
 font.serif  : Computer Modern Roman
 
+lines.linewidth : 2
+
 axes.titlesize : 14
 axes.labelsize : 14
 xtick.labelsize : 14
 ytick.labelsize : 14
+xtick.direction : in
+ytick.direction : in
 
-figure.dpi : 120
+axes.prop_cycle : cycler('color', ['d62728', '2ca02c', '1f77b4', 'ff7f0e', '9467bd', '8c564b', '7f7f7f'])
+
+figure.dpi : 150
+
 savefig.bbox : tight

@@ -1,15 +1,17 @@
 #===== This project =====
 **/.DS_Store
-**/slurm_outputs/
 **/__pycache__/
-build_tf/
+**/submit.sh
+**/submit*.sh
+**/archive/
+**/plots/
+**/tmp/
 cross_check/
 data/
 debug/
 outputs/
 plotting/
 scripts/
-tests/*.h5
 #------------------------
 
 # Byte-compiled / optimized / DLL files

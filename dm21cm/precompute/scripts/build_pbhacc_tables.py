@@ -14,7 +14,6 @@ import jax.numpy as jnp
 from tqdm import tqdm
 import logging
 
-from dm21cm.config import CONFIG
 from dm21cm.utils import save_h5_dict, load_h5_dict
 from dm21cm.precompute.accretion import PBHAccretionModel
 from dm21cm.precompute.halo import cmz
@@ -30,7 +29,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     #===== Initialization =====
-    hmfdata = load_h5_dict(CONFIG['outputs_dir'] + "/precompute/hmf.h5")
+    hmfdata = load_h5_dict(os.environ['DM21CM_DATA_DIR'] + "/precompute/hmf.h5")
     z_s = hmfdata['z'] # [1]    | redshift
     d_s = hmfdata['d'] # [1]    | delta (overdensity)
     m_s = hmfdata['m'] # [Msun] | halo mass
@@ -69,9 +68,9 @@ if __name__ == '__main__':
     #===== File names =====
     run_name = args.model
     run_subname = f'log10m{np.log10(mPBH):.3f}'
-    cache_file = CONFIG['outputs_dir'] + f"/precompute/pbhacc_L_tables/{run_name}/{run_name}_{run_subname}.npy"
-    halo_file  = CONFIG['data_dir'] + f"/pbhacc_rates/{run_name}/{run_name}_{run_subname}_halo.h5"
-    cosmo_file = CONFIG['data_dir'] + f"/pbhacc_rates/{run_name}/{run_name}_{run_subname}_cosmo.h5"
+    cache_file = os.environ['DM21CM_DATA_DIR'] + f"/precompute/pbhacc_L_tables/{run_name}/{run_name}_{run_subname}.npy"
+    halo_file  = os.environ['DM21CM_DATA_DIR'] + f"/pbhacc_rates/{run_name}/{run_name}_{run_subname}_halo.h5"
+    cosmo_file = os.environ['DM21CM_DATA_DIR'] + f"/pbhacc_rates/{run_name}/{run_name}_{run_subname}_cosmo.h5"
     os.makedirs(os.path.dirname(cache_file), exist_ok=True)
     os.makedirs(os.path.dirname(halo_file), exist_ok=True)
     os.makedirs(os.path.dirname(cosmo_file), exist_ok=True)

@@ -9,7 +9,6 @@ import numpy as np
 from astropy.cosmology import Planck18
 import py21cmfast as p21c
 
-from dm21cm.config import CONFIG
 from dm21cm.injections.dm import DMDecayInjection
 from dm21cm.evolve import evolve
 
@@ -48,7 +47,7 @@ def test_evolve():
     )
 
     lc = return_dict['lightcone'].lightcones
-    lc_ref = p21c.LightCone.read(CONFIG['DM21cm_dir'] + '/tests/data/test_evolve_ref_lightcone.h5').lightcones
+    lc_ref = p21c.LightCone.read(os.environ['DM21CM_DIR'] + '/tests/data/test_evolve_ref_lightcone.h5').lightcones
 
     for k in ['Tk_box', 'x_e_box', 'brightness_temp']:
         abs_diff = np.abs(lc[k] - lc_ref[k])

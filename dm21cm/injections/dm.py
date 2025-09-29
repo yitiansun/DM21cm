@@ -6,14 +6,12 @@ import sys
 import numpy as np
 import jax.numpy as jnp
 
-sys.path.append(os.environ['DM21CM_DIR'])
+from darkhistory.spec import pppc
+
 import dm21cm.physics as phys
 from dm21cm.injections.base import Injection
 from dm21cm.utils import load_h5_dict, abscs
 from dm21cm.interpolators import interp1d, bound_action
-
-sys.path.append(os.environ['DH_DIR'])
-from darkhistory.spec import pppc
 
 
 class DMDecayInjection (Injection):

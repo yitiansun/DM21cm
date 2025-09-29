@@ -3,8 +3,6 @@ import sys
 
 import numpy as np
 
-WDIR = os.environ['DM21CM_DIR']
-sys.path.append(WDIR)
 from dm21cm.utils import load_h5_dict, save_h5_dict
 from dm21cm.precompute.pbh_hr.pppc import get_pppc_tf
 from dm21cm.precompute.pbh_hr.read import read_pbh
@@ -94,7 +92,9 @@ def hadronize(ddir):
     data_pri = read_pbh(ddir, 'primary', 'up') # for common E and t
     eng = data_pri['E'] # eV
     t = data_pri['t'] # s
-    tf = build_or_read_tf(f"{WDIR}/data/pppc/pppc_tf.h5", eng, eng)
+    save_dir = os.environ['DM21CM_DATA_DIR'] + "/precompute"
+    os.makedirs(save_dir, exist_ok=True)
+    tf = build_or_read_tf(f"{save_dir}/pppc_tf.h5", eng, eng)
     pri_list = [fn.split('_primary_')[0] for fn in os.listdir(ddir) if '_primary_' in fn]
     processed_list = []
 

@@ -7,7 +7,6 @@ import numpy as np
 from astropy.cosmology import Planck18
 import py21cmfast as p21c
 
-from dm21cm.config import CONFIG
 from dm21cm.evolve import evolve
 from dm21cm.injections.pbh import PBHHRInjection, PBHAccretionInjection
 from dm21cm.injections.dm import DMDecayInjection, DMPWaveAnnihilationInjection
@@ -291,5 +290,5 @@ else:
     shutil.rmtree(cache_dir)
     print("cache removed")
 
-with open(CONFIG['outputs_dir'] + '/run_results.txt', 'a') as f:
+with open(os.environ['DM21CM_DIR'] + '/outputs/run_results.txt', 'a') as f:
     f.write(f'{run_fullname} completed.\n')

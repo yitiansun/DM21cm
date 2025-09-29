@@ -1,25 +1,26 @@
 # DM21cm - Inhomogeneous Energy Injection in 21cm Cosmology
 
 [![arXiv](https://img.shields.io/badge/arXiv-2312.11608%20-green.svg)](https://arxiv.org/abs/2312.11608)
+[![arXiv](https://img.shields.io/badge/arXiv-2509.XXXXX%20-green.svg)](https://arxiv.org/abs/2509.XXXXX)
 
 <p align="center"><img src="resources/logo.gif" /></p>
 
 # Usage
 
 ```python
-from dm21cm.injections.decay import DMDecayInjection
+from dm21cm.injections.dm import DMPWaveAnnihilationInjection
 from dm21cm.evolve import evolve
 
 import py21cmfast as p21c
 
 return_dict = evolve(
-    run_name = 'test_injection',
+    run_name = 'test',
     z_start = 45.,
     z_end = 5.,
-    injection = DMDecayInjection(
-        primary = 'phot_delta',
-        m_DM = 1e8, # [eV]
-        lifetime = 1e28, # [s]
+    injection = DMPWaveAnnihilationInjection(
+        primary = 'tau',
+        m_DM = 1e10, # [eV]
+        c_sigma = 1e-18, # [s]
     ),
     p21c_initial_conditions = p21c.initial_conditions(
         user_params = p21c.UserParams(
@@ -50,16 +51,20 @@ pip install .
 ```
 - Set the environment variable `P21C_CACHE_DIR` to a directory to store cache files.
 
-### 3. Install DM21cm and DarkHistory (WIP)
+### 3. Install DM21cm and DarkHistory
 
 - For GPU acceleration, install `jax>=0.4.14` according to your hardware specifications. See [JAX's repository](https://github.com/jax-ml/jax) for a guide. CPU-only installs can skip this step.
 - Install `DM21cm` and associated packages (including `DarkHistory`) by
 ```bash
 pip install dm21cm
 ```
-- Download the data files required to run `DarkHistory` [here](), and set the environment variable `DH_DATA_DIR` to the directory.
-- Download the data files required to run `DM21cm` [here](), and set the environment variable `DM21CM_DATA_DIR` to the directory.
+- Download the data files required to run `DarkHistory` [here](https://zenodo.org/records/13931543), and set the environment variable `DH_DATA_DIR` to the directory.
+- Download the data files required to run `DM21cm` [here](https://zenodo.org/records/10397814), and set the environment variable `DM21CM_DATA_DIR` to the directory.
 - `DM21cm` should be available to run! You can test it with the example code above.
+
+### 4. Additional data tables for $p$-wave DM and PBH
+- To run dark matter p-wave annihilation or primordial black hole Hawking radiation injection, download the additional data files [here](https://zenodo.org/records/17228967).
+- To run primordial black hole accretion injection, clone this repo and run [dm21cm/precompute/scripts/build_pbhacc_tables.py](dm21cm/precompute/scripts/build_pbhacc_tables.py) to build the data tables required to run. See also [this example](examples/3_custom_pbh_accretion.ipynb).
 
 
 # Defining your custom injection
@@ -134,9 +139,6 @@ class CustomInjection (Injection):
             'lifetime': self.lifetime
         }
 ```
-
-# HERA sensitivity to dark matter monochromatic decays in 21-cm power spectrum
-<img src="resources/limits.png" width="1000"/>
 
 # Authors
 Yitian Sun, Joshua W. Foster, Hongwan Liu, Julian B. Muñoz, and Tracy R. Slatyer

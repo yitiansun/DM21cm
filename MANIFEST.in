@@ -4,5 +4,4 @@ include matplotlibrc
 
 recursive-include examples *
 recursive-include resources *
-
-prune outputs
+recursive-include tests *

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dm21cm"
-version = "1.1.0.20250616"
+version = "1.1.0.20250929"
 readme = "README.md"
 description = "DM21cm - Inhomogeneous Energy Injection in 21-cm Cosmology"
 requires-python = ">=3.10"
@@ -29,4 +29,5 @@ Homepage = "https://github.com/yitiansun/dm21cm"
 include-package-data = true
 
 [tool.setuptools.packages.find]
-include = ["dm21cm", "dm21cm.*", "matplotlibrc"]
+where = ["src"]
+include = ["dm21cm", "dm21cm.*"]

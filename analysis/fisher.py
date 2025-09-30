@@ -12,10 +12,6 @@ import py21cmfish
 from py21cmfish.power_spectra import *
 from py21cmfish.io import *
 
-WDIR = os.environ['DM21CM_DIR']
-sys.path.append(WDIR)
-from dm21cm.config import CONFIG
-
 from scripts.step_size import StepSize250909
 
 
@@ -31,7 +27,7 @@ if __name__ == '__main__':
 
     #===== bkg =====
     print('Processing background...')
-    bkg_dir = CONFIG['lc_outputs_dir'] + "/bkg/"
+    bkg_dir = os.environ['DM21CM_OUTPUT_DIR'] + "/bkg/"
 
     astro_params_vary = ['DM', 'F_STAR10', 'F_STAR7_MINI', 'ALPHA_STAR', 'ALPHA_STAR_MINI', 't_STAR',
                         'F_ESC10', 'F_ESC7_MINI', 'ALPHA_ESC', 'L_X', 'L_X_MINI', 'NU_X_THRESH', 'A_LW']
@@ -46,7 +42,7 @@ if __name__ == '__main__':
         params_EoS[param] = py21cmfish.Parameter(
             HII_DIM=128, BOX_LEN=256, param=param,
             output_dir = bkg_dir,
-            PS_err_dir = CONFIG['noise_dir'],
+            PS_err_dir = os.environ['DM21CM_DIR'] + '/../21cmSense_fid_EOS21/',
             new = False,
             dm_deriv_order = args.dm_deriv_order,
     )
@@ -56,7 +52,7 @@ if __name__ == '__main__':
     print('Copying fiducial lightcone...')
     run_name = args.run_name
     channel = run_name.rsplit('-', 1)[0]
-    inj_dir = CONFIG['lc_outputs_dir'] + "/" + run_name
+    inj_dir = os.environ['DM21CM_OUTPUT_DIR'] + f"/active/{run_name}"
     print(os.listdir(inj_dir))
 
     if args.log10m:
@@ -120,7 +116,8 @@ if __name__ == '__main__':
             params_EoS[param] = py21cmfish.Parameter(
                 HII_DIM=128, BOX_LEN=256, param=param,
                 output_dir=lc_dir,
-                PS_err_dir=CONFIG['noise_dir'], new=new,
+                PS_err_dir=os.environ['DM21CM_DIR'] + '/../21cmSense_fid_EOS21/',
+                new=new,
             )
 
         Fij_matrix_PS, Finv_PS = py21cmfish.make_fisher_matrix(
@@ -142,7 +139,7 @@ if __name__ == '__main__':
     if args.log10m:
         print('only one mass, not saving.')
     else:
-        save_fn = CONFIG['outputs_dir'] + f"/limits/{run_name}.txt"
+        save_fn = os.environ['DM21CM_DIR'] + f"/outputs/limits/{run_name}.txt"
         dir_path = os.path.dirname(save_fn)
         os.makedirs(dir_path, exist_ok=True)
         np.savetxt(save_fn, np.array([m_s, inj_s, sigma_s]).T, header='mass_s inj_s sigma_s')

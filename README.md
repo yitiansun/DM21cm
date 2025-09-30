@@ -1,7 +1,7 @@
-# DM21cm - Inhomogeneous Energy Injection in 21cm Cosmology
+# DM21cm v1.1.0 - Inhomogeneous Energy Injection in 21cm Cosmology
 
 [![arXiv](https://img.shields.io/badge/arXiv-2312.11608%20-green.svg)](https://arxiv.org/abs/2312.11608)
-[![arXiv](https://img.shields.io/badge/arXiv-2509.XXXXX%20-green.svg)](https://arxiv.org/abs/2509.XXXXX)
+[![arXiv](https://img.shields.io/badge/arXiv-2509.22772%20-green.svg)](https://arxiv.org/abs/2509.22772)
 
 <p align="center"><img src="resources/logo.gif" /></p>
 
@@ -18,9 +18,9 @@ return_dict = evolve(
     z_start = 45.,
     z_end = 5.,
     injection = DMPWaveAnnihilationInjection(
-        primary = 'tau',
+        primary = 'tau', # XX --> tau- tau+
         m_DM = 1e10, # [eV]
-        c_sigma = 1e-18, # [s]
+        c_sigma = 1e-18, # [cm^3/s] | <σv>_p = C_σ v^2 / c^2
     ),
     p21c_initial_conditions = p21c.initial_conditions(
         user_params = p21c.UserParams(
@@ -58,13 +58,13 @@ pip install .
 ```bash
 pip install dm21cm
 ```
-- Download the data files required to run `DarkHistory` [here](https://zenodo.org/records/13931543), and set the environment variable `DH_DATA_DIR` to the directory.
-- Download the data files required to run `DM21cm` [here](https://zenodo.org/records/10397814), and set the environment variable `DM21CM_DATA_DIR` to the directory.
-- `DM21cm` should be available to run! You can test it with the example code above.
+- Download the data files required to run `DarkHistory` [here](https://zenodo.org/records/13931543), and set the environment variable `DH_DATA_DIR` to the directory containing `binning.h5`.
+- Download the data files required to run `DM21cm` [here](https://zenodo.org/records/10397814), and set the environment variable `DM21CM_DATA_DIR` to the directory containing `abscissas.h5`.
+- `DM21cm` should be available to run! You can test it with the example code above, or notebooks in [examples](examples/).
 
-### 4. Additional data tables for $p$-wave DM and PBH
-- To run dark matter p-wave annihilation or primordial black hole Hawking radiation injection, download the additional data files [here](https://zenodo.org/records/17228967).
-- To run primordial black hole accretion injection, clone this repo and run [dm21cm/precompute/scripts/build_pbhacc_tables.py](dm21cm/precompute/scripts/build_pbhacc_tables.py) to build the data tables required to run. See also [this example](examples/3_custom_pbh_accretion.ipynb).
+### 4. Additional data tables for $p$-wave annihilating DM and PBH
+- To run with $p$-wave annihilating DM or PBH Hawking radiation injection, download the additional data files [here](https://zenodo.org/records/17228967).
+- To run PBH accretion injection, clone this repo and run [build_pbhacc_tables.py](src/dm21cm/precompute/scripts/build_pbhacc_tables.py) to build the required data tables. See also [this example](examples/3_custom_pbh_accretion.ipynb).
 
 
 # Defining your custom injection
@@ -145,6 +145,20 @@ Yitian Sun, Joshua W. Foster, Hongwan Liu, Julian B. Muñoz, and Tracy R. Slatye
 
 # Citation
 
+If you used `DM21cm` v1.1.0 in your work, please cite:
+```bibtex
+@article{sun2025constraining,
+    title = "{Constraining inhomogeneous energy injection from annihilating dark matter and primordial black holes with 21-cm cosmology}",
+    author = "Sun, Yitian and Foster, Joshua W. and Mu\~noz, Julian B.",
+    eprint = "2509.22772",
+    archivePrefix = "arXiv",
+    primaryClass = "hep-ph",
+    month = "9",
+    year = "2025"
+}
+```
+
+If you used `DM21cm` v1.0.0 in your work, please cite:
 ```bibtex
 @article{PhysRevD.111.043015,
     title = {Inhomogeneous energy injection in the 21-cm power spectrum: Sensitivity to dark matter decay},

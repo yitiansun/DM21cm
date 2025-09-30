@@ -10,7 +10,7 @@ import jax
 jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp
 import jax.scipy as jsp
-from functools import partial
+from functools import partial, cache
 
 from darkhistory import physics as dh_phys
 
@@ -159,13 +159,16 @@ def veff_HALO(z, M, rBeff):
     )
     return jnp.sqrt(jnp.where(rB < rh, v2case1, v2case2))
 
-_HALO_RBEFF_DATA = load_h5_dict(f"{os.environ['DM21CM_DIR']}/data/pbh-accretion/rBeff_mzv.h5")
-_HALO_RBEFF_INTERP = jsp.interpolate.RegularGridInterpolator(
-    (jnp.asarray(_HALO_RBEFF_DATA['mPBH']), # [M_sun],
-     jnp.asarray(_HALO_RBEFF_DATA['z']),
-     jnp.asarray(_HALO_RBEFF_DATA['veff']),), # [km/s]
-    jnp.asarray(_HALO_RBEFF_DATA['table']), # [km]
-)
+@cache
+def get_HALO_RBEFF_INTERP():
+    data = load_h5_dict(f"{os.environ['DM21CM_DATA_DIR']}/precompute/rBeff_mzv.h5")
+    rbeff_interp = jsp.interpolate.RegularGridInterpolator(
+        (jnp.asarray(data['mPBH']), # [M_sun],
+         jnp.asarray(data['z']),
+         jnp.asarray(data['veff']),), # [km/s]
+         jnp.asarray(data['table']), # [km]
+    )
+    return rbeff_interp
 
 def rBeff_HALO(z, M, veff):
     """Effective Bondi radius [km] as a function of v_eff from DM halo
@@ -175,13 +178,8 @@ def rBeff_HALO(z, M, veff):
         M (float): PBH mass [M_sun]
         veff (float): Effective accretion velocity [km/s]
     """
-    # mzv_in = jnp.stack([
-    #     jnp.full_like(veff, M),
-    #     jnp.full_like(veff, z),
-    #     veff,
-    # ], axis=-1)
-    # return _HALO_RBEFF_INTERP(mzv_in)
     mzv_in = jnp.array([M, z, veff])
+    _HALO_RBEFF_INTERP = get_HALO_RBEFF_INTERP()
     return jnp.squeeze(_HALO_RBEFF_INTERP(mzv_in))
 
 
@@ -302,36 +300,36 @@ KM_PER_PC = (1 * u.pc).to(u.km).value
 
 class PBHAccretionModel:
 
-    def __init__(self, accretion_type, c_in=23, lambda_fudge=1, v_rel_type='DMRest', delta_e=0.1):
-        """PBH accretion model
+    def __init__(self, model, c_in=23, lambda_fudge=1, v_rel_type='DMRest', delta_e=0.1):
+        """PBH accretion emission model.
         
         Args:
-            accretion_type (str): supports 'PR-ADAF', 'BHL-ADAF'
-            c_in (float): Sound speed inside the I-front [km/s]. Required for PR models.
+            model (str): supports 'PR-ADAF', 'BHL-ADAF', 'PRHALO-ADAF'.
+            c_in (float): Sound speed inside the I-front [km/s] in PR models. Required for PR models.
             lambda_fudge (float): Fudge factor in front of Mdot. Required for BHL models.
-            v_rel_type {'DMDM', 'DMRest'}: Velocity distribution function.
-                'DMDM' - DM-DM relative velocity distribution function (default).
-                'DMRest'  - DM-rest frame relative velocity distribution function.
-            delta_e (float): Electron heating fraction for ADAF models. Default is 0.1.
+            v_rel_type {'DMDM', 'DMRest'}: Velocity distribution option.
+                'DMDM'   - DM-DM relative velocity distribution function.
+                'DMRest' - DM-rest frame relative velocity distribution function (default).
+            delta_e (float): ADAF electron heating fraction. Default is 0.1.
         """
 
-        self.accretion_type = accretion_type
+        self.model = model
         self.c_in = c_in
         self.lambda_fudge = lambda_fudge
         self.v_rel_type = v_rel_type
         self.delta_e = delta_e
 
-        if self.accretion_type == 'PR-ADAF':
+        if self.model == 'PR-ADAF':
             self.Mdot_func = Mdot_PR
             self.L_func = L_ADAF
-        elif self.accretion_type == 'BHL-ADAF':
+        elif self.model == 'BHL-ADAF':
             self.Mdot_func = Mdot_BHL # without fudge factor
             self.L_func = L_ADAF
-        elif self.accretion_type == 'PRHALO-ADAF':
+        elif self.model == 'PRHALO-ADAF':
             self.Mdot_func = Mdot_PRHALO
             self.L_func = L_ADAF
         else:
-            raise NotImplementedError(self.accretion_type)
+            raise NotImplementedError(self.model)
         
         if self.v_rel_type == 'DMDM':
             self.v_rel_dist_unnorm = halo.dm_dm_v_rel_dist_unnorm
@@ -340,6 +338,7 @@ class PBHAccretionModel:
         else:
             raise NotImplementedError(self.v_rel_type)
         
+
         #===== vectorized and partially applied functions =====
         def Mdot_func_v(M_PBH, rho_inf, v, c_inf, z):
             return self.Mdot_func(M_PBH, rho_inf, v, self.c_in, c_inf, self.lambda_fudge, z)
@@ -435,7 +434,7 @@ class PBHAccretionModel:
         
     
     def L_cosmo_density(self, m_PBH, z, rho_dm, rho_b_inf, c_inf, v_cb):
-        """PBH accretion luminosity conformal density [M_sun/yr/cMpc^3]
+        """PBH accretion luminosity conformal density [M_sun/yr/cMpc^3] for unbound PBHs
         
         Args:
             z (float): Redshift
@@ -448,7 +447,7 @@ class PBHAccretionModel:
         return n_PBH * self.L_cosmo_single_PBH(m_PBH, z, rho_b_inf, c_inf, v_cb)
     
     def L_cosmo_density_vcbavg(self, m_PBH, z, rho_dm, rho_b_inf, c_inf):
-        """PBH accretion luminosity conformal density [M_sun/yr/cMpc^3] vcb averaged
+        """PBH accretion luminosity conformal density [M_sun/yr/cMpc^3]  for unbound PBHs (vcb averaged)
         
         Args:
             z (float): Redshift
@@ -471,7 +470,7 @@ class PBHAccretionModel:
     
     
     def L_halo(self, m_PBH, m_halo, c_halo, z):
-        """PBH accretion luminosity in a halo [M_sun/yr]
+        """Total PBH accretion luminosity in a halo [M_sun/yr]
         
         Args:
             m_PBH (float): Mass of the PBH [M_sun]

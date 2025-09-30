@@ -14,7 +14,6 @@ import jax.numpy as jnp
 from functools import partial
 from tqdm import tqdm
 
-from dm21cm.config import CONFIG
 from dm21cm.utils import save_h5_dict
 from dm21cm.precompute.ps import SigmaMInterpSphere, HMFEvaluator, SphereWindow
 

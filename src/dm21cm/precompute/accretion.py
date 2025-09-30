@@ -434,7 +434,7 @@ class PBHAccretionModel:
         
     
     def L_cosmo_density(self, m_PBH, z, rho_dm, rho_b_inf, c_inf, v_cb):
-        """PBH accretion luminosity conformal density [M_sun/yr/cMpc^3]
+        """PBH accretion luminosity conformal density [M_sun/yr/cMpc^3] for unbound PBHs
         
         Args:
             z (float): Redshift
@@ -447,7 +447,7 @@ class PBHAccretionModel:
         return n_PBH * self.L_cosmo_single_PBH(m_PBH, z, rho_b_inf, c_inf, v_cb)
     
     def L_cosmo_density_vcbavg(self, m_PBH, z, rho_dm, rho_b_inf, c_inf):
-        """PBH accretion luminosity conformal density [M_sun/yr/cMpc^3] vcb averaged
+        """PBH accretion luminosity conformal density [M_sun/yr/cMpc^3]  for unbound PBHs (vcb averaged)
         
         Args:
             z (float): Redshift
@@ -470,7 +470,7 @@ class PBHAccretionModel:
     
     
     def L_halo(self, m_PBH, m_halo, c_halo, z):
-        """PBH accretion luminosity in a halo [M_sun/yr]
+        """Total PBH accretion luminosity in a halo [M_sun/yr]
         
         Args:
             m_PBH (float): Mass of the PBH [M_sun]

@@ -15,7 +15,7 @@ from tqdm import tqdm
 import logging
 
 from dm21cm.utils import save_h5_dict, load_h5_dict
-from dm21cm.precompute.accretion import PBHAccretionModel
+from dm21cm.precompute.accretion import PBHAccretionModel, Mh_HALO
 from dm21cm.precompute.halo import cmz
 from dm21cm.precompute.ps import RHO_M
 
@@ -45,25 +45,25 @@ if __name__ == '__main__':
     mPBH = 10**args.log10mPBH # [Msun]
 
     model_kwargs_dict = {
-        'PRc23'   : dict(accretion_type='PR-ADAF'),
-        'PRc14'   : dict(accretion_type='PR-ADAF', c_in=14),
-        'PRc29'   : dict(accretion_type='PR-ADAF', c_in=29),
-        'PRc23B'  : dict(accretion_type='PR-ADAF', v_rel_type='DMDM'),
-        'PRc23H'  : dict(accretion_type='PRHALO-ADAF'),
-        'PRc23dm' : dict(accretion_type='PR-ADAF', delta_e=1e-2),
-        'PRc23dp' : dict(accretion_type='PR-ADAF', delta_e=0.5),
-        'BHLl2'   : dict(accretion_type='BHL-ADAF', lambda_fudge=1e-2),
-        'BHLl2mt' : dict(accretion_type='BHL-ADAF', lambda_fudge=1e-2), # only changes mass threshold
+        'PRc23'   : dict(model='PR-ADAF'),
+        'PRc14'   : dict(model='PR-ADAF', c_in=14),
+        'PRc29'   : dict(model='PR-ADAF', c_in=29),
+        'PRc23B'  : dict(model='PR-ADAF', v_rel_type='DMDM'),
+        'PRc23H'  : dict(model='PRHALO-ADAF'),
+        'PRc23dm' : dict(model='PR-ADAF', delta_e=1e-2),
+        'PRc23dp' : dict(model='PR-ADAF', delta_e=0.5),
+        'BHLl2'   : dict(model='BHL-ADAF', lambda_fudge=1e-2),
+        'BHLl2mt' : dict(model='BHL-ADAF', lambda_fudge=1e-2), # with m_low_thres
     }
     am = PBHAccretionModel(**model_kwargs_dict[args.model])
 
     # HMF threshold
     if args.model == 'BHLl2mt':
-        m_thres = lambda z: 100 * mPBH
+        m_low_thres = lambda z: 100 * mPBH
     elif args.model == 'PRc23H':
-        m_thres = lambda z: 30 * (1 + 3000 / (1 + z)) * mPBH # PBH and UCMH
+        m_low_thres = lambda z: 30 * (mPBH + Mh_HALO(z, mPBH))
     else:
-        m_thres = lambda z: 30 * mPBH
+        m_low_thres = lambda z: 30 * mPBH
 
     #===== File names =====
     run_name = args.model
@@ -106,7 +106,7 @@ if __name__ == '__main__':
     dndm = hmfdata['ps_cond'] # [1 / cMpc^3 Msun]
     for i_z, z in enumerate(z_s):
         for i_d, d in enumerate(d_s):
-            eff_dndm = dndm[i_z, i_d] * (m_s > m_thres(z))
+            eff_dndm = dndm[i_z, i_d] * (m_s > m_low_thres(z))
             cond_table[i_z,i_d] = np.trapz(L_table[i_z] * eff_dndm, m_s)
 
     # Unconditional PS: (z)
@@ -115,7 +115,7 @@ if __name__ == '__main__':
     for i_z, z in enumerate(zfull_s):
         if z > z_s[-1]:
             continue
-        eff_dndm = dndm[i_z] * (m_s > m_thres(z))
+        eff_dndm = dndm[i_z] * (m_s > m_low_thres(z))
         ps_table[i_z] = np.trapz(L_table[i_z] * eff_dndm, m_s)
 
     # Sheth-Tormen: (z)
@@ -124,7 +124,7 @@ if __name__ == '__main__':
     for i_z, z in enumerate(zfull_s):
         if z > z_s[-1]:
             continue
-        eff_dndm = dndm[i_z] * (m_s > m_thres(z))
+        eff_dndm = dndm[i_z] * (m_s > m_low_thres(z))
         st_table[i_z] = np.trapz(L_table[i_z] * eff_dndm, m_s)
     print("Done.")
 

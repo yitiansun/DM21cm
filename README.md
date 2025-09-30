@@ -1,7 +1,7 @@
 # DM21cm v1.1.0 - Inhomogeneous Energy Injection in 21cm Cosmology
 
 [![arXiv](https://img.shields.io/badge/arXiv-2312.11608%20-green.svg)](https://arxiv.org/abs/2312.11608)
-[![arXiv](https://img.shields.io/badge/arXiv-2509.XXXXX%20-green.svg)](https://arxiv.org/abs/2509.XXXXX)
+[![arXiv](https://img.shields.io/badge/arXiv-2509.22772%20-green.svg)](https://arxiv.org/abs/2509.22772)
 
 <p align="center"><img src="resources/logo.gif" /></p>
 
@@ -150,7 +150,7 @@ If you used `DM21cm` v1.1.0 in your work, please cite:
 @article{sun2025constraining,
     title = "{Constraining inhomogeneous energy injection from annihilating dark matter and primordial black holes with 21-cm cosmology}",
     author = "Sun, Yitian and Foster, Joshua W. and Mu\~noz, Julian B.",
-    eprint = "2509.XXXXX",
+    eprint = "2509.22772",
     archivePrefix = "arXiv",
     primaryClass = "hep-ph",
     month = "9",

@@ -20,7 +20,7 @@ return_dict = evolve(
     injection = DMPWaveAnnihilationInjection(
         primary = 'tau', # XX --> tau- tau+
         m_DM = 1e10, # [eV]
-        c_sigma = 1e-18, # [s]
+        c_sigma = 1e-18, # [cm^3/s] | <σv>_p = C_σ v^2 / c^2
     ),
     p21c_initial_conditions = p21c.initial_conditions(
         user_params = p21c.UserParams(

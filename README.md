@@ -1,4 +1,4 @@
-# DM21cm - Inhomogeneous Energy Injection in 21cm Cosmology
+# DM21cm v1.1.0 - Inhomogeneous Energy Injection in 21cm Cosmology
 
 [![arXiv](https://img.shields.io/badge/arXiv-2312.11608%20-green.svg)](https://arxiv.org/abs/2312.11608)
 [![arXiv](https://img.shields.io/badge/arXiv-2509.XXXXX%20-green.svg)](https://arxiv.org/abs/2509.XXXXX)
@@ -18,7 +18,7 @@ return_dict = evolve(
     z_start = 45.,
     z_end = 5.,
     injection = DMPWaveAnnihilationInjection(
-        primary = 'tau',
+        primary = 'tau', # XX --> tau- tau+
         m_DM = 1e10, # [eV]
         c_sigma = 1e-18, # [s]
     ),

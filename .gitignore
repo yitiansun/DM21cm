@@ -7,7 +7,7 @@
 **/plots/
 **/tmp/
 cross_check/
-data/
+data/production/
 debug/
 outputs/
 plotting/

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dm21cm"
-version = "1.1.0.20250929"
+version = "1.1.0.20251030"
 readme = "README.md"
 description = "DM21cm - Inhomogeneous Energy Injection in 21-cm Cosmology"
 requires-python = ">=3.10"

@@ -22,7 +22,51 @@ if __name__ == '__main__':
     parser.add_argument('--log10m', type=float, help='If provided, only process this mass.')
     parser.add_argument('--new', action='store_true')
     parser.add_argument('--dm_deriv_order', type=int, default=2, help='Order of finite derivative for DM parameter. Default 2.')
+    parser.add_argument('--noise', type=str, default='EOS21', choices=['EOS21', 'Park19'],
+                        help='21cmSense error set for the Fisher forecast. Default EOS21.')
     args = parser.parse_args()
+
+
+    #===== noise / error set =====
+    # Choose the 21cmSense error set that enters the Fisher forecast.
+    #   EOS21  : Errlist_SplitCore_HERA350 noise on the 23-bin EOS z-grid (default)
+    #   Park19 : TotalError_HERA331 noise from Park+19 on their 12-bin z-grid
+    # NB: Park19='real' makes py21cmfish re-chunk the lightcones onto the Park19
+    #     z-grid and read/write PS files with a '_Park19' suffix, so the model PS
+    #     must be (re)generated in that mode -- needs_new() below handles this.
+    if args.noise == 'Park19':
+        park19      = 'real'
+        PS_suffix   = '_Park19'
+        expected_nz = 12
+        # Park19='real' reads noise from PS_err_dir/../21cmSense_noise_Park19/ (load_21cmsense
+        # hard-codes that sibling and ignores PS_err_dir's own contents). Point straight at the
+        # Park19 noise folder, as in the 21cmfish tutorial -- the '../21cmSense_noise_Park19/' in
+        # the glob just resolves back to this same folder. It only exists in the repo tree.
+        PS_err_dir  = py21cmfish.base_path + 'examples/data/21cmSense_noise/21cmSense_noise_Park19/'
+    else:  # EOS21
+        park19      = None
+        PS_suffix   = ''
+        expected_nz = 23
+        PS_err_dir  = py21cmfish.base_path + 'examples/data/21cmSense_noise/21cmSense_fid_EOS21/'
+
+    # Generated Fisher products (PS/derivatives/global-signal .npy) are written into a
+    # per-mode subfolder alongside the lightcones, so EOS21 and Park19 stay separated and
+    # don't clutter the lightcone dir. Lightcones are still read from the parent dir.
+    # This also gives each mode its own power_spectrum_fid_21cmsense.npy (that file is not
+    # suffixed by py21cmfish), so switching modes never overwrites the other's fiducial.
+    fisher_subdir = f'fisher_{args.noise}/'
+
+    def needs_new(out_dir, param):
+        """Regenerate PS on this mode's z-grid when saved products are missing or
+        belong to the other mode. The fiducial PS file (power_spectrum_fid_21cmsense.npy)
+        is NOT suffixed, so switching modes leaves a stale-grid file -- detect via its z-length."""
+        if args.new:
+            return True
+        deriv_file = os.path.join(out_dir, f'power_spectrum_deriv_dict_{param}{PS_suffix}.npy')
+        fid_file   = os.path.join(out_dir, 'power_spectrum_fid_21cmsense.npy')
+        if not (os.path.exists(deriv_file) and os.path.exists(fid_file)):
+            return True
+        return np.load(fid_file, allow_pickle=True).shape[0] != expected_nz
 
 
     #===== bkg =====
@@ -37,13 +81,18 @@ if __name__ == '__main__':
     for i, ap in enumerate(astro_params_vary):
         astro_params_fid[ap] = default_param_values[i]
 
+    bkg_out = bkg_dir + fisher_subdir
+    os.makedirs(bkg_out, exist_ok=True)
+
     params_EoS = {}
     for param in astro_params_vary[1:]:
         params_EoS[param] = py21cmfish.Parameter(
             HII_DIM=128, BOX_LEN=256, param=param,
-            output_dir = bkg_dir,
-            PS_err_dir = os.environ['DM21CM_DIR'] + '/../21cmSense_fid_EOS21/',
-            new = False,
+            output_dir = bkg_out,
+            lightcone_dir = bkg_dir,
+            PS_err_dir = PS_err_dir,
+            Park19 = park19,
+            new = needs_new(bkg_out, param),
             dm_deriv_order = args.dm_deriv_order,
     )
 
@@ -110,14 +159,17 @@ if __name__ == '__main__':
     for m in tqdm(m_s):
 
         lc_dir = f'{inj_dir}/log10m{np.log10(m):.4f}/'
-        new = ('lc_redshifts.npy' not in os.listdir(lc_dir)) or args.new
-        
+        lc_out = lc_dir + fisher_subdir
+        os.makedirs(lc_out, exist_ok=True)
+
         for param in astro_params_vary[:1]:
             params_EoS[param] = py21cmfish.Parameter(
                 HII_DIM=128, BOX_LEN=256, param=param,
-                output_dir=lc_dir,
-                PS_err_dir=os.environ['DM21CM_DIR'] + '/../21cmSense_fid_EOS21/',
-                new=new,
+                output_dir=lc_out,
+                lightcone_dir=lc_dir,
+                PS_err_dir=PS_err_dir,
+                Park19=park19,
+                new=needs_new(lc_out, 'DM'),
             )
 
         Fij_matrix_PS, Finv_PS = py21cmfish.make_fisher_matrix(
@@ -139,7 +191,8 @@ if __name__ == '__main__':
     if args.log10m:
         print('only one mass, not saving.')
     else:
-        save_fn = os.environ['DM21CM_DIR'] + f"/outputs/limits/{run_name}.txt"
+        save_suffix = '' if args.noise == 'EOS21' else f'_{args.noise}'
+        save_fn = os.environ['DM21CM_DIR'] + f"/outputs/limits/{run_name}{save_suffix}.txt"
         dir_path = os.path.dirname(save_fn)
         os.makedirs(dir_path, exist_ok=True)
         np.savetxt(save_fn, np.array([m_s, inj_s, sigma_s]).T, header='mass_s inj_s sigma_s')

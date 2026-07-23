@@ -12,18 +12,18 @@ import py21cmfish
 from py21cmfish.power_spectra import *
 from py21cmfish.io import *
 
+sys.path.append("../")
 from scripts.step_size import StepSize250909
 
 
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('-r', '--run_name', type=str)
+    parser.add_argument('-r', '--run_name', type=str, required=True)
     parser.add_argument('--log10m', type=float, help='If provided, only process this mass.')
     parser.add_argument('--new', action='store_true')
     parser.add_argument('--dm_deriv_order', type=int, default=2, help='Order of finite derivative for DM parameter. Default 2.')
-    parser.add_argument('--noise', type=str, default='EOS21', choices=['EOS21', 'Park19'],
-                        help='21cmSense error set for the Fisher forecast. Default EOS21.')
+    parser.add_argument('--noise', type=str, required=True, choices=['EOS21', 'Park19'])
     args = parser.parse_args()
 
 
@@ -43,11 +43,13 @@ if __name__ == '__main__':
         # Park19 noise folder, as in the 21cmfish tutorial -- the '../21cmSense_noise_Park19/' in
         # the glob just resolves back to this same folder. It only exists in the repo tree.
         PS_err_dir  = py21cmfish.base_path + 'examples/data/21cmSense_noise/21cmSense_noise_Park19/'
-    else:  # EOS21
+    elif args.noise == 'EOS21':
         park19      = None
         PS_suffix   = ''
         expected_nz = 23
         PS_err_dir  = py21cmfish.base_path + 'examples/data/21cmSense_noise/21cmSense_fid_EOS21/'
+    else:
+        raise ValueError(f'Unknown noise set {args.noise}')
 
     # Generated Fisher products (PS/derivatives/global-signal .npy) are written into a
     # per-mode subfolder alongside the lightcones, so EOS21 and Park19 stay separated and
@@ -96,6 +98,10 @@ if __name__ == '__main__':
             dm_deriv_order = args.dm_deriv_order,
     )
 
+    if args.run_name == 'bkg':
+        print('Only background requested, exiting.')
+        sys.exit(0)
+
 
     #===== prep =====
     print('Copying fiducial lightcone...')
@@ -104,14 +110,26 @@ if __name__ == '__main__':
     inj_dir = os.environ['DM21CM_OUTPUT_DIR'] + f"/active/{run_name}"
     print(os.listdir(inj_dir))
 
+    # Map each log10m sub-run to its exact on-disk folder name. Runs differ in
+    # formatting (some use .3f, some .4f) but are self-consistent within a run, so we
+    # reuse whatever is actually there rather than reconstructing the name.
+    dir_by_log10m = {}
+    for d in os.listdir(inj_dir):
+        match = re.match(r'log10m([-\d\.]+)', d)
+        if match:
+            dir_by_log10m[float(match.group(1))] = d
+
+    def log10m_dirname(log10m_val):
+        """Exact folder name for this log10m value, matching the run's own precision."""
+        for val, name in dir_by_log10m.items():
+            if np.isclose(val, log10m_val):
+                return name
+        raise FileNotFoundError(f'No log10m directory for {log10m_val} in {inj_dir}')
+
     if args.log10m:
         log10m_s = np.array([args.log10m])
     else:
-        log10m_s = np.sort([
-            float(re.match(r'log10m([-\d\.]+)', d).group(1))
-            for d in os.listdir(inj_dir)
-            if re.match(r'log10m([-\d\.]+)', d)
-        ])
+        log10m_s = np.sort(list(dir_by_log10m.keys()))
     m_s = 10**log10m_s
     print('Processing log10m:', log10m_s)
 
@@ -144,9 +162,10 @@ if __name__ == '__main__':
 
     # Copy the fiducial lightcone in each mass directory
     print('Copied :', end=' ')
+    lc_filename = 'LightCone_z5.0_HIIDIM=128_BOXLEN=256_fisher_fid_r54321.h5'
+    source_file = f'{bkg_dir}/{lc_filename}'
     for m in m_s:
-        source_file = f'{bkg_dir}/LightCone_z5.0_HIIDIM=128_BOXLEN=256_fisher_fid_r54321.h5'
-        target_file = f'{inj_dir}/log10m{np.log10(m):.4f}/LightCone_z5.0_HIIDIM=128_BOXLEN=256_fisher_fid_r54321.h5'
+        target_file = f'{inj_dir}/{log10m_dirname(np.log10(m))}/{lc_filename}'
         if not os.path.isfile(target_file):
             print(f'{np.log10(m):.4f}', end=' ')
             shutil.copyfile(source_file, target_file)
@@ -158,7 +177,7 @@ if __name__ == '__main__':
     
     for m in tqdm(m_s):
 
-        lc_dir = f'{inj_dir}/log10m{np.log10(m):.4f}/'
+        lc_dir = f'{inj_dir}/{log10m_dirname(np.log10(m))}/'
         lc_out = lc_dir + fisher_subdir
         os.makedirs(lc_out, exist_ok=True)
 

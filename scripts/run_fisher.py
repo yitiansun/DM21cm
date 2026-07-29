@@ -12,8 +12,7 @@ import py21cmfish
 from py21cmfish.power_spectra import *
 from py21cmfish.io import *
 
-sys.path.append("../")
-from scripts.step_size import StepSize250909
+from step_size import StepSize250909 as StepSize
 
 
 if __name__ == '__main__':
@@ -135,7 +134,7 @@ if __name__ == '__main__':
 
     EPSILON = 1e-6
 
-    ss = StepSize250909()
+    ss = StepSize()
     if channel == 'decay-phot':
         tau_s = ss.decay_phot_lifetime(m_s)
         inj_s = 1/tau_s

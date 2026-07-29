@@ -222,7 +222,8 @@ else:
     lc_filename = f'LightCone_z5.0_HIIDIM={args.box_dim}_BOXLEN={box_len}_fisher_DM_{inj_multiplier}_r{args.seed}.h5'
 
     folder_name = f'log10m{np.log10(m_fn):.3f}'
-    save_dir = os.environ['DM21CM_OUTPUT_DIR'] + f'/{run_name}/{folder_name}/'
+
+    save_dir = os.environ['DM21CM_OUTPUT_DIR'] + f'/active/{run_name}/{folder_name}/'
     os.makedirs(save_dir, exist_ok=True)
 
 cache_dir = os.path.join(os.environ['P21C_CACHE_DIR'], run_fullname)

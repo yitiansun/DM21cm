@@ -92,6 +92,6 @@ if __name__ == '__main__':
         p21c_astro_params = p21c.AstroParams(L_X = 0.),
     )
 
-    lc_fn = CONFIG['DM21cm_dir'] + '/tests/data/test_evolve_ref_lightcone.h5'
+    lc_fn = os.environ['DM21CM_DIR'] + '/tests/data/test_evolve_ref_lightcone.h5'
     return_dict['lightcone']._write(fname=lc_fn, clobber=True)
     print(f'Generated {lc_fn}')

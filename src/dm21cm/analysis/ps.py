@@ -1,7 +1,14 @@
+"""Power-spectrum helpers.
+
+`compute_power` is from the 21cmFAST tutorial
+`docs/tutorials/mini-halos.ipynb`, which follows py21cmmc.
+`powerspectra` is a DM21cm wrapper that selects a redshift range from a
+lightcone and returns a single (k, Delta^2) pair.
+"""
+
 import numpy as np
 import powerbox as pbox
 
-BOX_LEN = 256 # [Mpc]
 
 def compute_power(
    box,
@@ -44,7 +51,8 @@ def compute_power(
     res[1] = k
     return res
 
-def powerspectra(brightness_temp, z_start, z_end, n_psbins=30, logk=True):
+def powerspectra(brightness_temp, z_start, z_end, box_len=256, n_psbins=30, logk=True):
+    """box_len is in conformal Mpc."""
     lightcone_redshifts = brightness_temp.lightcone_redshifts
     i_start = np.argmin(np.abs(lightcone_redshifts - z_start))
     i_end = np.argmin(np.abs(lightcone_redshifts - z_end))
@@ -53,7 +61,7 @@ def powerspectra(brightness_temp, z_start, z_end, n_psbins=30, logk=True):
 
     power, k = compute_power(
         brightness_temp.brightness_temp[:, :, i_start:i_end],
-        (BOX_LEN, BOX_LEN, chunklen),
+        (box_len, box_len, chunklen),
         n_psbins,
         log_bins=logk,
     )

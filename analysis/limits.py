@@ -2,14 +2,12 @@ import os
 import numpy as np
 from scipy import stats, interpolate
 
-from dm21cm.config import CONFIG
-
 
 def get_limits(channel):
     """Get limits for a given channel.
     Meaning of inj: decay: 1/tau. pwave: c_sigma. pbh: f
     """
-    data = np.loadtxt(CONFIG['outputs_dir'] + f"/limits/{channel}.txt", unpack=True)
+    data = np.loadtxt(os.environ['DM21CM_OUTPUT_DIR'] + f"/limits/{channel}.txt", unpack=True)
     if len(data.shape) == 1:
         data = data[:, np.newaxis]
     mass_s, inj_s, sigma_s = data

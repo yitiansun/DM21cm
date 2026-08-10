@@ -3,7 +3,7 @@
 [![arXiv](https://img.shields.io/badge/arXiv-2312.11608%20-green.svg)](https://arxiv.org/abs/2312.11608)
 [![arXiv](https://img.shields.io/badge/arXiv-2509.22772%20-green.svg)](https://arxiv.org/abs/2509.22772)
 
-<p align="center"><img src="resources/logo.gif" /></p>
+<p align="center"><img src="assets/logo.gif" /></p>
 
 # Usage
 
@@ -35,9 +35,9 @@ return_dict = evolve(
 # Installation
 
 ### 1. Create a virtual environment
-- We recommend creating a new environment for `DM21cm` and its dependencies. To do so via `conda`, run
+- We recommend creating a new environment for `DM21cm` and its dependencies. To do so via `mamba`, for example, run
 ```bash
-conda create -n dm21cm python=3.12 pip
+mamba create -n dm21cm python=3.12
 ```
 
 ### 2. Install the modified 21cmFAST

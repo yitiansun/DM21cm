@@ -1,20 +1,3 @@
-#===== This project =====
-**/.DS_Store
-**/__pycache__/
-**/submit.sh
-**/submit*.sh
-**/archive/
-cross_check/run_info/
-data/production/
-outputs/
-**/plots/
-plotting/**/tmp
-plotting/**/*.npy
-plotting/**/*.h5
-plotting/**/*.p
-**/tmp/
-#------------------------
-
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

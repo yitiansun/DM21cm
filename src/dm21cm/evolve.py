@@ -11,13 +11,8 @@ import numpy as np
 from jax import config
 config.update("jax_enable_x64", True)
 import jax.numpy as jnp
+from tqdm import tqdm
 
-# $P21C_CACHE_DIR often lives on a parallel filesystem (e.g. Lustre), where HDF5's
-# default flock-based locking blocks forever: the run wedges in state D inside
-# flock() while writing the very first InitialConditions box. This must be set
-# before the HDF5 library initializes, i.e. before py21cmfast/h5py are imported.
-# setdefault, so an explicit setting from the environment still wins.
-os.environ.setdefault('HDF5_USE_FILE_LOCKING', 'FALSE')
 
 import py21cmfast as p21c
 from py21cmfast import OutputCache, RunCache, RectilinearLightconer
@@ -44,10 +39,9 @@ def evolve(run_name,
            z_end=None,
            subcycle_factor=10,
            max_n_shell=None,
-           use_tqdm=True,
 
            injection=None,
-           p21c_initial_conditions=None,
+           p21c_inputs=None,
 
            use_DH_init=True,
            rerun_DH=False,
@@ -63,15 +57,14 @@ def evolve(run_name,
         z_end (float):                Ending redshift.
         subcycle_factor (int):        Number of DM21cm subcycles per 21cmFAST step.
         max_n_shell (int or None):    Max number total shells used in xray injection. If None, use all shells smaller than the box size.
-        use_tqdm (bool):              Whether to use tqdm progress bars.
 
         injection (Injection):        Injection object. If None, no injection is performed.
-        p21c_initial_conditions (p21c.InitialConditions):  Initial conditions for 21cmFAST. Its
-                                      ``.inputs`` supplies every 21cmFAST parameter for the run
-                                      (astro params and options included); only ``node_redshifts``
-                                      is overridden here, since everything else is part of the
-                                      initial conditions' compatibility hash. Build it with
-                                      ``Z_HEAT_MAX=z_start``.
+        p21c_inputs (p21c.InputParameters):  Box size, cosmology, astro parameters and options
+                                      for 21cmFAST. The initial conditions are computed from
+                                      these. The redshift ladder is set here from z_start,
+                                      z_end and subcycle_factor, so node_redshifts, Z_HEAT_MAX
+                                      and ZPRIME_STEP_FACTOR are overwritten and whatever they
+                                      hold on the way in is ignored.
 
         use_DH_init (bool):           Whether to use DarkHistory initial conditions.
         rerun_DH (bool):              Whether to rerun DarkHistory to get initial values.
@@ -102,33 +95,41 @@ def evolve(run_name,
     abscs = load_h5_dict(f"{data_dir}/abscissas.h5")
 
     #--- redshift ladders ---
-    # The coarse ladder is what 21cmFAST steps on, so it *is* node_redshifts. Note these
-    # exact float objects have to be reused when asking for boxes: 21cmFAST matches a
-    # `previous_*` box against its node redshift with `!=`, not a tolerance.
+    # z_edges is the fine ladder DM21cm integrates on; z_edges_coarse is every
+    # subcycle_factor-th node of it, and is where 21cmFAST is stepped.
     z_edges, z_edges_coarse = get_z_edges(z_start, z_end, abscs['zplusone_step_factor'], subcycle_factor)
 
     #--- 21cmFAST parameters ---
-    # Only node_redshifts is set here. Z_HEAT_MAX and ZPRIME_STEP_FACTOR live in
-    # simulation_options, which is part of the InitialConditions compatibility hash, so
-    # changing them would invalidate the initial conditions we were handed. They are the
-    # caller's to set; we only check that Z_HEAT_MAX makes the first node the initializer.
-    #
-    # node_redshifts itself is *not* in that hash, but it is in the hash of every evolved
-    # box, so it must be fixed once here and never re-cloned mid-run.
-    z_heat_max = p21c_initial_conditions.inputs.simulation_options.Z_HEAT_MAX
-    if not z_edges_coarse[1] < z_heat_max <= z_edges_coarse[0]:
-        raise ValueError(
-            f"Z_HEAT_MAX={z_heat_max} must lie in ({z_edges_coarse[1]}, {z_edges_coarse[0]}] so that "
-            f"exactly the first coarse node is 21cmFAST's initializer box. Setting "
-            f"Z_HEAT_MAX=z_start={z_start} when building the initial conditions always satisfies this."
-        )
+    # The ladder and the two stepping parameters have to agree, so we set all three
+    # together rather than trusting the caller to match them:
+    #   node_redshifts   the redshifts 21cmFAST steps through, i.e. our coarse ladder.
+    #   Z_HEAT_MAX       the ceiling above which 21cmFAST plants its own initial state
+    #                    instead of evolving, making the top node the initializer and
+    #                    every later node an evolved step. It must sit a little *below*
+    #                    the top node: 21cmFAST holds Z_HEAT_MAX as a double but narrows
+    #                    the redshift to float32 before comparing them, so a ceiling set
+    #                    exactly at the node loses the comparison to rounding, the node
+    #                    gets evolved rather than initialized, and the solver reads a
+    #                    previous box that was never allocated. The margin below is far
+    #                    under one coarse step and far over the float32 spacing (~4e-6
+    #                    at z~45).
+    #   ZPRIME_STEP_FACTOR  sets dz for the first ionization step, so it must be the
+    #                    coarse step ratio.
+    inputs = p21c_inputs.clone(
+        node_redshifts = tuple(z_edges_coarse),
+        simulation_options = p21c_inputs.simulation_options.clone(
+            Z_HEAT_MAX = z_edges_coarse[0] * (1 - 1e-6),
+            ZPRIME_STEP_FACTOR = abscs['zplusone_step_factor'] ** subcycle_factor,
+        ),
+    )
 
-    inputs = p21c_initial_conditions.inputs.clone(node_redshifts=tuple(z_edges_coarse))
-
-    # The caller may have built the initial conditions without writing them anywhere.
-    # Put them in the run cache so it is self-contained, which is what lets the lightcone
-    # be rebuilt from the cache afterwards.
-    cache.write(p21c_initial_conditions)
+    # Every box carries a hash of `inputs`, so this object must be built once here and
+    # used unchanged for the whole run -- including for the initial conditions, which is
+    # why they are computed here rather than passed in. Writing them into the run cache
+    # is what lets the lightcone be rebuilt from it afterwards.
+    p21c_initial_conditions = p21c.compute_initial_conditions(
+        inputs = inputs, cache = cache, write = True,
+    )
 
     box_dim = inputs.simulation_options.HII_DIM
     box_len = inputs.simulation_options.BOX_LEN
@@ -146,10 +147,9 @@ def evolve(run_name,
         xray_cache.clear_cache()
 
     #===== initial step =====
-    # The first box is the initializer: at z >= Z_HEAT_MAX 21cmFAST sets T_k and x_e
-    # straight from RECFAST with no dzp step, so any injection handed to it is ignored.
-    # DM21cm therefore hands over its own initial condition here, and starts injecting
-    # from the next node.
+    # The top node sits at Z_HEAT_MAX, where 21cmFAST plants T_k and x_e from RECFAST
+    # rather than evolving them. There is no time step to inject over, so we overwrite
+    # that state with our own initial condition and start injecting from the next node.
     z_match = z_edges_coarse[0]
 
     perturbed_field = p21c_step_perturb(z_match, p21c_initial_conditions, inputs, cache)
@@ -172,17 +172,10 @@ def evolve(run_name,
 
 
     #===== main loop =====
-    i_z_range = range(len(z_edges)-1) # -1 such that the z_next in the final step will be z_end
-    if use_tqdm:
-        from tqdm import tqdm
-        i_z_range = tqdm(i_z_range)
-
-    #--- trackers ---
     records = []
     profiler = Profiler()
 
-    #--- loop ---
-    for i_z in i_z_range:
+    for i_z in range(len(z_edges)-1): # -1 such that the z_next in the final step will be z_end
 
         profiler.start()
         i_z_coarse = i_z // subcycle_factor
@@ -412,14 +405,14 @@ LIGHTCONE_QUANTITIES = (
 def build_lightcone(inputs, cache, z_edges_coarse, quantities=LIGHTCONE_QUANTITIES):
     """Assemble a lightcone from the coarse-step boxes left in the run cache.
 
-    Done after the evolution rather than inside the loop, to keep the loop to the
-    physics. The boxes are read back from the cache and interpolated pairwise by
-    21cmFAST's own Lightconer, exactly as its internal lightcone driver does.
+    Runs after the evolution, so the main loop stays on the physics. Boxes are read back
+    from the cache a pair at a time and interpolated onto lightcone slices by 21cmFAST's
+    Lightconer.
 
-    We deliberately do *not* call ``p21c.run_lightcone``: 21cmFAST's cache key does not
-    include the injection, so a driver that found any box missing would recompute it
-    *without* injection and silently return a corrupted lightcone. Reading explicitly
-    and refusing on an incomplete cache cannot do that.
+    The cache is required to be complete up front, and the boxes are loaded rather than
+    recomputed, because the injection is not part of 21cmFAST's cache key: anything
+    recomputed here would come back *without* injection and quietly corrupt the lightcone.
+    That is also why ``p21c.run_lightcone`` is not used -- it would recompute silently.
 
     Args:
         inputs (p21c.InputParameters): The run's inputs; its node_redshifts are the ladder.
@@ -461,8 +454,8 @@ def build_lightcone(inputs, cache, z_edges_coarse, quantities=LIGHTCONE_QUANTITI
     for i_z in range(len(z_edges_coarse)):
         coeval = run_cache.get_coeval_at_z(index=i_z)
 
-        # Mirrors 21cmFAST's own lightcone driver: the two turnover masses are box
-        # attributes rather than grids, so they are not reachable via getattr(coeval, ...).
+        # The two turnover masses are scalar attributes of the ionized box rather than
+        # grids, so unlike every other global quantity they are not reachable by name.
         for quantity in lightcone.global_quantities:
             if quantity == 'log10_mturn_acg':
                 value = coeval.ionized_box.log10_Mturnover_ave
@@ -497,9 +490,10 @@ def p21c_step(perturbed_field, previous_perturbed_field, spin_temp, ionized_box,
               initial_conditions, inputs, cache, injection_boxes=(None, None, None)):
     """One 21cmFAST step, injecting the energy deposited since the previous step.
 
-    ``injection_boxes`` is ``(heating, ionization, jalpha)``; heating and ionization are
-    increments over this step (added by 21cmFAST alongside its own ``* dzp`` integration),
-    jalpha is a flux. Any of them may be None, meaning no injection in that channel.
+    ``injection_boxes`` is ``(heating, ionization, jalpha)``. Heating and ionization are
+    increments already integrated over this step, which 21cmFAST adds to T_k and x_e
+    alongside its own evolution terms; jalpha is a flux. Any of them may be None, meaning
+    no injection in that channel.
 
     Every box is written to the cache: the lightcone is assembled from it afterwards.
     """
@@ -528,7 +522,7 @@ def p21c_step(perturbed_field, previous_perturbed_field, spin_temp, ionized_box,
         write = True,
     )
 
-    brightness_temp = p21c.brightness_temperature( # takes no `inputs`: it reads them off the boxes
+    brightness_temp = p21c.brightness_temperature( # reads its parameters off the boxes
         ionized_box = ionized_box,
         perturbed_field = perturbed_field,
         spin_temp = spin_temp,

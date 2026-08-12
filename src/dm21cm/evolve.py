@@ -42,6 +42,7 @@ def evolve(run_name,
 
            injection=None,
            p21c_inputs=None,
+           p21c_initial_density=None,
 
            use_DH_init=True,
            rerun_DH=False,
@@ -65,6 +66,11 @@ def evolve(run_name,
                                       z_end and subcycle_factor, so node_redshifts, Z_HEAT_MAX
                                       and ZPRIME_STEP_FACTOR are overwritten and whatever they
                                       hold on the way in is ignored.
+        p21c_initial_density (array or None):  Hi-res linear density field, shape (DIM,)*3, to
+                                      build the initial conditions from instead of drawing a
+                                      new one from the seed. For validation runs that need two
+                                      codes on the identical realization; leave as None
+                                      otherwise.
 
         use_DH_init (bool):           Whether to use DarkHistory initial conditions.
         rerun_DH (bool):              Whether to rerun DarkHistory to get initial values.
@@ -128,7 +134,7 @@ def evolve(run_name,
     # why they are computed here rather than passed in. Writing them into the run cache
     # is what lets the lightcone be rebuilt from it afterwards.
     p21c_initial_conditions = p21c.compute_initial_conditions(
-        inputs = inputs, cache = cache, write = True,
+        inputs = inputs, initial_density = p21c_initial_density, cache = cache, write = True,
     )
 
     box_dim = inputs.simulation_options.HII_DIM

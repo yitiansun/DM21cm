@@ -10,6 +10,13 @@ from jax import config
 config.update("jax_enable_x64", True)
 import jax.numpy as jnp
 
+# $P21C_CACHE_DIR often lives on a parallel filesystem (e.g. Lustre), where HDF5's
+# default flock-based locking blocks forever: the run wedges in state D inside
+# flock() while writing the very first InitialConditions box. This must be set
+# before the HDF5 library initializes, i.e. before py21cmfast/h5py are imported.
+# setdefault, so an explicit setting from the environment still wins.
+os.environ.setdefault('HDF5_USE_FILE_LOCKING', 'FALSE')
+
 import py21cmfast as p21c
 from py21cmfast import cache_tools
 

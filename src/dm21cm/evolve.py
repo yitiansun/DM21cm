@@ -95,8 +95,7 @@ def evolve(run_name,
     #--- physics parameters ---
     abscs = load_h5_dict(f"{data_dir}/abscissas.h5")
 
-    EPSILON = 1e-6
-    p21c.global_params.Z_HEAT_MAX = z_start# + EPSILON
+    p21c.global_params.Z_HEAT_MAX = z_start
     p21c.global_params.ZPRIME_STEP_FACTOR = abscs['zplusone_step_factor'] ** subcycle_factor
 
     box_dim = p21c_initial_conditions.user_params.HII_DIM
@@ -120,11 +119,7 @@ def evolve(run_name,
     # - global_params.XION_at_Z_HEAT_MAX is not set correctly (it is likely set and evolved for a step).
     # - first step ignores any values added to spin_temp.Tk_box and spin_temp.x_e_box.
 
-    z_edges_coarse = get_z_edges(z_start, z_end, p21c.global_params.ZPRIME_STEP_FACTOR) # steps for 21cmFAST
-    z_edges = get_z_edges(z_edges_coarse[0]+EPSILON, z_end, abscs['zplusone_step_factor'])[1:] # steps for DM21cm, with the same first and last redshifts as z_edges_coarse
-
-    z_edges_coarse = np.around(z_edges_coarse, decimals = 10) # roundoff to avoid floating point issues, the same is done in 21cmFAST
-    z_edges = np.around(z_edges, decimals = 10)
+    z_edges, z_edges_coarse = get_z_edges(z_start, z_end, abscs['zplusone_step_factor'], subcycle_factor)
     scrollz = z_edges_coarse.copy() # used in lightcone construction
 
     # Construct the initial state, which will be above Z_HEAT_MAX
@@ -284,8 +279,6 @@ def evolve(run_name,
         #===== 21cmFAST step =====
         # check if z_next matches
         if (i_z_coarse + 1) * subcycle_factor == (i_z + 1):
-            assert np.isclose(z_next, z_edges_coarse[i_z_coarse+1]) # cross check redshifts match on cycle
-
             perturbed_field = p21c.perturb_field(redshift=z_edges_coarse[i_z_coarse+1], init_boxes=p21c_initial_conditions)
             input_heating, input_ionization, input_jalpha = init_input_boxes(z_next, p21c_initial_conditions)
             if injection:
@@ -347,11 +340,34 @@ def evolve(run_name,
 
 
 #===== utilities for evolve =====
-def get_z_edges(z_max, z_min, zplusone_step_factor):
+def get_z_edges(z_max, z_min, zplusone_step_factor, subcycle_factor):
+    """Fine (DM21cm) and coarse (21cmFAST) redshift ladders, both descending.
+
+    Both are geometric in (1+z) anchored exactly at ``z_min``; the fine ladder steps by
+    ``zplusone_step_factor`` and the coarse ladder is every ``subcycle_factor``-th fine
+    node, so the coarse nodes *are* fine nodes rather than merely coinciding with them
+    numerically. The number of fine steps is a multiple of ``subcycle_factor``, so both
+    ladders share their first and last entries; the first overshoots ``z_max`` by less
+    than one coarse step.
+
+    Rounded to 10 decimals, as 21cmFAST does when it builds its own ladder.
+
+    Args:
+        z_max (float):                  Ladders extend to at least this redshift.
+        z_min (float):                  Exact lowest redshift of both ladders.
+        zplusone_step_factor (float):   (1+z)/(1+z_next) for the fine ladder.
+        subcycle_factor (int):          Fine steps per coarse step.
+
+    Returns:
+        (array, array): the fine and coarse ladders, descending.
+    """
     z_s = [z_min]
-    while z_s[-1] < z_max:
+    while z_s[-1] < z_max or (len(z_s) - 1) % subcycle_factor != 0:
         z_s.append((z_s[-1] + 1.) * zplusone_step_factor - 1.)
-    return z_s[::-1]
+
+    z_edges = np.around(z_s[::-1], decimals=10)
+
+    return z_edges, z_edges[::subcycle_factor]
 
 
 def split_xray(phot_N, phot_eng):

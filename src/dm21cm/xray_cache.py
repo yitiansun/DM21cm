@@ -3,7 +3,6 @@
 import os
 import sys
 import h5py
-import pickle
 import numpy as np
 
 from jax.numpy import fft
@@ -38,10 +37,8 @@ class CachedState:
         self.spectrum.switch_spec_type('N')
         self.isinbath = False
 
-    def append_box(self, hf, box, overwrite=False):
+    def append_box(self, hf, box):
         """Fourier transform and append the box to the cache file."""
-        if overwrite and self.key in hf:
-            del hf[self.key]
         hf.create_dataset(self.key, data=fft.rfftn(box))
 
     def get_ftbox(self, hf):
@@ -62,35 +59,19 @@ class XrayCache:
         data_dir (str): Path to the cache directory.
         box_dim (int): Cell number on a side of the box.
         dx (float): The size of each cell [cMpc].
-        load_snapshot (bool): If True, load the snapshot at data_dir/xray_cache_snapshot.p.
 
     Attributes:
-        isresumed (bool): Whether the cache is resumed from a snapshot.
         states (list): List of CachedState objects.
-        saved_phot_bath_spec (array): The photon bath spectrum saved in the snapshot.
     """
 
-    def __init__(self, data_dir, box_dim=None, dx=None, load_snapshot=False):
+    def __init__(self, data_dir, box_dim=None, dx=None):
 
         self.data_dir = data_dir
         self.box_cache_path = os.path.join(data_dir, 'xray_box_cache.h5')
-        self.snapshot_path = os.path.join(data_dir, 'xray_cache_snapshot.p')
-        self.isresumed = False
 
         self.box_dim = box_dim
         self.dx = dx
-        if load_snapshot:
-            if os.path.exists(self.snapshot_path):
-                self.load_snapshot()
-                z_latest = self.states[-1].z_end if len(self.states) > 0 else jnp.nan
-                logger.warning(f'Resuming from snapshot at {self.snapshot_path} with latest redshift z={z_latest:.3f}.')
-                self.isresumed = True
-            else:
-                logger.warning(f'No snapshot found at {self.snapshot_path}, restarting run.')
-
-        if not self.isresumed:
-            self.states = []
-            self.saved_phot_bath_spec = None
+        self.states = []
 
         self.init_fft()
 
@@ -103,23 +84,13 @@ class XrayCache:
     def cache(self, z_start, z_end, spectrum, box):
         state = CachedState(f'z{z_start:.3f}_z{z_end:.3f}', z_start, z_end, spectrum)
         with h5py.File(self.box_cache_path, 'a') as hf:
-            state.append_box(hf, box, overwrite=self.isresumed) # only overwrite if resumed
+            state.append_box(hf, box)
         self.states.append(state)
 
     def clear_cache(self):
         self.states = []
         if os.path.exists(self.box_cache_path):
             os.remove(self.box_cache_path)
-        if os.path.exists(self.snapshot_path):
-            os.remove(self.snapshot_path)
-
-    def save_snapshot(self, phot_bath_spec=None):
-        """Save the current cache to a snapshot file with the photon bath spectrum."""
-        pickle.dump((self.states, phot_bath_spec), open(self.snapshot_path, 'wb'))
-
-    def load_snapshot(self):
-        """Load the snapshot file."""
-        self.states, self.saved_phot_bath_spec = pickle.load(open(self.snapshot_path, 'rb'))
 
     @property
     def i_shell_start(self):
@@ -180,9 +151,3 @@ class XrayCache:
         with h5py.File(self.box_cache_path, 'r') as hf:
             smoothed_box = self.smooth_box(state.get_ftbox(hf), r_start, r_end)
         return smoothed_box
-    
-    def is_latest_z(self, z):
-        """Check if the redshift is at the latest saved redshift (for resuming feature)."""
-        if len(self.states) == 0:
-            return True
-        return np.isclose(z, self.states[-1].z_end)

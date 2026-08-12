@@ -34,7 +34,6 @@ def evolve(run_name,
            z_end=None,
            subcycle_factor=10,
            max_n_shell=None,
-           resume=False,
            use_tqdm=True,
 
            injection=None,
@@ -55,7 +54,6 @@ def evolve(run_name,
         z_end (float):                Ending redshift.
         subcycle_factor (int):        Number of DM21cm subcycles per 21cmFAST step.
         max_n_shell (int or None):    Max number total shells used in xray injection. If None, use all shells smaller than the box size.
-        resume (bool):                Whether to attempt to resume from a previous run. Requires specifying the correct cache directory via run_name.
         use_tqdm (bool):              Whether to use tqdm progress bars.
 
         injection (Injection):        Injection object. If None, no injection is performed.
@@ -83,8 +81,7 @@ def evolve(run_name,
     p21c.config['direc'] = cache_dir
     logger.info(f"Cache dir: {cache_dir}")
     os.makedirs(cache_dir, exist_ok=True)
-    if not resume:
-        cache_tools.clear_cache()
+    cache_tools.clear_cache()
     gc.collect()
 
     #===== initialize =====
@@ -107,11 +104,8 @@ def evolve(run_name,
             enable_elec = injection.is_injecting_elec(),
             on_device = True,
         )
-        if resume:
-            xray_cache = XrayCache(data_dir=cache_dir, box_dim=box_dim, dx=box_len/box_dim, load_snapshot=True)
-        else:
-            xray_cache = XrayCache(data_dir=cache_dir, box_dim=box_dim, dx=box_len/box_dim)
-            xray_cache.clear_cache()
+        xray_cache = XrayCache(data_dir=cache_dir, box_dim=box_dim, dx=box_len/box_dim)
+        xray_cache.clear_cache()
 
     #===== initial steps =====
     # We synchronize DM21cm with 21cmFAST at the second step because 21cmFAST acts strangely in the first step:
@@ -149,9 +143,6 @@ def evolve(run_name,
         ionized_box.xH_box = 1 - spin_temp.x_e_box
     else:
         phot_bath_spec = Spectrum(abscs['photE'], np.zeros_like(abscs['photE']), spec_type='N', rs=1+z_match) # [ph / Bavg]
-    if injection:
-        if xray_cache.isresumed:
-            phot_bath_spec = xray_cache.saved_phot_bath_spec
 
 
     #===== main loop =====
@@ -190,8 +181,8 @@ def evolve(run_name,
             tfs.increase_dt(dt) # increase deposition dt each subcycle
         
         #===== photon injection and energy deposition =====
-        if injection and xray_cache.is_latest_z(z_current):
-            
+        if injection:
+
             #--- xray ---
             # First we dump to bath all cached states whose shell is larger than the box size.
             for state in xray_cache.states:
@@ -299,8 +290,6 @@ def evolve(run_name,
                 input_jalpha = input_jalpha,
                 astro_params = p21c_astro_params
             )
-            if injection:
-                xray_cache.save_snapshot(phot_bath_spec=phot_bath_spec) # only save snapshot once dep_box is cleared
 
             profiler.record('21cmFAST')
 

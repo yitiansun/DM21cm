@@ -6,6 +6,7 @@ import shutil
 import logging
 import gc
 
+import attrs
 import numpy as np
 from jax import config
 config.update("jax_enable_x64", True)
@@ -19,7 +20,8 @@ import jax.numpy as jnp
 os.environ.setdefault('HDF5_USE_FILE_LOCKING', 'FALSE')
 
 import py21cmfast as p21c
-from py21cmfast import OutputCache
+from py21cmfast import OutputCache, RunCache, RectilinearLightconer
+from py21cmfast.drivers.lightcone import setup_lightcone_instance
 
 from darkhistory.spec.spectrum import Spectrum
 
@@ -122,6 +124,11 @@ def evolve(run_name,
         )
 
     inputs = p21c_initial_conditions.inputs.clone(node_redshifts=tuple(z_edges_coarse))
+
+    # The caller may have built the initial conditions without writing them anywhere.
+    # Put them in the run cache so it is self-contained, which is what lets the lightcone
+    # be rebuilt from the cache afterwards.
+    cache.write(p21c_initial_conditions)
 
     box_dim = inputs.simulation_options.HII_DIM
     box_len = inputs.simulation_options.BOX_LEN
@@ -331,7 +338,8 @@ def evolve(run_name,
     #===== end of loop =====
 
     #===== construct lightcone =====
-    lightcone = None # TODO: rebuild on v4's Lightconer
+    lightcone = build_lightcone(inputs, cache, z_edges_coarse)
+    lightcone.save(f'{cache_dir}/lightcones.h5', clobber=True)
 
     profiler.record('lightcone')
 
@@ -393,6 +401,85 @@ def split_xray(phot_N, phot_eng):
     xray_N[ix_hi:] *= 0
 
     return bath_N, xray_N
+
+
+LIGHTCONE_QUANTITIES = (
+    'brightness_temp', 'spin_temperature', 'kinetic_temp_neutral',
+    'xray_ionised_fraction', 'neutral_fraction', 'density',
+)
+
+
+def build_lightcone(inputs, cache, z_edges_coarse, quantities=LIGHTCONE_QUANTITIES):
+    """Assemble a lightcone from the coarse-step boxes left in the run cache.
+
+    Done after the evolution rather than inside the loop, to keep the loop to the
+    physics. The boxes are read back from the cache and interpolated pairwise by
+    21cmFAST's own Lightconer, exactly as its internal lightcone driver does.
+
+    We deliberately do *not* call ``p21c.run_lightcone``: 21cmFAST's cache key does not
+    include the injection, so a driver that found any box missing would recompute it
+    *without* injection and silently return a corrupted lightcone. Reading explicitly
+    and refusing on an incomplete cache cannot do that.
+
+    Args:
+        inputs (p21c.InputParameters): The run's inputs; its node_redshifts are the ladder.
+        cache (p21c.OutputCache):      Cache holding the run's boxes.
+        z_edges_coarse (array):        The coarse (21cmFAST) ladder, descending.
+        quantities (tuple):            Box fields to build lightcones of.
+
+    Returns:
+        p21c.LightCone
+    """
+    run_cache = RunCache.from_inputs(inputs, cache)
+    if not run_cache.is_complete():
+        missing = [str(run_cache.InitialConditions)] if not run_cache.InitialConditions.exists() else []
+        for kind, paths in attrs.asdict(run_cache, recurse=False).items():
+            if isinstance(paths, dict):
+                missing += [f'{kind} at z={z}' for z, path in paths.items() if not path.exists()]
+        raise RuntimeError(
+            'The run cache is incomplete, refusing to build a lightcone: 21cmFAST would '
+            'have to recompute the missing boxes, and since the injection is not part of '
+            f'its cache key it would do so without injection. Missing: {missing}'
+        )
+
+    lightconer = RectilinearLightconer.between_redshifts(
+        min_redshift = z_edges_coarse[-1],
+        max_redshift = z_edges_coarse[0],
+        resolution = inputs.simulation_options.cell_size,
+        quantities = quantities,
+    )
+    lightcone = setup_lightcone_instance(
+        lightconer = lightconer,
+        scrollz = z_edges_coarse,
+        inputs = inputs,
+        include_dvdr_in_tau21 = False, # needs los_velocity; DM21cm does not ask for RSDs
+        apply_rsds = False,
+        photon_nonconservation_data = {},
+    )
+
+    previous_coeval = None
+    for i_z in range(len(z_edges_coarse)):
+        coeval = run_cache.get_coeval_at_z(index=i_z)
+
+        # Mirrors 21cmFAST's own lightcone driver: the two turnover masses are box
+        # attributes rather than grids, so they are not reachable via getattr(coeval, ...).
+        for quantity in lightcone.global_quantities:
+            if quantity == 'log10_mturn_acg':
+                value = coeval.ionized_box.log10_Mturnover_ave
+            elif quantity == 'log10_mturn_mcg':
+                value = coeval.ionized_box.log10_Mturnover_MINI_ave
+            else:
+                value = np.mean(getattr(coeval, quantity))
+            lightcone.global_quantities[quantity][i_z] = value
+
+        if previous_coeval is not None:
+            for quantity, idx, this_lc in lightconer.make_lightcone_slices(coeval, previous_coeval):
+                if this_lc is not None:
+                    lightcone.lightcones[quantity][..., idx] = this_lc
+
+        previous_coeval = coeval
+
+    return lightcone
 
 
 def p21c_step_perturb(z, initial_conditions, inputs, cache):

@@ -2,6 +2,7 @@
 
 import os
 import sys
+import shutil
 import logging
 import gc
 
@@ -18,7 +19,7 @@ import jax.numpy as jnp
 os.environ.setdefault('HDF5_USE_FILE_LOCKING', 'FALSE')
 
 import py21cmfast as p21c
-from py21cmfast import cache_tools
+from py21cmfast import OutputCache
 
 from darkhistory.spec.spectrum import Spectrum
 
@@ -45,7 +46,6 @@ def evolve(run_name,
 
            injection=None,
            p21c_initial_conditions=None,
-           p21c_astro_params=None,
 
            use_DH_init=True,
            rerun_DH=False,
@@ -64,9 +64,13 @@ def evolve(run_name,
         use_tqdm (bool):              Whether to use tqdm progress bars.
 
         injection (Injection):        Injection object. If None, no injection is performed.
-        p21c_initial_conditions (p21c.InitialConditions):  Initial conditions for 21cmFAST.
-        p21c_astro_params (p21c.AstroParams):              AstroParams for 21cmFAST.
-        
+        p21c_initial_conditions (p21c.InitialConditions):  Initial conditions for 21cmFAST. Its
+                                      ``.inputs`` supplies every 21cmFAST parameter for the run
+                                      (astro params and options included); only ``node_redshifts``
+                                      is overridden here, since everything else is part of the
+                                      initial conditions' compatibility hash. Build it with
+                                      ``Z_HEAT_MAX=z_start``.
+
         use_DH_init (bool):           Whether to use DarkHistory initial conditions.
         rerun_DH (bool):              Whether to rerun DarkHistory to get initial values.
         homogenize_injection (bool):  Whether to use homogeneous injection, where DM density is averaged over the box.
@@ -85,21 +89,42 @@ def evolve(run_name,
     #===== data and cache =====
     data_dir = os.environ['DM21CM_DATA_DIR']
     cache_dir = os.environ['P21C_CACHE_DIR'] + '/' + run_name
-    p21c.config['direc'] = cache_dir
     logger.info(f"Cache dir: {cache_dir}")
+    shutil.rmtree(cache_dir, ignore_errors=True) # start from a clean run cache
     os.makedirs(cache_dir, exist_ok=True)
-    cache_tools.clear_cache()
+    cache = OutputCache(cache_dir)
     gc.collect()
 
     #===== initialize =====
     #--- physics parameters ---
     abscs = load_h5_dict(f"{data_dir}/abscissas.h5")
 
-    p21c.global_params.Z_HEAT_MAX = z_start
-    p21c.global_params.ZPRIME_STEP_FACTOR = abscs['zplusone_step_factor'] ** subcycle_factor
+    #--- redshift ladders ---
+    # The coarse ladder is what 21cmFAST steps on, so it *is* node_redshifts. Note these
+    # exact float objects have to be reused when asking for boxes: 21cmFAST matches a
+    # `previous_*` box against its node redshift with `!=`, not a tolerance.
+    z_edges, z_edges_coarse = get_z_edges(z_start, z_end, abscs['zplusone_step_factor'], subcycle_factor)
 
-    box_dim = p21c_initial_conditions.user_params.HII_DIM
-    box_len = p21c_initial_conditions.user_params.BOX_LEN
+    #--- 21cmFAST parameters ---
+    # Only node_redshifts is set here. Z_HEAT_MAX and ZPRIME_STEP_FACTOR live in
+    # simulation_options, which is part of the InitialConditions compatibility hash, so
+    # changing them would invalidate the initial conditions we were handed. They are the
+    # caller's to set; we only check that Z_HEAT_MAX makes the first node the initializer.
+    #
+    # node_redshifts itself is *not* in that hash, but it is in the hash of every evolved
+    # box, so it must be fixed once here and never re-cloned mid-run.
+    z_heat_max = p21c_initial_conditions.inputs.simulation_options.Z_HEAT_MAX
+    if not z_edges_coarse[1] < z_heat_max <= z_edges_coarse[0]:
+        raise ValueError(
+            f"Z_HEAT_MAX={z_heat_max} must lie in ({z_edges_coarse[1]}, {z_edges_coarse[0]}] so that "
+            f"exactly the first coarse node is 21cmFAST's initializer box. Setting "
+            f"Z_HEAT_MAX=z_start={z_start} when building the initial conditions always satisfies this."
+        )
+
+    inputs = p21c_initial_conditions.inputs.clone(node_redshifts=tuple(z_edges_coarse))
+
+    box_dim = inputs.simulation_options.HII_DIM
+    box_len = inputs.simulation_options.BOX_LEN
 
     if injection:
 
@@ -113,36 +138,28 @@ def evolve(run_name,
         xray_cache = XrayCache(data_dir=cache_dir, box_dim=box_dim, dx=box_len/box_dim)
         xray_cache.clear_cache()
 
-    #===== initial steps =====
-    # We synchronize DM21cm with 21cmFAST at the second step because 21cmFAST acts strangely in the first step:
-    # - global_params.TK_at_Z_HEAT_MAX is not set correctly (it is likely set and evolved for a step).
-    # - global_params.XION_at_Z_HEAT_MAX is not set correctly (it is likely set and evolved for a step).
-    # - first step ignores any values added to spin_temp.Tk_box and spin_temp.x_e_box.
-
-    z_edges, z_edges_coarse = get_z_edges(z_start, z_end, abscs['zplusone_step_factor'], subcycle_factor)
-    scrollz = z_edges_coarse.copy() # used in lightcone construction
-
-    # Construct the initial state, which will be above Z_HEAT_MAX
-    perturbed_field = p21c.perturb_field(redshift=z_edges_coarse[0], init_boxes=p21c_initial_conditions, write=True)
-    spin_temp, ionized_box, brightness_temp = p21c_step(perturbed_field=perturbed_field, spin_temp=None, ionized_box=None, astro_params=p21c_astro_params)
-
-    # Step past Z_HEAT_MAX to the synchronization point. Remove the initial z_edges from the list as well.
-    z_edges_coarse = z_edges_coarse[1:]
-    z_edges = z_edges[subcycle_factor:]
+    #===== initial step =====
+    # The first box is the initializer: at z >= Z_HEAT_MAX 21cmFAST sets T_k and x_e
+    # straight from RECFAST with no dzp step, so any injection handed to it is ignored.
+    # DM21cm therefore hands over its own initial condition here, and starts injecting
+    # from the next node.
     z_match = z_edges_coarse[0]
 
-    perturbed_field = p21c.perturb_field(redshift=z_match, init_boxes=p21c_initial_conditions, write=True)
-    spin_temp, ionized_box, brightness_temp = p21c_step(perturbed_field=perturbed_field, spin_temp=spin_temp, ionized_box=ionized_box, astro_params=p21c_astro_params)
+    perturbed_field = p21c_step_perturb(z_match, p21c_initial_conditions, inputs, cache)
+    spin_temp, ionized_box, brightness_temp = p21c_step(
+        perturbed_field, None, None, None, p21c_initial_conditions, inputs, cache,
+    )
 
     if use_DH_init: # still can use DH to get initial conditions if no_injection is set
         dh_injection = ZeroInjection() if injection is None else injection
-        dh = DarkHistoryWrapper(dh_injection, prefix=p21c.config[f'direc'])
-        # dh.evolve(end_rs=(1+z_match)*0.9, rerun=rerun_DH)
+        dh = DarkHistoryWrapper(dh_injection, prefix=cache_dir)
         dh.evolve(end_rs=(1+z_match)*0.9, rerun=rerun_DH, start_rs=3000)
         T_k_DH_init, x_e_DH_init, phot_bath_spec = dh.get_init_cond(rs=1+z_match)
-        spin_temp.Tk_box += T_k_DH_init - np.mean(spin_temp.Tk_box)
-        spin_temp.x_e_box += x_e_DH_init - np.mean(spin_temp.x_e_box)
-        ionized_box.xH_box = 1 - spin_temp.x_e_box
+        T_k_box = np.asarray(spin_temp.get('kinetic_temp_neutral'))
+        x_e_box = np.asarray(spin_temp.get('xray_ionised_fraction'))
+        spin_temp.set('kinetic_temp_neutral', (T_k_box + T_k_DH_init - np.mean(T_k_box)).astype(np.float32))
+        spin_temp.set('xray_ionised_fraction', (x_e_box + x_e_DH_init - np.mean(x_e_box)).astype(np.float32))
+        ionized_box.set('neutral_fraction', (1 - np.asarray(spin_temp.get('xray_ionised_fraction'))).astype(np.float32))
     else:
         phot_bath_spec = Spectrum(abscs['photE'], np.zeros_like(abscs['photE']), spec_type='N', rs=1+z_match) # [ph / Bavg]
 
@@ -168,9 +185,9 @@ def evolve(run_name,
         z_next = z_edges[i_z+1]
         dt = phys.dt_step(z_current, abscs['zplusone_step_factor'])
 
-        delta_plus_one_box = 1 + np.asarray(perturbed_field.density)
-        x_e_box = np.asarray(1 - ionized_box.xH_box)
-        T_k_box = np.asarray(spin_temp.Tk_box)
+        delta_plus_one_box = 1 + np.asarray(perturbed_field.get('density'))
+        x_e_box = np.asarray(1 - ionized_box.get('neutral_fraction'))
+        T_k_box = np.asarray(spin_temp.get('kinetic_temp_neutral'))
         if injection:
             tfs.set_params(
                 rs = 1+z_current,
@@ -261,7 +278,7 @@ def evolve(run_name,
             phot_bath_spec.redshift(1+z_next)
 
             #--- xray ---
-            attenuation_arr = np.array(tfs.attenuation_arr(rs=1+z_current, x=1-np.mean(ionized_box.xH_box))) # convert from jax array
+            attenuation_arr = np.array(tfs.attenuation_arr(rs=1+z_current, x=1-np.mean(ionized_box.get('neutral_fraction')))) # convert from jax array
             xray_cache.advance_spectra(attenuation_arr, z_next)
 
             xray_spec = Spectrum(abscs['photE'], emit_xray_N, rs=1+z_current, spec_type='N') # [ph/Bavg]
@@ -279,16 +296,15 @@ def evolve(run_name,
         #===== 21cmFAST step =====
         # check if z_next matches
         if (i_z_coarse + 1) * subcycle_factor == (i_z + 1):
-            perturbed_field = p21c.perturb_field(redshift=z_edges_coarse[i_z_coarse+1], init_boxes=p21c_initial_conditions)
-            input_heating, input_ionization, input_jalpha = init_input_boxes(z_next, p21c_initial_conditions)
-            if injection:
-                tfs.populate_injection_boxes(input_heating, input_ionization, input_jalpha)
+            previous_perturbed_field = perturbed_field # 21cmFAST needs it below Z_HEAT_MAX
+            perturbed_field = p21c_step_perturb(
+                z_edges_coarse[i_z_coarse+1], p21c_initial_conditions, inputs, cache,
+            )
+            injection_boxes = tfs.get_injection_boxes() if injection else (None, None, None)
             spin_temp, ionized_box, brightness_temp = p21c_step(
-                perturbed_field, spin_temp, ionized_box,
-                input_heating = input_heating,
-                input_ionization = input_ionization,
-                input_jalpha = input_jalpha,
-                astro_params = p21c_astro_params
+                perturbed_field, previous_perturbed_field, spin_temp, ionized_box,
+                p21c_initial_conditions, inputs, cache,
+                injection_boxes = injection_boxes,
             )
 
             profiler.record('21cmFAST')
@@ -296,11 +312,11 @@ def evolve(run_name,
             #===== calculate and save some quantities =====
             records.append({
                 'z'   : z_next,
-                'T_s' : np.mean(spin_temp.Ts_box), # [K]
-                'T_b' : np.mean(brightness_temp.brightness_temp), # [mK]
-                'T_k' : np.mean(spin_temp.Tk_box), # [K]
-                'x_e' : np.mean(spin_temp.x_e_box), # [1]
-                '1-x_H' : np.mean(1 - ionized_box.xH_box), # [1]
+                'T_s' : np.mean(spin_temp.get('spin_temperature')), # [K]
+                'T_b' : np.mean(brightness_temp.get('brightness_temp')), # [mK]
+                'T_k' : np.mean(spin_temp.get('kinetic_temp_neutral')), # [K]
+                'x_e' : np.mean(spin_temp.get('xray_ionised_fraction')), # [1]
+                '1-x_H' : np.mean(1 - ionized_box.get('neutral_fraction')), # [1]
             })
             if injection:
                 records[-1].update({
@@ -313,16 +329,7 @@ def evolve(run_name,
     #===== end of loop =====
 
     #===== construct lightcone =====
-    lightcone = p21c.run_lightcone(
-        redshift = brightness_temp.redshift,
-        user_params = brightness_temp.user_params,
-        cosmo_params = brightness_temp.cosmo_params,
-        astro_params = brightness_temp.astro_params,
-        flag_options = brightness_temp.flag_options,
-        lightcone_quantities = ['brightness_temp','Ts_box', 'Tk_box', 'x_e_box', 'xH_box', 'density'],
-        scrollz = scrollz,
-    )
-    lightcone._write(fname=f'lightcones.h5', direc=cache_dir, clobber=True)
+    lightcone = None # TODO: rebuild on v4's Lightconer
 
     profiler.record('lightcone')
 
@@ -386,38 +393,58 @@ def split_xray(phot_N, phot_eng):
     return bath_N, xray_N
 
 
-def init_input_boxes(z_next, p21c_initial_conditions):
+def p21c_step_perturb(z, initial_conditions, inputs, cache):
+    """Perturbed field at ``z``, written to the run cache."""
+    return p21c.perturb_field(
+        redshift = z,
+        initial_conditions = initial_conditions,
+        inputs = inputs,
+        cache = cache,
+        write = True,
+    )
 
-    input_heating = p21c.input_heating(redshift=z_next, init_boxes=p21c_initial_conditions, write=False)
-    input_ionization = p21c.input_ionization(redshift=z_next, init_boxes=p21c_initial_conditions, write=False)
-    input_jalpha = p21c.input_jalpha(redshift=z_next, init_boxes=p21c_initial_conditions, write=False)
 
-    return input_heating, input_ionization, input_jalpha
+def p21c_step(perturbed_field, previous_perturbed_field, spin_temp, ionized_box,
+              initial_conditions, inputs, cache, injection_boxes=(None, None, None)):
+    """One 21cmFAST step, injecting the energy deposited since the previous step.
 
+    ``injection_boxes`` is ``(heating, ionization, jalpha)``; heating and ionization are
+    increments over this step (added by 21cmFAST alongside its own ``* dzp`` integration),
+    jalpha is a flux. Any of them may be None, meaning no injection in that channel.
 
-def p21c_step(perturbed_field, spin_temp, ionized_box,
-             input_heating=None, input_ionization=None, input_jalpha=None, astro_params=None):
+    Every box is written to the cache: the lightcone is assembled from it afterwards.
+    """
+    input_heating, input_ionization, input_jalpha = injection_boxes
 
-    spin_temp = p21c.spin_temperature(
+    spin_temp = p21c.compute_spin_temperature(
+        initial_conditions = initial_conditions,
         perturbed_field = perturbed_field,
         previous_spin_temp = spin_temp,
-        input_heating_box = input_heating,
-        input_ionization_box = input_ionization,
-        input_jalpha_box = input_jalpha,
-        astro_params = astro_params,
+        inputs = inputs,
+        input_heating = input_heating,
+        input_ionization = input_ionization,
+        input_jalpha = input_jalpha,
+        cache = cache,
+        write = True,
     )
 
-    ionized_box = p21c.ionize_box(
+    ionized_box = p21c.compute_ionization_field(
+        initial_conditions = initial_conditions,
         perturbed_field = perturbed_field,
-        previous_ionize_box = ionized_box,
+        previous_perturbed_field = previous_perturbed_field,
+        previous_ionized_box = ionized_box,
         spin_temp = spin_temp,
-        astro_params = astro_params,
+        inputs = inputs,
+        cache = cache,
+        write = True,
     )
 
-    brightness_temp = p21c.brightness_temperature(
+    brightness_temp = p21c.brightness_temperature( # takes no `inputs`: it reads them off the boxes
         ionized_box = ionized_box,
         perturbed_field = perturbed_field,
         spin_temp = spin_temp,
+        cache = cache,
+        write = True,
     )
 
     return spin_temp, ionized_box, brightness_temp

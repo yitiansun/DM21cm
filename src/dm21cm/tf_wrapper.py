@@ -145,42 +145,48 @@ class TransferFunctionWrapper:
         self.dep_dt += dt
 
 
-    def populate_injection_boxes(self, input_heating, input_ionization, input_jalpha):
-        """Populate input boxes for 21cmFAST and reset dep_box.
-        
-        Args:
-            input_heating (InputHeating): Heating input box.
-            input_ionization (InputIonization): Ionization input box.
-            input_jalpha (InputJAlpha): Lyman-alpha input box.
-            dt (float): Time in full cycle step [s].
+    def get_injection_boxes(self):
+        """Injection source terms for 21cmFAST, and reset dep_box.
+
+        The heating and ionization terms are increments already integrated over the
+        coarse step, to be added to T_k and x_e alongside 21cmFAST's own ``* dzp``
+        integration; the Lyman-alpha term is a flux. This matches how 21cmFAST applies
+        them, so the species-changing correction below (which 21cmFAST does not compute
+        for injected ionization) has to be added here by hand.
+
+        Returns:
+            (array, array, array): heating [K], ionization [1] and Lyman-alpha
+            [lya sr^-1 s^-1 pcm^-2 Hz^-1] boxes.
         """
-        
+
         dep_heat_box = self.dep_box[...,3]
         dep_ion_box = (self.dep_box[...,0]/phys.rydberg + self.dep_box[...,1]/phys.He_ion_eng)
         dep_lya_box = self.dep_box[...,2]
-        
-        delta_ionization_box = np.array(
+
+        input_ionization = np.array(
             dep_ion_box / self.params['nBs_box'] / phys.A_per_B
         ) # [1/Bavg] / [B/Bavg] / [A/B] = [1/A]
-        input_ionization.input_ionization += delta_ionization_box
 
-        input_heating.input_heating += np.array(
+        input_heating = np.array(
             2 / (3*phys.kB*(1+self.params['x_e_box'])) * dep_heat_box / self.params['nBs_box'] / phys.A_per_B # [K/Bavg] / [B/Bavg] / [A/B] = [K/A]
-            - self.params['T_k_box'] / (1+self.params['x_e_box']) * delta_ionization_box # species changing term [K] / [1] * [1/A] = [K/A]
+            - self.params['T_k_box'] / (1+self.params['x_e_box']) * input_ionization # species changing term [K] / [1] * [1/A] = [K/A]
         ) # here [K] just means [eV/kB], do not think of it as temperature
 
         nBavg = phys.n_B * self.params['rs']**3 # [Bavg / pcm^3]
         dNlya_dVdt = dep_lya_box * nBavg / self.dep_dt / phys.lya_eng # [lya pcm^-3 s^-1]
         nu_lya_Hz = (phys.lya_eng) / (2*np.pi*phys.hbar) # [Hz]
-        J_lya = dNlya_dVdt * phys.c / (4*np.pi * nu_lya_Hz * phys.hubble(self.params['rs'])) # [lya pcm^-3 s^-1 pcm/s] / [sr Hz s^-1] = [lya sr^-1 s^-1 pcm^-2 Hz^-1]
+        input_jalpha = np.array(
+            dNlya_dVdt * phys.c / (4*np.pi * nu_lya_Hz * phys.hubble(self.params['rs']))
+        ) # [lya pcm^-3 s^-1 pcm/s] / [sr Hz s^-1] = [lya sr^-1 s^-1 pcm^-2 Hz^-1]
         # hubble might be inconsistent with 1 / ((1+z) * dtdz)
-        input_jalpha.input_jalpha += np.array(J_lya)
 
-        assert not np.any(np.isnan(input_heating.input_heating)), 'input_heating has NaNs'
-        assert not np.any(np.isnan(input_ionization.input_ionization)), 'input_ionization has NaNs'
-        assert not np.any(np.isnan(input_jalpha.input_jalpha)), 'input_jalpha has NaNs'
+        assert not np.any(np.isnan(input_heating)), 'input_heating has NaNs'
+        assert not np.any(np.isnan(input_ionization)), 'input_ionization has NaNs'
+        assert not np.any(np.isnan(input_jalpha)), 'input_jalpha has NaNs'
 
         self.reset_dep()
+
+        return input_heating, input_ionization, input_jalpha
 
     @property
     def xray_eng_box(self):

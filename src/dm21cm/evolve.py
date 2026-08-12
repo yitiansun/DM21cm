@@ -300,6 +300,8 @@ def evolve(run_name,
             perturbed_field = p21c_step_perturb(
                 z_edges_coarse[i_z_coarse+1], p21c_initial_conditions, inputs, cache,
             )
+            # Snapshot the deposition means before get_injection_boxes() resets dep_box.
+            dep_box_means = tfs.dep_box_means if injection else None
             injection_boxes = tfs.get_injection_boxes() if injection else (None, None, None)
             spin_temp, ionized_box, brightness_temp = p21c_step(
                 perturbed_field, previous_perturbed_field, spin_temp, ionized_box,
@@ -322,9 +324,9 @@ def evolve(run_name,
                 records[-1].update({
                     'phot_N' : phot_bath_spec.N, # [ph/Bavg]
                     'inj_E_per_Bavg' : injection.inj_power(z_current) * dt / n_Bavg, # [eV/Bavg]
-                    'dep_ion'  : np.mean(tfs.dep_box[...,0] + tfs.dep_box[...,1]), # [eV/Bavg]
-                    'dep_exc'  : np.mean(tfs.dep_box[...,2]), # [eV/Bavg]
-                    'dep_heat' : np.mean(tfs.dep_box[...,3]), # [eV/Bavg]
+                    'dep_ion'  : dep_box_means[0] + dep_box_means[1], # [eV/Bavg]
+                    'dep_exc'  : dep_box_means[2], # [eV/Bavg]
+                    'dep_heat' : dep_box_means[3], # [eV/Bavg]
                 })
     #===== end of loop =====
 

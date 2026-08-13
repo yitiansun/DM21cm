@@ -181,7 +181,7 @@ def evolve(run_name,
     records = []
     profiler = Profiler()
 
-    for i_z in range(len(z_edges)-1): # -1 such that the z_next in the final step will be z_end
+    for i_z in tqdm(range(len(z_edges)-1)): # -1 such that the z_next in the final step will be z_end
 
         profiler.start()
         i_z_coarse = i_z // subcycle_factor

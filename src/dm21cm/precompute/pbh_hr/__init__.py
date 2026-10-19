@@ -1,0 +1,1 @@
+"""Precomputing functions for PBH Hawking radiation."""

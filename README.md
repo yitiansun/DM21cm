@@ -1,8 +1,4 @@
-# DM21cm v1 Archive.
-
-Development now happens in [DM21cm/DM21cm](https://github.com/DM21cm/DM21cm).
-
-This repo archives the full history of [yitiansun/DM21cm](https://github.com/yitiansun/DM21cm).
+# DM21cm v1.1.0 - Inhomogeneous Energy Injection in 21cm Cosmology
 
 [![arXiv](https://img.shields.io/badge/arXiv-2312.11608%20-green.svg)](https://arxiv.org/abs/2312.11608)
 [![arXiv](https://img.shields.io/badge/arXiv-2509.22772%20-green.svg)](https://arxiv.org/abs/2509.22772)
